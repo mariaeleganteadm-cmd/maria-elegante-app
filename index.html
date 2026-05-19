@@ -8,97 +8,111 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--t:#1DE9B6;--td:#00897B;--tdd:#004D40;--tl:#E0F2F1;--tb:#80CBC4;--bg:#f0f2f5;--card:#fff;--tx:#1a1a1a;--t2:#666;--t3:#aaa;--bd:#e8e8e8;--bd2:#ccc;--rd:#E24B4A;--rl:#FCEBEB;--rdd:#791F1F;--gn:#1D9E75;--gl:#E1F5EE;--gd:#085041;--wn:#BA7517;--wl:#FAEEDA}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;overflow-x:hidden}
 #splash{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;transition:opacity .4s}
-#splash img{height:80px;width:auto}
+#splash img{height:72px;width:auto;max-width:80vw}
 #splash p{color:#1DE9B6;font-size:14px;margin-top:16px;opacity:.8}
-.ls{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#000;padding:24px}
-.lb{width:100%;max-width:360px}
-.ll{text-align:center;margin-bottom:32px}
-.ll img{height:64px;width:auto}
+#pg-onboard{min-height:100vh;min-height:100dvh;background:#000;padding:24px 16px}
+#pg-onboard>div{width:100%;max-width:420px;margin:0 auto;padding-top:32px}
+.ls{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#000;padding:20px 16px}
+.lb{width:100%;max-width:400px}
+.ll{text-align:center;margin-bottom:28px}
+.ll img{height:56px;width:auto;max-width:70vw}
 .ll p{color:#1DE9B6;font-size:13px;margin-top:10px;opacity:.8;letter-spacing:1px}
-.st{display:flex;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;margin-bottom:20px;gap:3px}
-.sb{flex:1;padding:9px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,.5);transition:.15s}
+.st{display:flex;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;margin-bottom:18px;gap:3px}
+.sb{flex:1;padding:11px 8px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;color:rgba(255,255,255,.5);transition:.15s;min-height:44px}
 .sb.active{background:#00897B;color:#fff}
 .lf{margin-bottom:14px}
 .lf label{display:block;font-size:12px;color:rgba(255,255,255,.5);margin-bottom:6px;font-weight:500;letter-spacing:.5px;text-transform:uppercase}
-.lf input{width:100%;padding:13px 14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:15px;outline:none;transition:.15s}
+.lf input{width:100%;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:16px;outline:none;transition:.15s;-webkit-appearance:none;min-height:50px}
 .lf input:focus{border-color:#1DE9B6;background:rgba(29,233,182,.06)}
 .lf input::placeholder{color:rgba(255,255,255,.25)}
-.bl{width:100%;padding:14px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px}
-.le{background:rgba(226,75,74,.15);border:1px solid rgba(226,75,74,.3);color:#ff8a87;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
-.li{background:rgba(29,233,182,.08);border:1px solid rgba(29,233,182,.2);color:#1DE9B6;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;display:none}
-#app{display:none;flex-direction:column;min-height:100vh}
-.tb{background:#000;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-.tb img{height:30px;width:auto}
-.uc{font-size:12px;color:#1DE9B6;background:rgba(29,233,182,.1);padding:4px 10px;border-radius:999px;border:1px solid rgba(29,233,182,.2)}
-.lo{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:20px;padding:4px;display:flex}
-.ct{flex:1;padding:14px;padding-bottom:76px;max-width:680px;margin:0 auto;width:100%}
-.bn{position:fixed;bottom:0;left:0;right:0;background:#000;border-top:1px solid rgba(255,255,255,.08);display:flex;z-index:50}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 4px 7px;border:none;background:none;cursor:pointer;color:rgba(255,255,255,.35);font-size:10px;gap:3px}
-.nb i{font-size:21px}
+.bl{width:100%;padding:15px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:6px;min-height:50px;-webkit-appearance:none}
+.bl:active{background:#00695C}
+.le{background:rgba(226,75,74,.15);border:1px solid rgba(226,75,74,.3);color:#ff8a87;padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;display:none}
+.li{background:rgba(29,233,182,.08);border:1px solid rgba(29,233,182,.2);color:#1DE9B6;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
+#app{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
+.tb{background:#000;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;min-height:52px}
+.tb img{height:28px;width:auto;max-width:120px}
+.uc{font-size:11px;color:#1DE9B6;background:rgba(29,233,182,.1);padding:4px 8px;border-radius:999px;border:1px solid rgba(29,233,182,.2);white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.lo{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:22px;padding:6px;display:flex;min-width:44px;min-height:44px;align-items:center;justify-content:center}
+.ct{flex:1;padding:12px;padding-bottom:80px;width:100%;max-width:680px;margin:0 auto;-webkit-overflow-scrolling:touch}
+.bn{position:fixed;bottom:0;left:0;right:0;background:#000;border-top:1px solid rgba(255,255,255,.08);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px 6px;border:none;background:none;cursor:pointer;color:rgba(255,255,255,.35);font-size:9px;gap:2px;min-height:54px;min-width:0}
+.nb i{font-size:20px}
+.nb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .nb.active{color:#1DE9B6}
-.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.ct2{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
-.h1{font-size:17px;font-weight:700;margin-bottom:14px;margin-top:4px}
-.h2{font-size:13px;color:var(--t2);margin-bottom:14px;margin-top:-10px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.ct2{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:12px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+.h1{font-size:18px;font-weight:700;margin-bottom:12px;margin-top:4px}
+.h2{font-size:13px;color:var(--t2);margin-bottom:12px;margin-top:-8px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:360px){.g3{grid-template-columns:1fr 1fr}}
 .mx{background:var(--bg);border-radius:10px;padding:10px}
 .mx label{font-size:11px;color:var(--t2);display:block;margin-bottom:3px;font-weight:500}
-.mx .v{font-size:16px;font-weight:700;color:var(--tx)}
+.mx .v{font-size:15px;font-weight:700;color:var(--tx);word-break:break-word}
 .mx .s{font-size:10px;color:var(--t3);margin-top:2px}
 .bx{font-size:10px;padding:3px 8px;border-radius:999px;font-weight:600;white-space:nowrap;display:inline-block}
 .ok{background:var(--gl);color:var(--gd)}.wn{background:var(--wl);color:var(--wn)}.al{background:var(--rl);color:var(--rdd)}.ov{background:#EDE7F6;color:#4527A0}.no{background:var(--bg);color:var(--t2)}.tl{background:var(--tl);color:var(--tdd)}.ge{background:#FFF3E0;color:#E65100}
 .pb{height:7px;background:var(--bg);border-radius:999px;overflow:hidden;margin:7px 0}
 .pf{height:100%;border-radius:999px;transition:.4s}
 .av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
-.ri{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--bd)}
+.ri{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--bd)}
 .ri:last-child{border-bottom:none}
 .rn{font-size:14px;font-weight:600}
-.rs{font-size:11px;color:var(--t2);margin-top:2px}
-.fp{font-size:10px;padding:2px 8px;border-radius:999px;background:var(--tl);color:var(--tdd);border:1px solid var(--tb);font-weight:500}
+.rs{font-size:11px;color:var(--t2);margin-top:2px;word-break:break-word}
+.fp{font-size:10px;padding:2px 8px;border-radius:999px;background:var(--tl);color:var(--tdd);border:1px solid var(--tb);font-weight:500;white-space:nowrap}
 .fi{margin-bottom:14px}
-.fi label{display:block;font-size:12px;color:var(--t2);margin-bottom:5px;font-weight:600}
-.fi input,.fi select,.fi textarea{width:100%;padding:11px 13px;border:1.5px solid var(--bd);border-radius:10px;background:#fff;color:var(--tx);font-size:14px;font-family:inherit;outline:none;transition:.15s}
+.fi label{display:block;font-size:13px;color:var(--t2);margin-bottom:6px;font-weight:600}
+.fi input,.fi select,.fi textarea{width:100%;padding:13px;border:1.5px solid var(--bd);border-radius:10px;background:#fff;color:var(--tx);font-size:16px;font-family:inherit;outline:none;transition:.15s;-webkit-appearance:none;min-height:50px}
+.fi input[type=date]{min-height:50px}
 .fi input:focus,.fi select:focus,.fi textarea:focus{border-color:var(--td);box-shadow:0 0 0 3px rgba(0,137,123,.1)}
-.fi textarea{resize:vertical;min-height:80px}
-.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 18px;border-radius:10px;border:1.5px solid var(--bd);background:#fff;color:var(--tx);font-size:14px;cursor:pointer;font-weight:600}
+.fi textarea{resize:vertical;min-height:90px}
+.fi select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 18px;border-radius:10px;border:1.5px solid var(--bd);background:#fff;color:var(--tx);font-size:14px;cursor:pointer;font-weight:600;min-height:44px;-webkit-appearance:none}
 .bp{background:var(--td);border-color:var(--td);color:#fff}
-.bd2r{background:var(--rl);border-color:#F09595;color:var(--rdd);padding:7px 11px;font-size:12px}
-.bsm{padding:7px 13px;font-size:12px}
-.ae{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:12px;font-weight:500}
+.bp:active{background:var(--tdd)}
+.bd2r{background:var(--rl);border-color:#F09595;color:var(--rdd);padding:10px 12px;font-size:12px}
+.bsm{padding:10px 14px;font-size:13px}
+.ae{padding:12px 14px;border-radius:10px;font-size:14px;margin-bottom:12px;font-weight:500}
 .aer{background:var(--rl);color:var(--rdd);border:1px solid #F09595}
 .aok{background:var(--gl);color:var(--gd);border:1px solid #9FE1CB}
-.hn{font-size:12px;color:var(--t2);padding:9px 12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--tb);margin-bottom:12px}
-.fc{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.hn{font-size:12px;color:var(--t2);padding:10px 12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--tb);margin-bottom:12px}
+.fc{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
 .nr{display:flex;gap:6px;margin-top:10px}
-.nv{flex:1;text-align:center;background:var(--tl);border-radius:10px;padding:9px 6px}
-.nv .n{font-size:15px;font-weight:700;color:var(--tdd)}
+.nv{flex:1;text-align:center;background:var(--tl);border-radius:10px;padding:10px 4px}
+.nv .n{font-size:14px;font-weight:700;color:var(--tdd)}
 .nv .l{font-size:10px;color:var(--td);margin-top:2px;font-weight:500}
-.ci{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--bd)}
+.ci{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--bd)}
 .ci:last-child{border-bottom:none}
-.cb{width:24px;height:24px;border-radius:7px;border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.cb{width:26px;height:26px;border-radius:8px;border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;min-width:26px}
 .cb.dn{background:var(--td);border-color:var(--td);color:#fff}
-.cx{flex:1;font-size:14px}
+.cx{flex:1;font-size:15px}
 .cx.dn{text-decoration:line-through;color:var(--t3)}
-.dc{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.dc{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
 .di{width:46px;height:46px;border-radius:12px;background:var(--tl);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .di i{font-size:22px;color:var(--tdd)}
-.sp{border:2px dashed var(--tb);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:var(--tl);margin-top:12px}
-.cc{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.cb2{font-size:14px;line-height:1.6;color:var(--tx);margin:8px 0 12px}
-.fb{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.ms{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.sp{border:2px dashed var(--tb);border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;background:var(--tl);margin-top:12px}
+.sp:active{opacity:.7}
+.cc{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.cb2{font-size:15px;line-height:1.7;color:var(--tx);margin:8px 0 12px}
+.fb{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.ms{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .ms::-webkit-scrollbar{display:none}
-.mp{padding:7px 14px;border-radius:999px;border:1.5px solid var(--bd);background:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;color:var(--t2)}
+.mp{padding:8px 14px;border-radius:999px;border:1.5px solid var(--bd);background:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;color:var(--t2);min-height:36px}
 .mp.active{background:var(--td);border-color:var(--td);color:#fff}
-.ld{text-align:center;padding:40px;color:var(--t2)}
-.ld i{font-size:32px;color:var(--td);animation:spin 1s linear infinite;display:block;margin-bottom:10px}
+.ld{text-align:center;padding:48px 20px;color:var(--t2)}
+.ld i{font-size:36px;color:var(--td);animation:spin 1s linear infinite;display:block;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .sep{height:1px;background:var(--bd);margin:14px 0}
-.em{text-align:center;padding:36px;color:var(--t2)}
+.em{text-align:center;padding:36px 16px;color:var(--t2)}
 .em i{font-size:40px;display:block;margin-bottom:10px;color:var(--bd2)}
 .tg{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg);color:var(--t2);display:inline-block}
+svg{max-width:100%;overflow:visible}
+table{width:100%;font-size:13px;border-collapse:collapse}
+table td{padding:6px 4px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -667,8 +681,8 @@ function sair(){
 function buildNav(tipo){
   const ns={
     gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-equipe',i:'ti-users',l:'Equipe'},{id:'g-docs',i:'ti-file-text',l:'Docs'},{id:'g-comunic',i:'ti-speakerphone',l:'Avisos'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'}],
-    gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}],
-    vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}]
+    gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}],
+    vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}]
   };
   document.getElementById('bn').innerHTML=(ns[tipo]||ns.vendedora).map(x=>'<button class="nb" id="n-'+x.id+'" onclick="navTo(\''+x.id+'\')"><i class="ti '+x.i+'"></i><span>'+x.l+'</span></button>').join('');
 }
@@ -677,7 +691,7 @@ function navTo(id){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   const b=document.getElementById('n-'+id);if(b)b.classList.add('active');
   document.getElementById('ct').innerHTML='<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>';
-  const fn={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,r_painel:gGerente,f_metas:fMetas,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic}[id.replace(/-/g,'_')];
+  const fn={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic}[id.replace(/-/g,'_')];
   if(fn)fn();
 }
 
@@ -957,25 +971,402 @@ async function gComunic(){
 
 // ── GESTORA: RELATÓRIO ──
 async function gMais(){
-  const [fils,funcs,vendas,cks,metas]=await Promise.all([
+  const [fils,funcs,vendas,metas]=await Promise.all([
     gt('filiais','?select=*'+eid()),
     gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*'),
     gt('vendas','?select=func_id,valor,data_venda'+eid()),
-    gt('checklist','?ativo=eq.true&select=*'+eid()),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
   ]);
-  const tot={};vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS}).forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
+
+  const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
+  const tot={};vendasMes.forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
   const mm={};metas.forEach(m=>mm[m.func_id]=parseFloat(m.valor));
-  let h='<div class="h1">Relatório por filial</div>'+mSel('gMais()');
-  fils.forEach(fl=>{
-    const fs=funcs.filter(f=>f.filial_id===fl.id&&(f.perfil==='vendedora'||f.perfil==='gerente'));if(!fs.length)return;
-    const fV=fs.reduce((s,f)=>s+(tot[f.id]||0),0),fM=fs.reduce((s,f)=>s+(mm[f.id]||0),0),fC=fs.reduce((s,f)=>s+cC(mm[f.id]||0,tot[f.id]||0),0),pG=fM>0?fV/fM*100:0;
-    h+='<div class="fb"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><span style="font-weight:700;font-size:15px"><i class="ti ti-building-store"></i> '+fl.nome+'</span><span class="bx '+bI(pG).c+'">'+pp(pG)+'</span></div><div class="g3"><div class="mx"><label>Vendido</label><div class="v" style="font-size:14px">'+fi(fV)+'</div></div><div class="mx"><label>Meta (soma)</label><div class="v" style="font-size:14px">'+fi(fM)+'</div></div><div class="mx"><label>Comissão est.</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(fC)+'</div></div></div><div class="pb"><div class="pf" style="width:'+Math.min(pG,100)+'%;background:'+pC(pG)+'"></div></div></div>';
+  const vends=funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente');
+  const tV=vends.reduce((s,f)=>s+(tot[f.id]||0),0);
+  const tM=vends.reduce((s,f)=>s+(mm[f.id]||0),0);
+  const dr=dR(mS,aS),dp=dP(mS,aS);
+  const mediaDia=dp>0?tV/dp:0;
+  const projecao=mediaDia*22;
+  const diasUteisTotais=22;
+
+  // Vendas por dia do mês
+  const porDia={};
+  vendasMes.forEach(v=>{
+    const d=v.data_venda.split('/')[0];
+    porDia[d]=(porDia[d]||0)+parseFloat(v.valor);
   });
-  h+='<div class="h1" style="margin-top:4px">Checklist</div><div class="card">'+cks.map(ck=>'<div class="ri"><div style="flex:1;font-size:14px">'+ck.texto+'</div><button class="btn bd2r" onclick="rmCk('+ck.id+')"><i class="ti ti-trash"></i></button></div>').join('')+'<div class="sep"></div><div class="fi"><label>Novo item</label><input id="nck" placeholder="Ex: Limpar vitrines"></div><button class="btn bp bsm" onclick="addCk()"><i class="ti ti-plus"></i> Adicionar</button></div>';
+
+  // Vendas por dia da semana
+  const porSemana={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+  const contSemana={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+  vendasMes.forEach(v=>{
+    const [dd,mm2,aa]=v.data_venda.split('/');
+    const ds=new Date(+aa,+mm2-1,+dd).getDay();
+    porSemana[ds]+=parseFloat(v.valor);
+    contSemana[ds]++;
+  });
+
+  // Acumulado diário
+  const diasDoMes=[];
+  const hoje=new Date(2026,4,12);
+  const init=new Date(aS,mS-1,1);
+  const fim2=new Date(aS,mS,0);
+  let acum=0;
+  const acumDias=[];
+  for(let d=new Date(init);d<=fim2;d.setDate(d.getDate()+1)){
+    if(d.getDay()===0||d.getDay()===6)continue;
+    const dd=String(d.getDate()).padStart(2,'0');
+    diasDoMes.push(dd);
+    acum+=(porDia[dd]||0);
+    acumDias.push(d<=hoje?acum:null);
+  }
+
+  const nDias=diasDoMes.length;
+  const maxDia=Math.max(...Object.values(porDia).concat([1]));
+  const maxSem=Math.max(...Object.values(porSemana).concat([1]));
+  const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const CORES_F=['#00897B','#534AB7','#BA7517','#D85A30','#185FA5','#639922','#00838F','#C62828'];
+
+  // Ranking vendedoras
+  const rankVends=[...vends].sort((a,b)=>(tot[b.id]||0)-(tot[a.id]||0));
+  const maxVend=tot[rankVends[0]?.id]||1;
+
+  let h=`<div class="h1">Relatório</div>${mSel('gMais()')}`;
+
+  // ── CARD RESUMO GERAL ──
+  const pGeral=tM>0?tV/tM*100:0;
+  const ritmoOk=projecao>=tM;
+  h+=`<div class="card" style="border-top:3px solid var(--td)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:13px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Visão Geral — ${nM(mS,aS)}</div>
+        <div style="font-size:28px;font-weight:800;color:${pC(pGeral)}">${pp(pGeral)} <span style="font-size:14px;font-weight:400;color:var(--t2)">da meta</span></div>
+      </div>
+      <div style="text-align:center;background:${ritmoOk?'var(--tl)':'#FFEBEE'};border-radius:12px;padding:10px 14px">
+        <div style="font-size:20px">${ritmoOk?'🚀':'⚠️'}</div>
+        <div style="font-size:11px;font-weight:600;color:${ritmoOk?'var(--tdd)':'#C62828'};margin-top:2px">${ritmoOk?'No ritmo!':'Atenção'}</div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="mx"><label>Total vendido</label><div class="v">${fi(tV)}</div></div>
+      <div class="mx"><label>Meta total</label><div class="v">${fi(tM)}</div></div>
+      <div class="mx"><label>Projeção final</label><div class="v" style="color:${ritmoOk?'var(--td)':'#E24B4A'}">${fi(projecao)}</div><div class="s">${fi(mediaDia)}/dia</div></div>
+    </div>
+    <div class="pb" style="height:10px;margin-top:12px"><div class="pf" style="width:${Math.min(pGeral,100)}%;background:${pC(pGeral)}"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:4px">
+      <span>0%</span><span style="color:${pC(pGeral)};font-weight:600">${pp(pGeral)}</span><span>100%</span>
+    </div>
+  </div>`;
+
+  // ── RITMO ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-trending-up"></i>Ritmo atual vs necessário</div>
+    <div class="g3">
+      <div class="mx"><label>Vendendo/dia</label><div class="v" style="font-size:14px">${fi(mediaDia)}</div></div>
+      <div class="mx"><label>Precisa/dia</label><div class="v" style="font-size:14px;color:${mediaDia>=(tM-tV)/Math.max(dr,1)?'var(--td)':'#E24B4A'}">${fi(dr>0?(tM-tV)/dr:0)}</div></div>
+      <div class="mx"><label>Dias restantes</label><div class="v" style="font-size:14px">${dr}</div><div class="s">dias úteis</div></div>
+    </div>
+  </div>`;
+
+  // ── EVOLUÇÃO DIÁRIA (linha) ──
+  const svgW=340,svgH=100,padL=8,padR=8,padT=8,padB=20;
+  const chartW=svgW-padL-padR,chartH=svgH-padT-padB;
+  const maxAcum=Math.max(tM,...acumDias.filter(x=>x!==null),1);
+  // linha de meta
+  const metaY=padT+chartH-(tM/maxAcum)*chartH;
+  // pontos da linha de vendas
+  const pts=acumDias.map((v,i)=>{
+    if(v===null)return null;
+    const x=padL+(i/(nDias-1||1))*chartW;
+    const y=padT+chartH-(v/maxAcum)*chartH;
+    return{x,y,v,d:diasDoMes[i]};
+  }).filter(Boolean);
+  const linePath=pts.map((p,i)=>(i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(' ');
+  const areaPath=pts.length?`${linePath} L${pts[pts.length-1].x},${padT+chartH} L${pts[0].x},${padT+chartH} Z`:'';
+
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-chart-line"></i>Evolução diária acumulada</div>
+    <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;overflow:visible">
+      <!-- área -->
+      <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00897B" stop-opacity=".25"/><stop offset="100%" stop-color="#00897B" stop-opacity="0"/></linearGradient></defs>
+      ${areaPath?`<path d="${areaPath}" fill="url(#gr)"/>`:''}
+      <!-- linha meta -->
+      <line x1="${padL}" y1="${metaY}" x2="${padL+chartW}" y2="${metaY}" stroke="#E24B4A" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="${padL+chartW-2}" y="${metaY-3}" fill="#E24B4A" font-size="8" text-anchor="end">Meta ${fi(tM)}</text>
+      <!-- linha vendas -->
+      ${linePath?`<path d="${linePath}" fill="none" stroke="#00897B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:''}
+      <!-- pontos -->
+      ${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="#00897B"/>`).join('')}
+      <!-- eixo X: primeiro e último dia -->
+      ${diasDoMes.length>0?`<text x="${padL}" y="${svgH-4}" fill="#aaa" font-size="8">${diasDoMes[0]}/${mS<10?'0'+mS:mS}</text><text x="${padL+chartW}" y="${svgH-4}" fill="#aaa" font-size="8" text-anchor="end">${diasDoMes[diasDoMes.length-1]}/${mS<10?'0'+mS:mS}</text>`:''}
+    </svg>
+  </div>`;
+
+  // ── RANKING VENDEDORAS ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-trophy"></i>Ranking de vendedoras</div>
+    ${rankVends.map((f,i)=>{
+      const v=tot[f.id]||0,meta=mm[f.id]||0,pct=tV>0?v/tV*100:0;
+      const barW=maxVend>0?v/maxVend*100:0;
+      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+      return`<div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:16px;width:24px">${medal||'#'+(i+1)}</span>
+          <span style="font-weight:600;font-size:13px;flex:1">${f.nome}</span>
+          <span style="font-size:13px;font-weight:700">${fi(v)}</span>
+          <span style="font-size:11px;color:var(--t2);width:36px;text-align:right">${pp(pct)}</span>
+        </div>
+        <div style="height:8px;background:var(--bg);border-radius:999px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:${CORES_F[i%CORES_F.length]};border-radius:999px;transition:.4s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">Meta: ${fi(meta)} · Comissão: ${fm(cC(meta,v))}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // ── PARTICIPAÇÃO POR FILIAL (barras horizontais) ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-building-store"></i>Participação por filial</div>
+    ${fils.map((fl,i)=>{
+      const fs=vends.filter(f=>f.filial_id===fl.id);
+      const fV=fs.reduce((s,f)=>s+(tot[f.id]||0),0);
+      const fM=fs.reduce((s,f)=>s+(mm[f.id]||0),0);
+      const pct=tV>0?fV/tV*100:0;
+      const pMeta=fM>0?fV/fM*100:0;
+      return`<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-weight:600;font-size:13px">${fl.nome}</span>
+          <span style="font-size:12px"><strong>${fi(fV)}</strong> <span style="color:var(--t2)">(${pp(pct)} do total)</span></span>
+        </div>
+        <div style="height:10px;background:var(--bg);border-radius:999px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(pMeta,100)}%;background:${CORES_F[i%CORES_F.length]};border-radius:999px"></div>
+        </div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">${pp(pMeta)} da meta · ${fs.length} func.</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // ── MELHOR DIA DA SEMANA ──
+  const maxSemVal=Math.max(...[1,2,3,4,5].map(d=>porSemana[d]||0),1);
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-calendar-week"></i>Vendas por dia da semana</div>
+    <div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">
+      ${[1,2,3,4,5].map(d=>{
+        const v=porSemana[d]||0;
+        const h2=maxSemVal>0?Math.max((v/maxSemVal)*70,2):2;
+        const melhor=v===maxSemVal&&v>0;
+        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-size:9px;color:var(--t2);font-weight:600">${fi(v).replace('R$','')}</div>
+          <div style="width:100%;height:${h2}px;background:${melhor?'var(--td)':'var(--tl)'};border-radius:4px 4px 0 0;transition:.4s"></div>
+          <div style="font-size:10px;font-weight:${melhor?'700':'400'};color:${melhor?'var(--td)':'var(--t2)'}">${DIAS_SEM[d]}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--t2);text-align:center">
+      Melhor dia: <strong style="color:var(--td)">${DIAS_SEM[[1,2,3,4,5].reduce((best,d)=>porSemana[d]>porSemana[best]?d:best,1)]}</strong>
+    </div>
+  </div>`;
+
+  // ── QUANTO FALTA POR FUNCIONÁRIA ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-target"></i>Quanto falta para cada uma</div>
+    ${rankVends.map(f=>{
+      const v=tot[f.id]||0,meta=mm[f.id]||0,falta=Math.max(meta-v,0);
+      const p=meta>0?v/meta*100:0;
+      const nd=dr>0?falta/dr:0;
+      return`<div class="ri">
+        <div style="width:36px;height:36px;border-radius:50%;background:${pC(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">${Math.round(p)}%</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${f.nome}</div>
+          <div class="pb" style="margin:4px 0 2px"><div class="pf" style="width:${Math.min(p,100)}%;background:${pC(p)}"></div></div>
+          <div style="font-size:11px;color:var(--t2)">${falta>0?'Falta '+fi(falta)+' · '+fi(nd)+'/dia útil':'✅ Meta batida!'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:12px;font-weight:700">${fi(v)}</div>
+          <div style="font-size:10px;color:var(--t2)">de ${fi(meta)}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
   document.getElementById('ct').innerHTML=h;
-  window.rmCk=async id=>{await pk('checklist','?id=eq.'+id,{ativo:false});gMais()};
-  window.addCk=async()=>{const t=document.getElementById('nck').value.trim();if(!t){alert('Digite o item.');return}await pt('checklist',{texto:t,ativo:true,empresa_id:EMP?EMP.id:null});gMais()};
+}
+
+// ── RELATÓRIO DA VENDEDORA ──
+async function fRelatorio(){
+  const f=S.func;
+  const [vendas,metaR]=await Promise.all([
+    gt('vendas','?func_id=eq.'+f.id+'&select=*'),
+    gt('metas_mensais','?func_id=eq.'+f.id+'&mes=eq.'+mS+'&ano=eq.'+aS+'&select=valor')
+  ]);
+  const meta=metaR.length?parseFloat(metaR[0].valor):0;
+  const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
+  const v=vendasMes.reduce((s,x)=>s+parseFloat(x.valor),0);
+  const p=meta>0?v/meta*100:0;
+  const dr=dR(mS,aS),dp=dP(mS,aS);
+  const mediaDia=dp>0?v/dp:0;
+  const projecao=mediaDia*22;
+  const falta=Math.max(meta-v,0);
+  const nd=dr>0?falta/dr:0;
+  const faixa=gF(p);
+  const proxFaixa=FAIXAS.find(x=>x.de>p&&x.pct>0);
+  const faltaProx=proxFaixa?meta*(proxFaixa.de/100)-v:0;
+
+  // Vendas por dia da semana
+  const porSemana={1:0,2:0,3:0,4:0,5:0};
+  vendasMes.forEach(v2=>{
+    const [dd,mm2,aa]=v2.data_venda.split('/');
+    const ds=new Date(+aa,+mm2-1,+dd).getDay();
+    if(ds>=1&&ds<=5) porSemana[ds]+=parseFloat(v2.valor);
+  });
+  const maxSem=Math.max(...Object.values(porSemana),1);
+  const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  // Acumulado diário
+  const porDia={};
+  vendasMes.forEach(vd=>{const d=vd.data_venda.split('/')[0];porDia[d]=(porDia[d]||0)+parseFloat(vd.valor)});
+  const hoje2=new Date(2026,4,12);
+  const init=new Date(aS,mS-1,1),fim2=new Date(aS,mS,0);
+  const diasDoMes=[],acumDias=[];let acum=0;
+  for(let d=new Date(init);d<=fim2;d.setDate(d.getDate()+1)){
+    if(d.getDay()===0||d.getDay()===6)continue;
+    const dd=String(d.getDate()).padStart(2,'0');
+    diasDoMes.push(dd);acum+=(porDia[dd]||0);
+    acumDias.push(d<=hoje2?acum:null);
+  }
+  const nDias=diasDoMes.length;
+  const maxAcum=Math.max(meta,...acumDias.filter(x=>x!==null),1);
+  const metaY2=8+72-(meta/maxAcum)*72;
+  const pts=acumDias.map((val,i)=>{
+    if(val===null)return null;
+    const x=8+(i/(nDias-1||1))*324,y=8+72-(val/maxAcum)*72;
+    return{x,y,val};
+  }).filter(Boolean);
+  const lp=pts.map((pt,i)=>(i===0?`M${pt.x},${pt.y}`:`L${pt.x},${pt.y}`)).join(' ');
+  const ap=pts.length?`${lp} L${pts[pts.length-1].x},80 L${pts[0].x},80 Z`:'';
+
+  // Simulador: quanto ganho a mais em cada faixa acima
+  const simFaixas=FAIXAS.filter(fx=>fx.de>p&&fx.pct>0&&fx.de<=120);
+
+  let h=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+    <div class="av" style="width:44px;height:44px;font-size:15px;background:#E0F2F1;color:#00695C">${in2(f.nome)}</div>
+    <div style="flex:1"><div style="font-size:16px;font-weight:700">${f.nome}</div><div style="font-size:12px;color:var(--t2)">${nM(mS,aS)} · ${dr} dias úteis restantes</div></div>
+  </div>${mSel('fRelatorio()')}`;
+
+  // ── TERMÔMETRO ──
+  const angulo=Math.min(p,120)/120*180;
+  const rad=(180-angulo)*Math.PI/180;
+  const cx=100,cy=80,r=65;
+  const nx=cx+r*Math.cos(rad),ny=cy-r*Math.sin(rad);
+  const corAgulha=pC(p);
+  h+=`<div class="card" style="border-top:3px solid ${corAgulha}">
+    <div class="ct2"><i class="ti ti-gauge"></i>Termômetro da meta</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <svg viewBox="0 0 200 90" style="width:180px;flex-shrink:0">
+        <!-- faixas coloridas -->
+        <path d="M${cx-r},${cy} A${r},${r} 0 0,1 ${cx+r*Math.cos(Math.PI*0.71)},${cy-r*Math.sin(Math.PI*0.71)}" fill="none" stroke="#FCEBEB" stroke-width="12" stroke-linecap="round"/>
+        <path d="M${cx+r*Math.cos(Math.PI*0.71)},${cy-r*Math.sin(Math.PI*0.71)} A${r},${r} 0 0,1 ${cx+r*Math.cos(Math.PI*0.42)},${cy-r*Math.sin(Math.PI*0.42)}" fill="none" stroke="#FAEEDA" stroke-width="12" stroke-linecap="round"/>
+        <path d="M${cx+r*Math.cos(Math.PI*0.42)},${cy-r*Math.sin(Math.PI*0.42)} A${r},${r} 0 0,1 ${cx+r*Math.cos(Math.PI*0.17)},${cy-r*Math.sin(Math.PI*0.17)}" fill="none" stroke="#E1F5EE" stroke-width="12" stroke-linecap="round"/>
+        <path d="M${cx+r*Math.cos(Math.PI*0.17)},${cy-r*Math.sin(Math.PI*0.17)} A${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="#B2DFDB" stroke-width="12" stroke-linecap="round"/>
+        <!-- agulha -->
+        <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${corAgulha}" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="${cx}" cy="${cy}" r="6" fill="${corAgulha}"/>
+        <!-- labels -->
+        <text x="18" y="${cy+4}" fill="#aaa" font-size="8">0%</text>
+        <text x="${cx-8}" y="12" fill="#aaa" font-size="8">60%</text>
+        <text x="155" y="${cy+4}" fill="#aaa" font-size="8">120%</text>
+      </svg>
+      <div>
+        <div style="font-size:36px;font-weight:800;color:${corAgulha}">${pp(p)}</div>
+        <div style="font-size:13px;color:var(--t2)">da meta de ${fi(meta)}</div>
+        <div class="bx ${bI(p).c}" style="margin-top:6px;font-size:12px">${bI(p).l}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── EVOLUÇÃO DIÁRIA ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-chart-line"></i>Minha evolução no mês</div>
+    <svg viewBox="0 0 340 100" style="width:100%;overflow:visible">
+      <defs><linearGradient id="gr2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00897B" stop-opacity=".3"/><stop offset="100%" stop-color="#00897B" stop-opacity="0"/></linearGradient></defs>
+      ${ap?`<path d="${ap}" fill="url(#gr2)"/>`:''}
+      <line x1="8" y1="${metaY2}" x2="332" y2="${metaY2}" stroke="#E24B4A" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="330" y="${metaY2-3}" fill="#E24B4A" font-size="8" text-anchor="end">Meta</text>
+      ${lp?`<path d="${lp}" fill="none" stroke="#00897B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:''}
+      ${pts.map(pt=>`<circle cx="${pt.x}" cy="${pt.y}" r="2.5" fill="#00897B"/>`).join('')}
+      ${diasDoMes.length>0?`<text x="8" y="96" fill="#aaa" font-size="8">${diasDoMes[0]}/${mS<10?'0'+mS:mS}</text><text x="332" y="96" fill="#aaa" font-size="8" text-anchor="end">${diasDoMes[diasDoMes.length-1]}/${mS<10?'0'+mS:mS}</text>`:''}
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:4px">
+      <span>Vendido: <strong>${fi(v)}</strong></span>
+      <span>Projeção: <strong style="color:${projecao>=meta?'var(--td)':'#E24B4A'}">${fi(projecao)}</strong></span>
+    </div>
+  </div>`;
+
+  // ── PARA BATER A META ──
+  if(falta>0&&dr>0){
+    h+=`<div class="card" style="background:var(--tl)">
+      <div class="ct2" style="color:var(--tdd)"><i class="ti ti-target"></i>Para bater a meta</div>
+      <div class="nr">
+        <div class="nv"><div class="n">${fi(nd)}</div><div class="l">por dia útil</div></div>
+        <div class="nv"><div class="n">${fi(nd*5)}</div><div class="l">por semana</div></div>
+        <div class="nv"><div class="n">${fi(falta)}</div><div class="l">total restante</div></div>
+      </div>
+      ${proxFaixa&&faltaProx>0?`<div style="text-align:center;font-size:12px;color:var(--tdd);margin-top:10px;font-weight:500">Próxima faixa (${proxFaixa.pct}%): falta <strong>${fi(Math.max(faltaProx,0))}</strong></div>`:''}
+    </div>`;
+  } else if(p>=100){
+    h+=`<div class="card" style="text-align:center;padding:20px;background:var(--tl)">
+      <div style="font-size:28px">🎉</div>
+      <div style="font-weight:700;color:var(--tdd);font-size:16px;margin-top:4px">Meta batida! Parabéns!</div>
+      <div style="font-size:12px;color:var(--td);margin-top:4px">Comissão: ${fm(cC(meta,v))} (${faixa.pct}%)</div>
+    </div>`;
+  }
+
+  // ── MEUS MELHORES DIAS ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-calendar-week"></i>Meus melhores dias da semana</div>
+    <div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">
+      ${[1,2,3,4,5].map(d=>{
+        const val=porSemana[d]||0;
+        const h2=maxSem>0?Math.max((val/maxSem)*70,2):2;
+        const melhor=val===maxSem&&val>0;
+        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div style="font-size:9px;color:var(--t2)">${val>0?fi(val).replace('R$',''):''}</div>
+          <div style="width:100%;height:${h2}px;background:${melhor?'var(--td)':'var(--tl)'};border-radius:4px 4px 0 0"></div>
+          <div style="font-size:10px;font-weight:${melhor?'700':'400'};color:${melhor?'var(--td)':'var(--t2)'}">${DIAS_SEM[d]}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  // ── SIMULADOR DE COMISSÃO ──
+  h+=`<div class="card">
+    <div class="ct2"><i class="ti ti-calculator"></i>Simulador de comissão</div>
+    <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Sua comissão atual</div>
+      <div style="font-size:22px;font-weight:700;color:var(--td)">${fm(cC(meta,v))}</div>
+      <div style="font-size:11px;color:var(--t2)">Faixa ${faixa.pct}% sobre ${fi(v)} vendidos</div>
+    </div>
+    ${simFaixas.length?`<div style="font-size:12px;color:var(--t2);margin-bottom:8px;font-weight:600">Se você vender mais...</div>`:''}
+    ${simFaixas.map(fx=>{
+      const vendNec=meta*(fx.de/100);
+      const faltaSim=Math.max(vendNec-v,0);
+      const comisNova=cC(meta,vendNec);
+      const ganhoExtra=comisNova-cC(meta,v);
+      return`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600">Faixa ${fx.pct}% (${fx.de}% da meta)</div>
+          <div style="font-size:11px;color:var(--t2)">Falta vender ${fi(faltaSim)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:14px;font-weight:700;color:var(--td)">${fm(comisNova)}</div>
+          <div style="font-size:10px;color:#00695C">+${fm(ganhoExtra)} a mais</div>
+        </div>
+      </div>`;
+    }).join('')}
+    ${simFaixas.length===0?`<div style="text-align:center;color:var(--td);font-weight:600;padding:10px">🎯 Você está na faixa máxima!</div>`:''}
+  </div>`;
+
+  document.getElementById('ct').innerHTML=h;
 }
 
 // ── PAINEL SUPER ADMIN (acessado digitando /admin na senha da gestora) ──
