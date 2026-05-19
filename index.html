@@ -700,11 +700,38 @@ async function gMetas(){
   let h='<div class="h1">Lançar Vendas</div>'+mSel('gMetas()')+'<div class="card"><div class="g3"><div class="mx"><label>Total vendido</label><div class="v">'+fi(tV)+'</div><div class="s">'+pp(pG)+' da meta</div></div><div class="mx"><label>Meta geral</label><div class="v">'+fi(tM)+'</div><div class="s">'+vendedoras.length+' vendedoras</div></div><div class="mx"><label>Comissão est.</label><div class="v" style="color:var(--td)">'+fm(tC)+'</div></div></div></div>';
   vendedoras.forEach((f,i)=>{
     const v=tot[f.id]||0,m=mm[f.id]||0,p=m>0?v/m*100:0,co=cC(m,v),pc=pC(p),bi=bI(p),re=Math.max(m-v,0),nd=dr>0?re/dr:0,c=CORES[i%CORES.length];
-    h+='<div class="fc"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="av" style="width:38px;height:38px;font-size:13px;background:'+c.b+';color:'+c.c+'">'+in2(f.nome)+'</div><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-weight:700;font-size:14px">'+f.nome+'</span><span class="fp">'+(f.filiais?f.filiais.nome:'—')+'</span><span class="bx '+bi.c+'">'+bi.l+'</span></div><div style="font-size:11px;color:var(--t2);margin-top:2px">Meta: '+fi(m)+' · Vendido: '+fi(v)+' · Comis: '+fm(co)+' · Falta/dia: '+fi(nd)+'</div></div><span style="font-size:20px;font-weight:700;color:'+pc+'">'+pp(p)+'</span></div><div class="pb"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="number" placeholder="R$ valor" id="v-'+f.id+'" style="flex:1;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;background:#fff;color:var(--tx);outline:none" oninput="prv('+f.id+','+m+','+v+')"><input type="text" value="'+hj()+'" id="d-'+f.id+'" style="width:108px;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:13px;background:#fff;color:var(--tx);outline:none"><button class="btn bp bsm" onclick="lnc('+f.id+')">Lançar</button></div><div id="p-'+f.id+'" style="font-size:11px;color:var(--td);margin-top:5px;min-height:14px;font-weight:500"></div></div>';
+    h+='<div class="fc"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="av" style="width:38px;height:38px;font-size:13px;background:'+c.b+';color:'+c.c+'">'+in2(f.nome)+'</div><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-weight:700;font-size:14px">'+f.nome+'</span><span class="fp">'+(f.filiais?f.filiais.nome:'—')+'</span><span class="bx '+bi.c+'">'+bi.l+'</span></div><div style="font-size:11px;color:var(--t2);margin-top:2px">Meta: '+fi(m)+' · Vendido: '+fi(v)+' · Comis: '+fm(co)+' · Falta/dia: '+fi(nd)+'</div></div><span style="font-size:20px;font-weight:700;color:'+pc+'">'+pp(p)+'</span></div><div class="pb"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div>'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-top:10px">'
+      +'<input type="text" inputmode="numeric" placeholder="R$ 0,00" id="v-'+f.id+'" onkeydown="return metaKey(event)" oninput="maskMeta(this);prv('+f.id+','+m+','+v+')" style="flex:1;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;background:#fff;color:var(--tx);outline:none;text-align:right">'
+      +'<input type="date" id="d-'+f.id+'" value="2026-05-12" style="width:140px;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:13px;background:#fff;color:var(--tx);outline:none;cursor:pointer">'
+      +'<button class="btn bp bsm" onclick="lnc('+f.id+')">Lançar</button>'
+      +'</div>'
+      +'<div id="p-'+f.id+'" style="font-size:11px;color:var(--td);margin-top:5px;min-height:14px;font-weight:500"></div></div>';
   });
   document.getElementById('ct').innerHTML=h;
-  window.prv=(id,m,va)=>{const nv=parseFloat(document.getElementById('v-'+id).value)||0;const e=document.getElementById('p-'+id);if(!nv){e.textContent='';return}const no=va+nv,p=m>0?no/m*100:0;e.textContent='→ '+pp(p)+' · Comissão: '+fm(cC(m,no))+' (faixa '+gF(p).pct+'%)'};
-  window.lnc=async id=>{const val=parseFloat(document.getElementById('v-'+id).value),data=document.getElementById('d-'+id).value.trim();if(!val||val<=0||!data){alert('Preencha valor e data.');return}await pt('vendas',{func_id:id,valor:val,data_venda:data,empresa_id:EMP?EMP.id:null});gMetas()};
+  window.prv=(id,m,va)=>{
+    const nv=parseMeta(document.getElementById('v-'+id).value)||0;
+    const el=document.getElementById('p-'+id);
+    if(!nv){el.textContent='';return}
+    const no=va+nv,p=m>0?no/m*100:0;
+    el.textContent='→ '+pp(p)+' · Comissão: '+fm(cC(m,no))+' (faixa '+gF(p).pct+'%)'
+  };
+  window.lnc=async id=>{
+    const val=parseMeta(document.getElementById('v-'+id).value);
+    const dataISO=document.getElementById('d-'+id).value; // formato YYYY-MM-DD
+    if(!val||val<=0||!dataISO){alert('Preencha valor e data.');return}
+    // Converter YYYY-MM-DD → DD/MM/YYYY para salvar no banco
+    const [ano,mes,dia]=dataISO.split('-');
+    const dataFmt=dia+'/'+mes+'/'+ano;
+    await pt('vendas',{func_id:id,valor:val,data_venda:dataFmt,empresa_id:EMP?EMP.id:null});
+    // Limpar campo e mostrar confirmação
+    document.getElementById('v-'+id).value='';
+    const el=document.getElementById('p-'+id);
+    el.textContent='✅ Lançado com sucesso!';
+    el.style.color='#00695C';
+    setTimeout(()=>{el.textContent='';el.style.color='var(--td)'},2500);
+    gMetas();
+  };
 }
 
 // ── GESTORA: EQUIPE ──
