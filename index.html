@@ -261,7 +261,10 @@ const hj=()=>{const d=new Date(2026,4,19);return String(d.getDate()).padStart(2,
 const nM=(m,a)=>MESES[m-1]+'/'+a;
 
 // ── FILTRO POR EMPRESA ──
-const eid=()=>EMP?'&empresa_id=eq.'+EMP.id:'';
+const eid=()=>{
+  if(!EMP){console.warn('EMP não carregado!');return '';}
+  return '&empresa_id=eq.'+EMP.id;
+};
 const eidQ=()=>EMP?'?empresa_id=eq.'+EMP.id:'?';
 function fmtMeta(v){
   // Formata número para "10.000,00"
@@ -702,11 +705,26 @@ async function renderSAEmpresas(){
 }
 
 async function init(){
+  // Garantir EMP carregado — tenta localStorage, depois busca automática
   if(!EMP){
     const empId=localStorage.getItem('me_empresa_id');
     if(empId){
-      const res=await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
-      if(res.length){EMP=res[0];aplicarIdentidade(EMP);}
+      try{
+        const res=await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
+        if(res.length){EMP=res[0];aplicarIdentidade(EMP);}
+      }catch(e){console.error('Erro localStorage empresa:',e);}
+    }
+    // Fallback: buscar primeira empresa ativa automaticamente
+    if(!EMP){
+      try{
+        const todas=await gt('empresas','?ativa=eq.true&select=*&limit=1');
+        if(todas.length){
+          EMP=todas[0];
+          localStorage.setItem('me_empresa_id',String(EMP.id));
+          aplicarIdentidade(EMP);
+          console.log('Empresa carregada automaticamente: ID '+EMP.id);
+        }
+      }catch(e){console.error('Erro busca empresa:',e);}
     }
   }
   document.getElementById('pg-login').style.display='none';
@@ -782,11 +800,18 @@ async function gMetas(){
     document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:30px"><i class="ti ti-alert-circle" style="font-size:36px;color:#E24B4A;display:block;margin-bottom:12px"></i><div style="font-weight:700">Empresa não encontrada</div><div style="font-size:13px;color:#666;margin-top:8px">Saia e use "Já tenho conta" com ID 1</div><button class="btn bp" style="margin-top:16px" onclick="sair()">Sair</button></div>';
     return;
   }
-  const [funcs,vendas,metas]=await Promise.all([
-    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'),
-    gt('vendas','?select=func_id,valor,data_venda'+eid()),
-    gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
-  ]);
+  let funcs=[], vendas=[], metas=[];
+  try {
+    [funcs,vendas,metas]=await Promise.all([
+      gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'),
+      gt('vendas','?select=func_id,valor,data_venda'+eid()),
+      gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
+    ]);
+  } catch(e) {
+    console.error('Erro nas queries gMetas:',e);
+    document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:24px"><i class="ti ti-wifi-off" style="font-size:36px;color:#E24B4A;display:block;margin-bottom:10px"></i><div style="font-weight:600;color:#E24B4A">Erro ao carregar dados</div><div style="font-size:13px;color:#666;margin-top:8px">Verifique sua conexão com a internet</div><button class="btn bp" style="margin-top:14px" onclick="gMetas()">Tentar novamente</button></div>';
+    return;
+  }
   const tot={};vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS}).forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
   const mm={};metas.forEach(m=>mm[m.func_id]=parseFloat(m.valor));
   const dr=dR(mS,aS);
@@ -2078,6 +2103,8 @@ async function loginG(){
     aplicarIdentidade(EMP);
   }
 
+  // Salvar empresa_id no localStorage para próximas sessões
+  if(EMP) localStorage.setItem('me_empresa_id',String(EMP.id));
   S={tipo:'gestor'};
   init();
 }
