@@ -138,7 +138,12 @@ table td{padding:6px 4px;vertical-align:middle}
   <div id="li" class="li"></div>
   <div id="lfd">
     <div class="lf"><label>Telefone</label><input id="tel" type="tel" placeholder="35999990001" inputmode="numeric"></div>
-    <div id="sw" style="display:none"><div class="lf"><label>Senha</label><input id="sen" type="password" placeholder="••••••"></div></div>
+    <div id="sw" style="display:none">
+      <div class="lf"><label>Senha</label><input id="sen" type="password" placeholder="••••••"></div>
+      <div style="text-align:right;margin-top:-8px;margin-bottom:12px">
+        <button onclick="esqueciSenha()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;padding:4px">Esqueci minha senha</button>
+      </div>
+    </div>
     <div id="sc" style="display:none">
       <div class="lf"><label>Criar senha (mín. 4 caracteres)</label><input id="sn1" type="password" placeholder="••••••"></div>
       <div class="lf"><label>Confirmar senha</label><input id="sn2" type="password" placeholder="••••••"></div>
@@ -148,8 +153,26 @@ table td{padding:6px 4px;vertical-align:middle}
   <div id="lgd" style="display:none">
     <div class="lf"><label>Senha da Gestora</label><input id="gsen" type="password" placeholder="••••••"></div>
     <button class="bl" onclick="loginG()">Entrar como Gestora</button>
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="esqueciSenhaGestora()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;padding:4px">Esqueci a senha da gestora</button>
+    </div>
   </div>
 </div></div>
+</div>
+
+<!-- MODAL RECUPERAÇÃO DE SENHA -->
+<div id="modal-rec" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:none;align-items:flex-end;justify-content:center;padding:0">
+  <div style="background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+    <div style="width:40px;height:4px;background:#ccc;border-radius:2px;margin:0 auto 20px"></div>
+    <div id="modal-rec-body"></div>
+  </div>
+</div>
+
+<!-- MODAL TERMO DE CONFIDENCIALIDADE -->
+<div id="modal-termo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:400;overflow-y:auto;padding:0">
+  <div style="background:#fff;min-height:100vh;padding:24px 16px;max-width:600px;margin:0 auto">
+    <div id="modal-termo-body"></div>
+  </div>
 </div>
 
 <div id="app">
@@ -550,45 +573,15 @@ async function step(){
     if(n1!==n2){le.textContent='As senhas não coincidem.';le.style.display='block';return}
     await pk('funcionarias','?id=eq.'+fP.id,{senha_hash:n1,senha_criada:true,login:fP.telefone});
     fP.senha_hash=n1;fP.senha_criada=true;
-    S={tipo:fP.perfil,funcId:fP.id,func:fP};init();return;
+    S={tipo:fP.perfil,funcId:fP.id,func:fP};verificarTermo();return;
   }
   const sen=document.getElementById('sen').value;
   if(!sen){le.textContent='Digite sua senha.';le.style.display='block';return}
   if(fP.senha_hash!==sen){le.textContent='Senha incorreta.';le.style.display='block';return}
-  S={tipo:fP.perfil,funcId:fP.id,func:fP};init();
+  S={tipo:fP.perfil,funcId:fP.id,func:fP};verificarTermo();
 }
 
-async function loginG(){
-  const s=document.getElementById('gsen').value,le=document.getElementById('le');
-  le.style.display='none';
-
-  // ── SUPER ADMIN (dono do sistema) ──
-  if(s==='admin123'){
-    document.getElementById('pg-login').style.display='none';
-    document.getElementById('app').style.display='flex';
-    document.getElementById('uc').textContent='⚡ Super Admin';
-    document.getElementById('bn').innerHTML=`
-      <button class="nb active" onclick="saNav('sa-codigos')"><i class="ti ti-key"></i><span>Códigos</span></button>
-      <button class="nb" onclick="saNav('sa-empresas')"><i class="ti ti-building"></i><span>Empresas</span></button>
-    `;
-    saNav('sa-codigos');
-    return;
-  }
-
-  // ── GESTORA DA EMPRESA ──
-  if(s!=='admin'){le.textContent='Senha incorreta.';le.style.display='block';return}
-
-  // Garantir que EMP está carregado
-  if(!EMP){
-    const empId=localStorage.getItem('me_empresa_id');
-    if(!empId){le.textContent='Empresa não configurada. Volte ao início.';le.style.display='block';return}
-    const res=await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
-    if(!res.length){le.textContent='Empresa não encontrada.';le.style.display='block';return}
-    EMP=res[0];
-    aplicarIdentidade(EMP);
-  }
-  S={tipo:'gestor'};init();
-}
+// loginG movida para o final do arquivo
 
 // ── PAINEL SUPER ADMIN ──
 function saNav(id){
@@ -680,7 +673,7 @@ function sair(){
 
 function buildNav(tipo){
   const ns={
-    gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-equipe',i:'ti-users',l:'Equipe'},{id:'g-docs',i:'ti-file-text',l:'Docs'},{id:'g-comunic',i:'ti-speakerphone',l:'Avisos'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'}],
+    gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-equipe',i:'ti-users',l:'Equipe'},{id:'g-docs',i:'ti-file-text',l:'Docs'},{id:'g-comunic',i:'ti-speakerphone',l:'Avisos'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'},{id:'g-config',i:'ti-settings',l:'Empresa'}],
     gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}],
     vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}]
   };
@@ -691,7 +684,7 @@ function navTo(id){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   const b=document.getElementById('n-'+id);if(b)b.classList.add('active');
   document.getElementById('ct').innerHTML='<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>';
-  const fn={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic}[id.replace(/-/g,'_')];
+  const fn={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic}[id.replace(/-/g,'_')];
   if(fn)fn();
 }
 
@@ -1488,8 +1481,368 @@ async function fComunic(){
   coms.forEach(c=>{const ld=lS.has(c.id);h+='<div class="cc"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px"><span style="font-weight:700;font-size:14px">'+c.titulo+'</span>'+(ld?'<span class="bx ok">Lido</span>':'<span class="bx al">Novo</span>')+'</div><div style="font-size:12px;color:var(--t3);margin-bottom:8px">'+c.data_pub+'</div><div class="cb2">'+c.corpo+'</div>'+(ld?'':'<button class="btn bp bsm" onclick="cnfL('+c.id+')"><i class="ti ti-check"></i> Confirmar leitura</button>')+'</div>'});
   if(!coms.length)h+='<div class="em"><i class="ti ti-bell-off"></i>Nenhum comunicado.</div>';
   document.getElementById('ct').innerHTML=h;
-  window.cnfL=async id=>{await pt('comunicado_leituras',{comunicado_id:id,func_id:S.funcId}).catch(()=>{});fComunic()};
+// ── GESTORA: CONFIGURAÇÕES DA EMPRESA ──
+async function gConfig(){
+  const emp = EMP || {};
+  const fils = await gt('filiais','?select=*'+eid());
+
+  let h=`<div class="h1">Empresa</div>
+  <div class="card" style="border-top:3px solid var(--td)">
+    <div class="ct2"><i class="ti ti-building"></i>Dados da empresa</div>
+    <div id="cfg-ok" class="ae aok" style="display:none"></div>
+    <div id="cfg-err" class="ae aer" style="display:none"></div>
+
+    <div style="text-align:center;margin-bottom:16px">
+      <div id="cfg-logo-prev" style="margin-bottom:10px">
+        ${emp.logo_base64
+          ?`<img src="data:image/png;base64,${emp.logo_base64}" style="height:64px;border-radius:10px;background:#000;padding:6px">`
+          :`<div style="width:72px;height:72px;border-radius:50%;background:var(--tl);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:28px">🏪</div>`}
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:8px;background:var(--bg);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--td);border:1.5px solid var(--tb)">
+        <i class="ti ti-upload" style="font-size:18px"></i> Alterar logo
+        <input type="file" accept="image/*" id="cfg-logo-file" style="display:none" onchange="cfgCarregarLogo(this)">
+      </label>
+    </div>
+
+    <div class="fi"><label>Nome da empresa</label>
+      <input id="cfg-nome" value="${emp.nome||''}" placeholder="Ex: Maria Elegante"></div>
+    <div class="fi"><label>CNPJ</label>
+      <input id="cfg-cnpj" value="${emp.cnpj||''}" placeholder="00.000.000/0001-00"></div>
+    <div class="fi"><label>Telefone</label>
+      <input id="cfg-tel" type="tel" value="${emp.telefone||''}" placeholder="(35) 99999-0000"></div>
+    <div class="fi"><label>Endereço</label>
+      <input id="cfg-end" value="${emp.endereco||''}" placeholder="Rua, número, cidade"></div>
+    <div class="fi"><label>Cor principal</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input type="color" id="cfg-cor" value="${emp.cor_principal||'#00897B'}"
+          style="width:52px;height:50px;border-radius:8px;border:1.5px solid var(--bd);cursor:pointer;padding:3px;background:#fff"
+          onchange="document.documentElement.style.setProperty('--td',this.value)">
+        <span style="font-size:13px;color:var(--t2)">Cor dos botões e destaques</span>
+      </div>
+    </div>
+    <button class="btn bp" style="width:100%;justify-content:center" onclick="cfgSalvar()">
+      <i class="ti ti-device-floppy"></i> Salvar alterações
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="ct2"><i class="ti ti-building-store"></i>Filiais cadastradas</div>
+    ${fils.map(f=>{
+      const n=0;
+      return`<div class="ri">
+        <div class="av" style="width:36px;height:36px;font-size:13px;background:var(--tl);color:var(--tdd)"><i class="ti ti-building-store"></i></div>
+        <div style="flex:1"><div class="rn">${f.nome}</div></div>
+      </div>`;
+    }).join('')}
+    <div class="sep"></div>
+    <div class="fi"><label>Nova filial</label><input id="cfg-fil" placeholder="Ex: Filial Centro"></div>
+    <button class="btn bp bsm" onclick="cfgAddFilial()"><i class="ti ti-plus"></i> Adicionar filial</button>
+  </div>
+
+  <div class="card">
+    <div class="ct2"><i class="ti ti-history"></i>Histórico de lançamentos</div>
+    <div class="fi"><label>Filtrar por funcionária</label>
+      <select id="hist-func" onchange="carregarHistorico()">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div id="hist-lista"><div class="ld"><i class="ti ti-loader"></i>Carregando...</div></div>
+  </div>`;
+
+  document.getElementById('ct').innerHTML = h;
+
+  // Carregar funcionárias no select
+  const funcs = await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome');
+  const sel = document.getElementById('hist-func');
+  funcs.forEach(f=>sel.innerHTML+=`<option value="${f.id}">${f.nome}</option>`);
+  carregarHistorico();
+
+  let cfgLogoB64 = emp.logo_base64 || null;
+
+  window.cfgCarregarLogo = input => {
+    const file = input.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const max=300, ratio=Math.min(max/img.width,max/img.height);
+        canvas.width=img.width*ratio; canvas.height=img.height*ratio;
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        cfgLogoB64 = canvas.toDataURL('image/png').split(',')[1];
+        document.getElementById('cfg-logo-prev').innerHTML =
+          `<img src="data:image/png;base64,${cfgLogoB64}" style="height:64px;border-radius:10px;background:#000;padding:6px">`;
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.cfgSalvar = async () => {
+    const ok=document.getElementById('cfg-ok'), err=document.getElementById('cfg-err');
+    ok.style.display='none'; err.style.display='none';
+    const nome = document.getElementById('cfg-nome').value.trim();
+    if(!nome){err.textContent='Digite o nome da empresa.';err.style.display='block';return}
+    const body = {
+      nome,
+      cnpj: document.getElementById('cfg-cnpj').value.trim(),
+      telefone: document.getElementById('cfg-tel').value.trim(),
+      endereco: document.getElementById('cfg-end').value.trim(),
+      cor_principal: document.getElementById('cfg-cor').value,
+      logo_base64: cfgLogoB64,
+    };
+    await pk('empresas','?id=eq.'+EMP.id, body);
+    EMP = {...EMP, ...body};
+    localStorage.setItem('me_empresa_id', EMP.id);
+    aplicarIdentidade(EMP);
+    ok.textContent='✅ Dados salvos com sucesso!'; ok.style.display='block';
+    setTimeout(()=>ok.style.display='none', 3000);
+  };
+
+  window.cfgAddFilial = async () => {
+    const nm = (document.getElementById('cfg-fil').value||'').trim();
+    if(!nm){alert('Digite o nome.');return}
+    await pt('filiais',{nome:nm,empresa_id:EMP?EMP.id:null});
+    gConfig();
+  };
+
+  window.carregarHistorico = async () => {
+    const funcId = document.getElementById('hist-func').value;
+    const p = funcId ? `?func_id=eq.${funcId}${eid()}&order=created_at.desc&limit=50&select=*,funcionarias(nome)`
+                     : `?${eid().slice(1)}&order=created_at.desc&limit=50&select=*,funcionarias(nome)`;
+    const vendas = await gt('vendas', funcId
+      ? `?func_id=eq.${funcId}&order=created_at.desc&limit=50&select=*,funcionarias(nome)`
+      : `?select=*,funcionarias(nome)&order=created_at.desc&limit=50${eid()}`);
+    const el = document.getElementById('hist-lista');
+    if(!vendas.length){el.innerHTML='<div class="em" style="padding:20px">Nenhum lançamento.</div>';return}
+    el.innerHTML = vendas.map(v=>`
+      <div class="ri" id="venda-${v.id}">
+        <div style="flex:1;min-width:0">
+          <div class="rn">${v.funcionarias?v.funcionarias.nome:'—'}</div>
+          <div class="rs">${v.data_venda}</div>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-right:10px">${fm(parseFloat(v.valor))}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn bsm" onclick="editarVenda(${v.id},${v.valor},'${v.data_venda}')" style="padding:8px 10px"><i class="ti ti-edit"></i></button>
+          <button class="btn bd2r" onclick="excluirVenda(${v.id})" style="padding:8px 10px"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  };
+
+  window.editarVenda = (id, valor, data) => {
+    // Converter data DD/MM/YYYY → YYYY-MM-DD
+    const [dd,mm2,aa] = data.split('/');
+    const dataISO = `${aa}-${mm2}-${dd}`;
+    const el = document.getElementById('venda-'+id);
+    el.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <input type="text" inputmode="numeric" id="ev-val-${id}" value="${fmtMeta(valor)}"
+          onkeydown="return metaKey(event)" oninput="maskMeta(this)"
+          style="padding:10px;border:1.5px solid var(--td);border-radius:8px;font-size:15px;font-weight:700;text-align:right">
+        <input type="date" id="ev-dat-${id}" value="${dataISO}"
+          style="padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px">
+        <div style="display:flex;gap:8px">
+          <button class="btn bp bsm" style="flex:1" onclick="salvarEdicaoVenda(${id})"><i class="ti ti-check"></i> Salvar</button>
+          <button class="btn bsm" onclick="carregarHistorico()">Cancelar</button>
+        </div>
+      </div>`;
+  };
+
+  window.salvarEdicaoVenda = async id => {
+    const val = parseMeta(document.getElementById('ev-val-'+id).value);
+    const dataISO = document.getElementById('ev-dat-'+id).value;
+    if(!val||!dataISO){alert('Preencha valor e data.');return}
+    const [aa,mm2,dd] = dataISO.split('-');
+    const dataFmt = `${dd}/${mm2}/${aa}`;
+    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:dataFmt});
+    carregarHistorico();
+  };
+
+  window.excluirVenda = async id => {
+    if(!confirm('Excluir este lançamento?')) return;
+    await dl('vendas','?id=eq.'+id);
+    carregarHistorico();
+  };
 }
+
+// ── RECUPERAÇÃO DE SENHA — FUNCIONÁRIA ──
+function esqueciSenha(){
+  const tel=(document.getElementById('tel').value||'').trim().replace(/\D/g,'');
+  const rec=document.getElementById('modal-rec');
+  rec.style.display='flex';
+  document.getElementById('modal-rec-body').innerHTML=`
+    <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">Confirme seu telefone e crie uma nova senha.</p>
+    <div class="fi"><label>Telefone</label><input id="rec-tel" type="tel" value="${tel}" placeholder="35999990001" inputmode="numeric"></div>
+    <div class="fi"><label>Nova senha</label><input id="rec-s1" type="password" placeholder="Mínimo 4 caracteres"></div>
+    <div class="fi"><label>Confirmar nova senha</label><input id="rec-s2" type="password" placeholder="Repita a senha"></div>
+    <div id="rec-err" class="ae aer" style="display:none"></div>
+    <div id="rec-ok" class="ae aok" style="display:none"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn bp" style="flex:1" onclick="salvarNovaSenha()"><i class="ti ti-key"></i> Salvar senha</button>
+      <button class="btn" onclick="fecharModalRec()">Cancelar</button>
+    </div>`;
+}
+
+async function salvarNovaSenha(){
+  const tel=(document.getElementById('rec-tel').value||'').replace(/\D/g,'');
+  const s1=document.getElementById('rec-s1').value;
+  const s2=document.getElementById('rec-s2').value;
+  const err=document.getElementById('rec-err'),ok=document.getElementById('rec-ok');
+  err.style.display='none';ok.style.display='none';
+  if(!tel){err.textContent='Digite seu telefone.';err.style.display='block';return}
+  if(s1.length<4){err.textContent='Senha mínimo 4 caracteres.';err.style.display='block';return}
+  if(s1!==s2){err.textContent='As senhas não coincidem.';err.style.display='block';return}
+  const res=await gt('funcionarias','?telefone=eq.'+tel+'&ativa=eq.true&login=neq.admin&select=id,nome');
+  if(!res.length){err.textContent='Telefone não encontrado.';err.style.display='block';return}
+  await pk('funcionarias','?id=eq.'+res[0].id,{senha_hash:s1});
+  ok.textContent='✅ Senha de '+res[0].nome+' redefinida! Faça login normalmente.';ok.style.display='block';
+  setTimeout(()=>fecharModalRec(),2500);
+}
+
+// ── RECUPERAÇÃO DE SENHA — GESTORA ──
+function esqueciSenhaGestora(){
+  const rec=document.getElementById('modal-rec');
+  rec.style.display='flex';
+  document.getElementById('modal-rec-body').innerHTML=`
+    <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha da gestora</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">Informe o ID da empresa e crie uma nova senha.</p>
+    <div class="ae" style="background:#FFF8E1;color:#7B5800;border:1px solid #F9A825;font-size:13px;margin-bottom:14px">
+      ⚠️ Apenas a senha de acesso como Gestora será alterada. A senha super admin permanece a mesma.
+    </div>
+    <div class="fi"><label>ID da empresa</label><input id="rec-empid" type="number" placeholder="Ex: 1" inputmode="numeric"></div>
+    <div class="fi"><label>Nova senha</label><input id="rec-gs1" type="password" placeholder="Mínimo 4 caracteres"></div>
+    <div class="fi"><label>Confirmar nova senha</label><input id="rec-gs2" type="password" placeholder="Repita a senha"></div>
+    <div id="rec-err" class="ae aer" style="display:none"></div>
+    <div id="rec-ok" class="ae aok" style="display:none"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn bp" style="flex:1" onclick="salvarNovaSenhaGestora()"><i class="ti ti-key"></i> Salvar senha</button>
+      <button class="btn" onclick="fecharModalRec()">Cancelar</button>
+    </div>`;
+}
+
+async function salvarNovaSenhaGestora(){
+  const empId=parseInt(document.getElementById('rec-empid').value);
+  const s1=document.getElementById('rec-gs1').value;
+  const s2=document.getElementById('rec-gs2').value;
+  const err=document.getElementById('rec-err'),ok=document.getElementById('rec-ok');
+  err.style.display='none';ok.style.display='none';
+  if(!empId){err.textContent='Digite o ID da empresa.';err.style.display='block';return}
+  if(s1.length<4){err.textContent='Senha mínimo 4 caracteres.';err.style.display='block';return}
+  if(s1!==s2){err.textContent='As senhas não coincidem.';err.style.display='block';return}
+  const emp=await gt('empresas','?id=eq.'+empId+'&select=id,nome');
+  if(!emp.length){err.textContent='Empresa não encontrada.';err.style.display='block';return}
+  localStorage.setItem('me_senha_gestora_'+empId, s1);
+  ok.textContent='✅ Nova senha salva para '+emp[0].nome+'! Faça login com a nova senha.';ok.style.display='block';
+  setTimeout(()=>fecharModalRec(),2500);
+}
+
+function fecharModalRec(){
+  document.getElementById('modal-rec').style.display='none';
+}
+
+// ── TERMO DE CONFIDENCIALIDADE ──
+function mostrarTermo(funcId, funcNome){
+  const hoje2=hj();
+  const nomeEmp=EMP?EMP.nome:'a empresa';
+  document.getElementById('modal-termo').style.display='block';
+  document.getElementById('modal-termo-body').innerHTML=`
+    <div style="text-align:center;margin-bottom:24px">
+      ${EMP&&EMP.logo_base64?`<img src="data:image/png;base64,${EMP.logo_base64}" style="height:48px;background:#000;padding:6px;border-radius:8px;margin-bottom:12px">`:''}
+      <h2 style="font-size:18px;font-weight:800">TERMO DE CONFIDENCIALIDADE</h2>
+      <p style="font-size:13px;color:#666;margin-top:4px">e Responsabilidade pelo Uso do Sistema</p>
+    </div>
+    <div style="font-size:14px;line-height:1.8;color:#1a1a1a">
+      <p style="margin-bottom:12px">Eu, <strong>${funcNome}</strong>, colaboradora de <strong>${nomeEmp}</strong>, ao acessar o sistema interno de gestão, declaro estar ciente e de acordo com os seguintes termos:</p>
+
+      <div style="background:#f5f5f5;border-radius:10px;padding:16px;margin-bottom:12px">
+        <p style="font-weight:700;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C">1. Sigilo das informações</p>
+        <p style="font-size:13px">Todas as informações acessadas — metas, comissões, dados de colegas, comunicados, documentos e estratégias comerciais — são de natureza estritamente confidencial e propriedade exclusiva de <strong>${nomeEmp}</strong>. Comprometo-me a não divulgar, compartilhar ou transmitir tais informações a terceiros sem autorização prévia da gestão.</p>
+      </div>
+
+      <div style="background:#f5f5f5;border-radius:10px;padding:16px;margin-bottom:12px">
+        <p style="font-weight:700;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C">2. Acesso individual e intransferível</p>
+        <p style="font-size:13px">Meu login e senha são individuais e intransferíveis. É expressamente proibido compartilhá-los com qualquer outra pessoa. Toda ação realizada com minhas credenciais será considerada de minha exclusiva responsabilidade.</p>
+      </div>
+
+      <div style="background:#f5f5f5;border-radius:10px;padding:16px;margin-bottom:12px">
+        <p style="font-weight:700;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C">3. Integridade das informações</p>
+        <p style="font-size:13px">Comprometo-me a não adulterar, excluir ou inserir dados falsos no sistema. A manipulação intencional de informações é considerada falta grave, sujeita a medidas disciplinares e legais.</p>
+      </div>
+
+      <div style="background:#f5f5f5;border-radius:10px;padding:16px;margin-bottom:12px">
+        <p style="font-weight:700;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C">4. Vigência</p>
+        <p style="font-size:13px">Este compromisso é válido durante todo o vínculo com <strong>${nomeEmp}</strong> e se estende por prazo indeterminado após o término do contrato, no que se refere às informações sigilosas.</p>
+      </div>
+
+      <div style="background:#f5f5f5;border-radius:10px;padding:16px;margin-bottom:12px">
+        <p style="font-weight:700;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C">5. Penalidades</p>
+        <p style="font-size:13px">O descumprimento sujeita o infrator a medidas disciplinares internas e responsabilização civil e criminal, incluindo a <strong>LGPD (Lei nº 13.709/2018)</strong> e o <strong>Código Civil Brasileiro</strong>.</p>
+      </div>
+
+      <div style="background:#E0F2F1;border-radius:10px;padding:16px;margin-bottom:24px;border:1px solid #80CBC4">
+        <p style="font-size:13px;color:#004D40"><strong>Colaboradora:</strong> ${funcNome}</p>
+        <p style="font-size:13px;color:#004D40"><strong>Empresa:</strong> ${nomeEmp}</p>
+        <p style="font-size:13px;color:#004D40"><strong>Data:</strong> ${hoje2}</p>
+        <p style="font-size:12px;color:#00695C;margin-top:8px">Ao clicar em "Li e concordo", você confirma que leu, compreendeu e aceita todos os termos, tendo validade de assinatura eletrônica conforme a <strong>MP 2.200-2/2001</strong> e a <strong>Lei nº 14.063/2020</strong>.</p>
+      </div>
+    </div>
+
+    <button class="btn bp" style="width:100%;justify-content:center;font-size:16px;padding:16px;margin-bottom:10px" onclick="aceitarTermo(${funcId})">
+      <i class="ti ti-check"></i> Li e concordo com os termos
+    </button>
+    <button style="width:100%;padding:14px;background:none;border:1.5px solid #ccc;border-radius:10px;color:#666;font-size:14px;cursor:pointer;margin-bottom:24px" onclick="recusarTermo()">
+      Não aceito — sair do sistema
+    </button>`;
+}
+
+async function aceitarTermo(funcId){
+  localStorage.setItem('me_termo_'+funcId,'1');
+  document.getElementById('modal-termo').style.display='none';
+  init();
+}
+
+function recusarTermo(){
+  document.getElementById('modal-termo').style.display='none';
+  sair();
+}
+
+function verificarTermo(){
+  const f=fP||S?.func;
+  if(!f){init();return}
+  const aceitou=localStorage.getItem('me_termo_'+f.id);
+  if(aceitou) init();
+  else mostrarTermo(f.id, f.nome);
+}
+
+// Atualizar loginG para suportar senha personalizada por empresa
+const _loginGOriginal = loginG;
+async function loginG(){
+  const s=document.getElementById('gsen').value,le=document.getElementById('le');
+  le.style.display='none';
+  if(s==='admin123'){
+    document.getElementById('pg-login').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('uc').textContent='⚡ Super Admin';
+    document.getElementById('bn').innerHTML=`
+      <button class="nb active" onclick="saNav('sa-codigos')"><i class="ti ti-key"></i><span>Códigos</span></button>
+      <button class="nb" onclick="saNav('sa-empresas')"><i class="ti ti-building"></i><span>Empresas</span></button>`;
+    saNav('sa-codigos');return;
+  }
+  // Verificar senha personalizada da gestora (salva no localStorage)
+  const empId=localStorage.getItem('me_empresa_id');
+  const senhaPers=empId?localStorage.getItem('me_senha_gestora_'+empId):null;
+  const senhaCorreta=senhaPers||'admin';
+  if(s!==senhaCorreta){le.textContent='Senha incorreta.';le.style.display='block';return}
+  if(!EMP){
+    if(!empId){le.textContent='Empresa não configurada.';le.style.display='block';return}
+    const res=await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
+    if(!res.length){le.textContent='Empresa não encontrada.';le.style.display='block';return}
+    EMP=res[0];aplicarIdentidade(EMP);
+  }
+  S={tipo:'gestor'};init();
+}
+
 </script>
 </body>
 </html>
