@@ -196,6 +196,53 @@ const FAIXAS=[{de:0,ate:70.99,pct:0},{de:71,ate:84.99,pct:0.20},{de:85,ate:99.99
 const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CORES=[{c:'#00695C',b:'#E0F2F1'},{c:'#534AB7',b:'#EEEDFE'},{c:'#BA7517',b:'#FAEEDA'},{c:'#D85A30',b:'#FAECE7'},{c:'#185FA5',b:'#E6F1FB'},{c:'#639922',b:'#EAF3DE'},{c:'#00838F',b:'#E0F7FA'},{c:'#C62828',b:'#FFEBEE'}];
 
+// ── FERIADOS 2026 (nacionais + MG + municipais das 4 filiais) ──
+const FERIADOS_2026=new Set([
+  '2026-01-01','2026-01-06','2026-01-20', // Ano novo, Epifania, São Sebastião/Santo Antônio
+  '2026-02-17','2026-02-18',               // Carnaval
+  '2026-04-03','2026-04-05','2026-04-21','2026-04-23', // S.Santa, Páscoa, Tiradentes, São Jorge
+  '2026-05-01',                            // Dia do Trabalho
+  '2026-06-04','2026-06-13',              // Corpus Christi, Santo Antônio
+  '2026-08-15',                            // Assunção
+  '2026-09-07','2026-09-08','2026-09-29', // Independência, Nsa Sra, São Miguel
+  '2026-10-12',                            // Aparecida
+  '2026-11-02','2026-11-08','2026-11-15','2026-11-20', // Finados, aniversários, República, Consciência
+  '2026-12-08','2026-12-25'               // Imaculada, Natal
+]);
+
+function isFeriado(dt){
+  const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');
+  return FERIADOS_2026.has(y+'-'+m+'-'+d);
+}
+
+// Dia útil = Seg(1) a Sáb(6), sem feriados
+function isDiaUtil(dt){ return dt.getDay()!==0 && !isFeriado(dt); }
+
+function diasUteisPeriodo(inicio, fim){
+  let d=0, c=new Date(inicio);
+  while(c<=fim){ if(isDiaUtil(c))d++; c.setDate(c.getDate()+1); }
+  return d;
+}
+
+function diasUteisPassados(mes, ano){
+  const hoje=new Date(2026,4,19); // data atual do sistema
+  const ini=new Date(ano,mes-1,1);
+  const ate=hoje<new Date(ano,mes-1,1)?new Date(ano,mes-1,1):hoje;
+  return Math.max(diasUteisPeriodo(ini,ate),1);
+}
+
+function diasUteisRestantes(mes, ano){
+  const hoje=new Date(2026,4,19);
+  const fim=new Date(ano,mes,0);
+  const ini=new Date(hoje); ini.setDate(ini.getDate()+1);
+  if(ini>fim) return 0;
+  return diasUteisPeriodo(ini,fim);
+}
+
+function diasUteisTotais(mes, ano){
+  return diasUteisPeriodo(new Date(ano,mes-1,1), new Date(ano,mes,0));
+}
+
 let S=null, mS=5, aS=2026, fP=null;
 
 const fm=v=>'R$'+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -206,9 +253,11 @@ const gF=p=>{for(let f of FAIXAS)if(p>=f.de&&p<=f.ate)return f;return FAIXAS[FAI
 const cC=(m,t)=>{const p=m>0?t/m*100:0;return t*(gF(p).pct/100)};
 const pC=p=>p>=100?'#00695C':p>=85?'#BA7517':p>=71?'#E24B4A':'#aaa';
 const bI=p=>{if(p>=120)return{c:'ov',l:'Acima de 120%'};if(p>=100)return{c:'ok',l:'Meta batida!'};if(p>=85)return{c:'wn',l:'Quase lá'};if(p>=71)return{c:'al',l:'Atenção'};return{c:'no',l:'Sem comissão'}};
-const dR=(m,a)=>{const fim=new Date(a,m,0),hj=new Date(2026,4,12);let d=0,c=new Date(hj);c.setDate(c.getDate()+1);while(c<=fim){if(c.getDay()!==0&&c.getDay()!==6)d++;c.setDate(c.getDate()+1);}return d};
-const dP=(m,a)=>{const i=new Date(a,m-1,1),hj=new Date(2026,4,12);let d=0,c=new Date(i);while(c<=hj&&c.getMonth()===m-1){if(c.getDay()!==0&&c.getDay()!==6)d++;c.setDate(c.getDate()+1);}return Math.max(d,1)};
-const hj=()=>{const d=new Date(2026,4,12);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()};
+// Funções de dias úteis usando feriados corretos (Seg-Sáb)
+const dR=(m,a)=>diasUteisRestantes(m,a);
+const dP=(m,a)=>diasUteisPassados(m,a);
+const dT=(m,a)=>diasUteisTotais(m,a);
+const hj=()=>{const d=new Date(2026,4,19);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()};
 const nM=(m,a)=>MESES[m-1]+'/'+a;
 
 // ── FILTRO POR EMPRESA ──
@@ -689,19 +738,30 @@ function buildNav(tipo){
     gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}],
     vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}]
   };
-  document.getElementById('bn').innerHTML=(ns[tipo]||ns.vendedora).map(x=>'<button class="nb" id="n-'+x.id+'" onclick="navTo(\''+x.id+'\')"><i class="ti '+x.i+'"></i><span>'+x.l+'</span></button>').join('');
+  document.getElementById('bn').innerHTML=(ns[tipo]||ns.vendedora).map(x=>{
+    return '<button class="nb" id="n-'+x.id+'" onclick="navTo(this.dataset.id)" data-id="'+x.id+'"><i class="ti '+x.i+'"></i><span>'+x.l+'</span></button>';
+  }).join('');
 }
 
-function navTo(id){
+async function navTo(id){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   const b=document.getElementById('n-'+id);if(b)b.classList.add('active');
   document.getElementById('ct').innerHTML='<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>';
-  if(!EMP && S && S.tipo==='gestor'){
-    document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:30px"><i class="ti ti-alert-circle" style="font-size:36px;color:#E24B4A;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:15px;margin-bottom:8px">Empresa não carregada</div><div style="font-size:13px;color:#666;margin-bottom:16px">Saia e entre novamente usando "Ja tenho conta" com ID 1</div><button class="btn bp" onclick="sair()">Sair e reconectar</button></div>';
-    return;
+  if(!EMP){
+    const empId=localStorage.getItem('me_empresa_id');
+    if(empId){
+      try{const r=await gt('empresas','?id=eq.'+empId+'&select=*');if(r.length){EMP=r[0];aplicarIdentidade(EMP);}}
+      catch(e){console.error(e);}
+    }
   }
   const fn={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic}[id.replace(/-/g,'_')];
-  if(fn)fn().catch(e=>{document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:24px"><div style="color:#E24B4A;font-weight:600">Erro ao carregar. Verifique sua conexão.</div></div>';console.error(e);});
+  if(fn){
+    try{await fn();}
+    catch(e){
+      console.error('Erro aba '+id,e);
+      document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:24px"><i class="ti ti-wifi-off" style="font-size:36px;color:#E24B4A;display:block;margin-bottom:10px"></i><div style="font-weight:600;color:#E24B4A">Erro ao carregar</div><div style="font-size:13px;color:#666;margin-top:6px">Verifique sua conexão</div></div>';
+    }
+  }
 }
 
 function mSel(cb){
@@ -710,6 +770,18 @@ function mSel(cb){
 
 // ── GESTORA: LANÇAR ──
 async function gMetas(){
+  // Garantir EMP carregado
+  if(!EMP){
+    const empId=localStorage.getItem('me_empresa_id');
+    if(empId){
+      const r=await gt('empresas','?id=eq.'+empId+'&select=*');
+      if(r.length){EMP=r[0];aplicarIdentidade(EMP);}
+    }
+  }
+  if(!EMP){
+    document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:30px"><i class="ti ti-alert-circle" style="font-size:36px;color:#E24B4A;display:block;margin-bottom:12px"></i><div style="font-weight:700">Empresa não encontrada</div><div style="font-size:13px;color:#666;margin-top:8px">Saia e use "Já tenho conta" com ID 1</div><button class="btn bp" style="margin-top:16px" onclick="sair()">Sair</button></div>';
+    return;
+  }
   const [funcs,vendas,metas]=await Promise.all([
     gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'),
     gt('vendas','?select=func_id,valor,data_venda'+eid()),
@@ -1036,9 +1108,13 @@ async function gMais(){
   const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const CORES_F=['#00897B','#534AB7','#BA7517','#D85A30','#185FA5','#639922','#00838F','#C62828'];
 
-  // Ranking vendedoras
-  const rankVends=[...vends].sort((a,b)=>(tot[b.id]||0)-(tot[a.id]||0));
-  const maxVend=tot[rankVends[0]?.id]||1;
+  // Ranking vendedoras por % da meta
+  const rankVends=[...vends].sort((a,b)=>{
+    const pA=mm[a.id]>0?(tot[a.id]||0)/mm[a.id]*100:0;
+    const pB=mm[b.id]>0?(tot[b.id]||0)/mm[b.id]*100:0;
+    return pB-pA;
+  });
+  const maxVend=Math.max(...rankVends.map(f=>mm[f.id]>0?(tot[f.id]||0)/mm[f.id]*100:0),1);
 
   let h=`<div class="h1">Relatório</div>${mSel('gMais()')}`;
 
@@ -1118,17 +1194,23 @@ async function gMais(){
       const v=tot[f.id]||0,meta=mm[f.id]||0,pct=tV>0?v/tV*100:0;
       const barW=maxVend>0?v/maxVend*100:0;
       const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-      return`<div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:16px;width:24px">${medal||'#'+(i+1)}</span>
-          <span style="font-weight:600;font-size:13px;flex:1">${f.nome}</span>
-          <span style="font-size:13px;font-weight:700">${fi(v)}</span>
-          <span style="font-size:11px;color:var(--t2);width:36px;text-align:right">${pp(pct)}</span>
+    const percMeta=meta>0?v/meta*100:0;
+    const barWPct=Math.min(percMeta,100);
+    const alertaBaixa=percMeta<71&&dr>0;
+    return`<div style="margin-bottom:14px;padding:10px;background:${alertaBaixa?'#FFF8F8':'var(--bg)'};border-radius:10px;border:${alertaBaixa?'1px solid #F09595':'1px solid transparent'}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:18px;width:28px">${medal||'#'+(i+1)}</span>
+          <span style="font-weight:700;font-size:14px;flex:1">${f.nome}</span>
+          <span style="font-size:22px;font-weight:800;color:${pC(percMeta)}">${pp(percMeta)}</span>
         </div>
-        <div style="height:8px;background:var(--bg);border-radius:999px;overflow:hidden">
-          <div style="height:100%;width:${barW}%;background:${CORES_F[i%CORES_F.length]};border-radius:999px;transition:.4s"></div>
+        <div style="height:10px;background:rgba(0,0,0,.06);border-radius:999px;overflow:hidden;margin-bottom:4px">
+          <div style="height:100%;width:${barWPct}%;background:${pC(percMeta)};border-radius:999px;transition:.4s"></div>
         </div>
-        <div style="font-size:10px;color:var(--t2);margin-top:2px">Meta: ${fi(meta)} · Comissão: ${fm(cC(meta,v))}</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2)">
+          <span>Vendido: <strong>${fi(v)}</strong> de ${fi(meta)}</span>
+          <span>Comissão: <strong style="color:var(--td)">${fm(cC(meta,v))}</strong></span>
+        </div>
+        ${alertaBaixa?`<div style="font-size:11px;color:#C62828;margin-top:4px;font-weight:600">⚠️ Abaixo de 71% — sem comissão no ritmo atual</div>`:''}
       </div>`;
     }).join('')}
   </div>`;
@@ -1443,17 +1525,113 @@ async function fMetas(){
   const vArr=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
   const v=vArr.reduce((s,x)=>s+parseFloat(x.valor),0),p=meta>0?v/meta*100:0;
   const faixa=gF(p),co=cC(meta,v),re=Math.max(meta-v,0);
-  const dr=dR(mS,aS),dp=dP(mS,aS),nd=dr>0?re/dr:0,ns=nd*5,proj=dp>0?(v/dp)*22:0;
+  const dr=dR(mS,aS),dp=dP(mS,aS),dt2=dT(mS,aS);
+  const nd=dr>0?re/dr:0,ns=nd*6,proj=dp>0?(v/dp)*dt2:0; // sábado incluído: *6/semana
   const pc=pC(p),bi=bI(p),prx=FAIXAS.find(x=>x.de>p&&x.pct>0),fp=prx?meta*(prx.de/100)-v:0;
+  const mediaDiaAtual=dp>0?v/dp:0;
+  const noRitmo=mediaDiaAtual>=nd;
 
-  let h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div class="av" style="width:46px;height:46px;font-size:16px;background:#E0F2F1;color:#00695C">'+in2(f.nome)+'</div><div style="flex:1"><div style="font-size:17px;font-weight:700">'+f.nome+'</div><div style="font-size:12px;color:var(--t2)">'+dr+' dias úteis restantes</div></div><span class="bx '+bi.c+'">'+bi.l+'</span></div>'+mSel('fMetas()');
+  // ── Mensagem motivacional ──
+  function getMsgMotiv(){
+    if(p>=120) return{emoji:'🏆',msg:'Incrível! Você superou 120% da meta! Resultado extraordinário!',cor:'#4527A0'};
+    if(p>=100) return{emoji:'🎉',msg:'META BATIDA! Você arrasou! Continue para maximizar sua comissão!',cor:'#00695C'};
+    if(p>=85)  return{emoji:'🚀',msg:'Quase lá! Só mais '+fi(re)+' e você bate a meta. Você consegue!',cor:'#00695C'};
+    if(p>=71){
+      if(fp>0) return{emoji:'💪',msg:'Comissão garantida! Faltam '+fi(fp)+' para subir de faixa e ganhar mais!',cor:'#BA7517'};
+      return{emoji:'💪',msg:'Na faixa de comissão! Venda '+fi(nd)+'/dia para crescer!',cor:'#BA7517'};
+    }
+    if(p>=40)  return{emoji:'⚡',msg:'Você pode mais! Venda '+fi(nd)+' por dia e garante sua comissão. Vai!',cor:'#E24B4A'};
+    return{emoji:'🌟',msg:'Foco total! Venda '+fi(nd)+'/dia e você chega lá. Acredite em você!',cor:'#E24B4A'};
+  }
+  const motiv=getMsgMotiv();
+
+  let h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
+    '<div class="av" style="width:44px;height:44px;font-size:15px;background:#E0F2F1;color:#00695C">'+in2(f.nome)+'</div>'+
+    '<div style="flex:1"><div style="font-size:17px;font-weight:700">'+f.nome+'</div>'+
+    '<div style="font-size:12px;color:var(--t2)">'+dr+' dias úteis restantes (Seg–Sáb)</div></div>'+
+    '<span class="bx '+bi.c+'">'+bi.l+'</span></div>'+mSel('fMetas()');
+
+  // Card motivacional
+  h+='<div class="card" style="background:'+motiv.cor+'14;border:1.5px solid '+motiv.cor+'33">'+
+    '<div style="display:flex;align-items:center;gap:12px">'+
+      '<span style="font-size:36px;flex-shrink:0">'+motiv.emoji+'</span>'+
+      '<div style="font-size:14px;font-weight:600;color:'+motiv.cor+';line-height:1.5">'+motiv.msg+'</div>'+
+    '</div></div>';
+
+  // Card meta do dia (destaque)
+  if(meta>0&&dr>0){
+    h+='<div class="card" style="background:#000;border:none;padding:16px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'+
+        '<div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 Meta de hoje</div>'+
+          '<div style="font-size:34px;font-weight:800;color:#1DE9B6;line-height:1">'+fi(nd)+'</div>'+
+          '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">para estar no ritmo certo</div>'+
+        '</div>'+
+        '<div style="text-align:center;background:rgba(255,255,255,.07);border-radius:12px;padding:12px 14px;flex-shrink:0">'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px">Sua média/dia</div>'+
+          '<div style="font-size:22px;font-weight:700;color:'+(noRitmo?'#1DE9B6':'#E24B4A')+'">'+fi(mediaDiaAtual)+'</div>'+
+          '<div style="font-size:11px;margin-top:6px">'+(noRitmo?'<span style="color:#1DE9B6;font-weight:600">✓ No ritmo!</span>':'<span style="color:#E24B4A;font-weight:600">⚠ Acelerar</span>')+'</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
   h+='<div class="card" style="border-top:3px solid var(--t)"><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-size:38px;font-weight:800;color:'+pc+'">'+(meta>0?pp(p):'—')+'</span><span style="font-size:13px;color:var(--t2)">'+nM(mS,aS)+'</span></div><div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div><div class="g3" style="margin-top:12px"><div class="mx"><label>Vendido</label><div class="v" style="font-size:14px">'+fi(v)+'</div></div><div class="mx"><label>Meta</label><div class="v" style="font-size:14px">'+(meta>0?fi(meta):'Não definida')+'</div></div><div class="mx"><label>Comissão</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(co)+'</div><div class="s">faixa '+faixa.pct+'%</div></div></div></div>';
   if(meta>0){
     if(re>0&&dr>0){h+='<div class="card"><div class="ct2"><i class="ti ti-target"></i>Para bater a meta</div><div class="nr"><div class="nv"><div class="n">'+fi(nd)+'</div><div class="l">por dia útil</div></div><div class="nv"><div class="n">'+fi(ns)+'</div><div class="l">por semana</div></div><div class="nv"><div class="n">'+fi(proj)+'</div><div class="l">projeção</div></div></div>'+(prx&&fp>0?'<p style="text-align:center;font-size:12px;color:var(--t2);margin-top:10px">Próxima faixa ('+prx.pct+'%): falta <strong>'+fi(Math.max(fp,0))+'</strong></p>':'')+'</div>'}
     else if(p>=100){h+='<div class="card" style="text-align:center;padding:20px;background:var(--tl)"><div style="font-size:28px">🎉</div><div style="font-weight:700;color:var(--tdd);font-size:16px;margin-top:4px">Meta batida! Parabéns!</div></div>'}
   }
   h+='<div class="card"><div class="ct2"><i class="ti ti-receipt"></i>Faixas de comissão</div><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:var(--t2)"><td style="padding:4px 6px">Faixa</td><td>%</td><td>Exemplo</td></tr>'+FAIXAS.map(x=>{const at=p>=x.de&&p<=x.ate,ev=meta*(x.de===0?0.35:(x.ate>500?1.25:(x.de+Math.min(x.ate,120))/2)/100);return'<tr style="'+(at?'background:var(--tl);font-weight:700;':'')+'"><td style="padding:6px">'+(x.ate>500?x.de+'%+':x.de+'–'+x.ate+'%')+'</td><td style="color:'+(x.pct>0?'var(--td)':'var(--t2)')+'">'+x.pct+'%</td><td>'+(x.pct>0&&meta>0?fm(ev*(x.pct/100)):'—')+'</td>'+(at?'<td><span class="bx tl">você aqui</span></td>':'<td></td>')+'</tr>'}).join('')+'</table></div>';
-  h+='<div class="card"><div class="ct2"><i class="ti ti-clock"></i>Lançamentos — '+nM(mS,aS)+'</div>'+vArr.slice(0,10).map(x=>'<div class="ri"><span style="color:var(--t2);font-size:13px">'+x.data_venda+'</span><span style="font-weight:700;margin-left:auto">'+fm(x.valor)+'</span></div>').join('')+(vArr.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')+'</div>';
+  h+='<div class="card"><div class="ct2"><i class="ti ti-clock"></i>Lançamentos recentes — '+nM(mS,aS)+'</div>'+vArr.slice(0,15).map(x=>{
+    return '<div class="ri" id="vl-'+x.id+'">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:600">'+x.data_venda+'</div>'+
+      '</div>'+
+      '<span style="font-weight:700;font-size:15px;margin-right:10px">'+fm(x.valor)+'</span>'+
+      '<div style="display:flex;gap:6px;flex-shrink:0">'+
+        '<button class="btn bsm" onclick="editLanc('+x.id+','+x.valor+',\''+x.data_venda+'\')"><i class="ti ti-edit"></i></button>'+
+        '<button class="btn bd2r" onclick="delLanc('+x.id+',this)"><i class="ti ti-trash"></i></button>'+
+      '</div>'+
+    '</div>';
+  }).join('')+(vArr.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')+'</div>';
+
+  window.editLanc=(id,valor,data)=>{
+    const el=document.getElementById('vl-'+id);
+    if(!el)return;
+    const [dd,mm2,aa]=data.split('/');
+    const dataISO=aa+'-'+mm2+'-'+dd;
+    el.innerHTML=
+      '<div style="flex:1;display:flex;flex-direction:column;gap:8px">'+
+        '<div style="display:flex;gap:8px;align-items:center">'+
+          '<input type="text" inputmode="numeric" id="el-v-'+id+'" value="'+fmtMeta(valor)+'" '+
+            'onkeydown="return metaKey(event)" oninput="maskMeta(this)" '+
+            'style="flex:1;padding:10px;border:1.5px solid var(--td);border-radius:8px;font-size:15px;font-weight:700;text-align:right">'+
+          '<input type="date" id="el-d-'+id+'" value="'+dataISO+'" '+
+            'style="width:140px;padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px">'+
+        '</div>'+
+        '<div style="display:flex;gap:8px">'+
+          '<button class="btn bp bsm" style="flex:1" onclick="saveLanc('+id+')"><i class="ti ti-check"></i> Salvar</button>'+
+          '<button class="btn bsm" onclick="gMetas()">Cancelar</button>'+
+        '</div>'+
+      '</div>';
+  };
+
+  window.saveLanc=async(id)=>{
+    const val=parseMeta(document.getElementById('el-v-'+id).value);
+    const dataISO=document.getElementById('el-d-'+id).value;
+    if(!val||!dataISO){alert('Preencha valor e data.');return}
+    const [aa,mm2,dd]=dataISO.split('-');
+    const dataFmt=dd+'/'+mm2+'/'+aa;
+    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:dataFmt});
+    gMetas();
+  };
+
+  window.delLanc=async(id,btn)=>{
+    if(!confirm('Excluir este lançamento?'))return;
+    btn.disabled=true;
+    await dl('vendas','?id=eq.'+id);
+    gMetas();
+  };
   document.getElementById('ct').innerHTML=h;
 }
 
