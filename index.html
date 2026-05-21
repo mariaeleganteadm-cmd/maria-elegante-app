@@ -265,31 +265,7 @@ const nM=(m,a)=>MESES[m-1]+'/'+a;
 const eid=()=>EMP?'&empresa_id=eq.'+EMP.id:'';
 const eidQ=()=>EMP?'?empresa_id=eq.'+EMP.id:'?';
 
-// Carregar empresa assim que o script inicia
-(async function carregarEmpresaInicio(){
-  try {
-    const empId = localStorage.getItem('me_empresa_id');
-    let res = [];
-    if(empId) {
-      res = await fetch(SB+'/rest/v1/empresas?id=eq.'+empId+'&ativa=eq.true&select=*',
-        {headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(r=>r.json());
-    }
-    if(!res.length) {
-      // Buscar qualquer empresa ativa
-      res = await fetch(SB+'/rest/v1/empresas?ativa=eq.true&select=*&limit=1',
-        {headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(r=>r.json());
-    }
-    if(res.length) {
-      EMP = res[0];
-      localStorage.setItem('me_empresa_id', String(EMP.id));
-      console.log('EMP carregado no início: ID='+EMP.id+' Nome='+EMP.nome);
-    } else {
-      console.warn('Nenhuma empresa encontrada!');
-    }
-  } catch(e) {
-    console.error('Erro ao carregar empresa inicial:', e);
-  }
-})();
+
 function fmtMeta(v){
   // Formata número para "10.000,00"
   return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -329,25 +305,45 @@ const dl=(t,p)=>api(t,'DELETE',null,p);
 let EMP = null; // dados da empresa ativa
 
 window.addEventListener('load',async()=>{
+  // Aplicar logo padrão
   ['isp','iln','itp'].forEach(id=>{const e=document.getElementById(id);if(e)e.src='data:image/png;base64,'+LOGO});
-  await new Promise(r=>setTimeout(r,1400));
-  const s=document.getElementById('splash');s.style.opacity='0';
-  setTimeout(()=>s.style.display='none',400);
 
-  // Verificar se já existe empresa configurada no localStorage
-  const empId = localStorage.getItem('me_empresa_id');
-  if(empId){
-    const res = await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
-    if(res.length){
-      EMP = res[0];
-      aplicarIdentidade(EMP);
-      document.getElementById('pg-login').style.display='block';
-      return;
+  // Splash
+  await new Promise(r=>setTimeout(r,1200));
+  const sp=document.getElementById('splash');
+  sp.style.opacity='0';
+  setTimeout(()=>sp.style.display='none',400);
+
+  // Carregar empresa de forma sequencial e garantida
+  try{
+    const empId=localStorage.getItem('me_empresa_id');
+    let res=[];
+    if(empId){
+      res=await fetch(SB+'/rest/v1/empresas?id=eq.'+empId+'&ativa=eq.true&select=*',
+        {headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(r=>r.json()).catch(()=>[]);
     }
+    if(!res||!res.length){
+      res=await fetch(SB+'/rest/v1/empresas?ativa=eq.true&select=*&limit=1',
+        {headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(r=>r.json()).catch(()=>[]);
+    }
+    if(res&&res.length){
+      EMP=res[0];
+      localStorage.setItem('me_empresa_id',String(EMP.id));
+      aplicarIdentidade(EMP);
+      console.log('✅ Empresa carregada: '+EMP.nome+' (ID: '+EMP.id+')');
+      // Ir direto para login
+      document.getElementById('pg-login').style.display='block';
+    } else {
+      // Sem empresa — ir para onboarding
+      console.log('Nenhuma empresa — onboarding');
+      document.getElementById('pg-onboard').style.display='block';
+      renderOB();
+    }
+  }catch(e){
+    console.error('Erro no boot:',e);
+    // Fallback: mostrar login mesmo sem empresa
+    document.getElementById('pg-login').style.display='block';
   }
-  // Sem empresa — mostrar onboarding
-  document.getElementById('pg-onboard').style.display='block';
-  renderOB();
 });
 
 function aplicarIdentidade(emp){
