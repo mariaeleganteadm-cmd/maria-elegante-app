@@ -385,40 +385,11 @@ function renderOB(){
 }
 
 function renderOBCodigo(){
-  document.getElementById('ob-body').innerHTML=`
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:28px;font-weight:800;color:#fff;margin-bottom:8px">Bem-vindo!</div>
-      <div style="font-size:14px;color:rgba(255,255,255,.6)">Digite o código de ativação fornecido</div>
-    </div>
-    <div class="lf"><label>Código de ativação</label>
-      <input id="ob-cod" type="text" placeholder="Ex: ME-2026-ALFA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-    </div>
-    <div id="ob-err" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>
-    <button class="bl" onclick="obValidarCodigo()">Continuar →</button>
-    <div style="margin-top:16px;text-align:center">
-      <button onclick="obJaTenhoConta()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">
-        Já tenho conta — fazer login
-      </button>
-    </div>
-    <div style="text-align:center;margin-top:8px;font-size:12px;color:rgba(255,255,255,.3)">Passo 1 de 4</div>`;
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:28px;font-weight:800;color:#fff;margin-bottom:8px">Bem-vindo!</div>\n      <div style="font-size:14px;color:rgba(255,255,255,.6)">Digite o código de ativação fornecido</div>\n    </div>\n    <div class="lf"><label>Código de ativação</label>\n      <input id="ob-cod" type="text" placeholder="Ex: ME-2026-ALFA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">\n    </div>\n    <div id="ob-err" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obValidarCodigo()">Continuar →</button>\n    <div style="margin-top:16px;text-align:center">\n      <button onclick="obJaTenhoConta()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">\n        Já tenho conta — fazer login\n      </button>\n    </div>\n    <div style="text-align:center;margin-top:8px;font-size:12px;color:rgba(255,255,255,.3)">Passo 1 de 4</div>';
 }
 
 function obJaTenhoConta(){
-  document.getElementById('ob-body').innerHTML=`
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Já tenho conta</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.6)">Digite o ID da sua empresa para acessar</div>
-    </div>
-    <div class="lf"><label>ID da empresa</label>
-      <input id="ob-empid" type="number" placeholder="Ex: 1" inputmode="numeric">
-    </div>
-    <div id="ob-errc" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>
-    <button class="bl" onclick="obConectarEmpresa()">Entrar →</button>
-    <div style="margin-top:16px;text-align:center">
-      <button onclick="renderOBCodigo()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">
-        ← Voltar
-      </button>
-    </div>`;
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Já tenho conta</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Digite o ID da sua empresa para acessar</div>\n    </div>\n    <div class="lf"><label>ID da empresa</label>\n      <input id="ob-empid" type="number" placeholder="Ex: 1" inputmode="numeric">\n    </div>\n    <div id="ob-errc" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obConectarEmpresa()">Entrar →</button>\n    <div style="margin-top:16px;text-align:center">\n      <button onclick="renderOBCodigo()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">\n        ← Voltar\n      </button>\n    </div>';
 }
 
 async function obConectarEmpresa(){
@@ -446,28 +417,7 @@ async function obValidarCodigo(){
 }
 
 function renderOBEmpresa(){
-  document.getElementById('ob-body').innerHTML=`
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Dados da empresa</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.6)">Configure a identidade do sistema</div>
-    </div>
-    <div class="lf"><label>Nome da empresa *</label><input id="ob-nome" placeholder="Ex: Loja Fashion"></div>
-    <div class="lf"><label>CNPJ</label><input id="ob-cnpj" placeholder="00.000.000/0001-00"></div>
-    <div class="lf"><label>Telefone</label><input id="ob-tel" type="tel" placeholder="(35) 99999-0000"></div>
-    <div class="lf"><label>Endereço</label><input id="ob-end" placeholder="Rua, número, cidade"></div>
-    <div class="lf"><label>Cor principal</label>
-      <div style="display:flex;gap:10px;align-items:center">
-        <input type="color" id="ob-cor" value="#00897B" style="width:50px;height:44px;border-radius:8px;border:none;cursor:pointer;padding:2px" onchange="OB.cor=this.value">
-        <span style="color:rgba(255,255,255,.6);font-size:13px">Cor do sistema (botões, destaques)</span>
-      </div>
-    </div>
-    <div class="lf"><label>Logo da empresa</label>
-      <input type="file" id="ob-logo" accept="image/*" style="color:rgba(255,255,255,.7)" onchange="obCarregarLogo(this)">
-      <div id="ob-logo-prev" style="margin-top:8px"></div>
-    </div>
-    <div id="ob-err2" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>
-    <button class="bl" onclick="obSalvarEmpresa()">Continuar →</button>
-    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 2 de 4</div>`;
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Dados da empresa</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Configure a identidade do sistema</div>\n    </div>\n    <div class="lf"><label>Nome da empresa *</label><input id="ob-nome" placeholder="Ex: Loja Fashion"></div>\n    <div class="lf"><label>CNPJ</label><input id="ob-cnpj" placeholder="00.000.000/0001-00"></div>\n    <div class="lf"><label>Telefone</label><input id="ob-tel" type="tel" placeholder="(35) 99999-0000"></div>\n    <div class="lf"><label>Endereço</label><input id="ob-end" placeholder="Rua, número, cidade"></div>\n    <div class="lf"><label>Cor principal</label>\n      <div style="display:flex;gap:10px;align-items:center">\n        <input type="color" id="ob-cor" value="#00897B" style="width:50px;height:44px;border-radius:8px;border:none;cursor:pointer;padding:2px" onchange="OB.cor=this.value">\n        <span style="color:rgba(255,255,255,.6);font-size:13px">Cor do sistema (botões, destaques)</span>\n      </div>\n    </div>\n    <div class="lf"><label>Logo da empresa</label>\n      <input type="file" id="ob-logo" accept="image/*" style="color:rgba(255,255,255,.7)" onchange="obCarregarLogo(this)">\n      <div id="ob-logo-prev" style="margin-top:8px"></div>\n    </div>\n    <div id="ob-err2" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obSalvarEmpresa()">Continuar →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 2 de 4</div>';
 }
 
 function obCarregarLogo(input){
@@ -513,20 +463,8 @@ async function obSalvarEmpresa(){
 
 let OB_filiais = [];
 function renderOBFiliais(){
-  const lista = OB_filiais.map((f,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span style="flex:1;color:#fff;font-size:14px">${f}</span><button onclick="OB_filiais.splice(${i},1);renderOBFiliais()" style="background:rgba(226,75,74,.3);border:none;color:#ff8a87;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕</button></div>`).join('');
-  document.getElementById('ob-body').innerHTML=`
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Filiais</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.6)">Cadastre as unidades da empresa</div>
-    </div>
-    ${lista}
-    <div style="margin-top:12px;display:flex;gap:8px">
-      <input id="ob-fil" placeholder="Nome da filial" style="flex:1;padding:13px 14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none">
-      <button onclick="obAddFilial()" style="padding:13px 18px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;font-weight:600">+</button>
-    </div>
-    <div id="ob-err3" style="color:#ff8a87;font-size:13px;margin:8px 0;display:none"></div>
-    <button class="bl" style="margin-top:16px" onclick="obSalvarFiliais()">Continuar →</button>
-    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 3 de 4</div>`;
+  const lista = OB_filiais.map((f,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span style="flex:1;color:#fff;font-size:14px">'+(f)+'</span><button onclick="OB_filiais.splice('+(i)+',1);renderOBFiliais()" style="background:rgba(226,75,74,.3);border:none;color:#ff8a87;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕</button></div>').join('');
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Filiais</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Cadastre as unidades da empresa</div>\n    </div>\n    '+(lista)+'\n    <div style="margin-top:12px;display:flex;gap:8px">\n      <input id="ob-fil" placeholder="Nome da filial" style="flex:1;padding:13px 14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none">\n      <button onclick="obAddFilial()" style="padding:13px 18px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;font-weight:600">+</button>\n    </div>\n    <div id="ob-err3" style="color:#ff8a87;font-size:13px;margin:8px 0;display:none"></div>\n    <button class="bl" style="margin-top:16px" onclick="obSalvarFiliais()">Continuar →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 3 de 4</div>';
 }
 
 function obAddFilial(){
@@ -546,18 +484,7 @@ async function obSalvarFiliais(){
 }
 
 function renderOBGestora(){
-  document.getElementById('ob-body').innerHTML=`
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Conta da Gestora</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.6)">Crie o acesso principal do sistema</div>
-    </div>
-    <div class="lf"><label>Nome completo *</label><input id="ob-gnome" placeholder="Ex: Maria Santos"></div>
-    <div class="lf"><label>Telefone *</label><input id="ob-gtel" type="tel" placeholder="35999990000" inputmode="numeric"></div>
-    <div class="lf"><label>Senha *</label><input id="ob-gsen" type="password" placeholder="Mínimo 4 caracteres"></div>
-    <div class="lf"><label>Confirmar senha *</label><input id="ob-gsen2" type="password" placeholder="Repita a senha"></div>
-    <div id="ob-err4" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>
-    <button class="bl" onclick="obSalvarGestora()">Concluir configuração →</button>
-    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 4 de 4</div>`;
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Conta da Gestora</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Crie o acesso principal do sistema</div>\n    </div>\n    <div class="lf"><label>Nome completo *</label><input id="ob-gnome" placeholder="Ex: Maria Santos"></div>\n    <div class="lf"><label>Telefone *</label><input id="ob-gtel" type="tel" placeholder="35999990000" inputmode="numeric"></div>\n    <div class="lf"><label>Senha *</label><input id="ob-gsen" type="password" placeholder="Mínimo 4 caracteres"></div>\n    <div class="lf"><label>Confirmar senha *</label><input id="ob-gsen2" type="password" placeholder="Repita a senha"></div>\n    <div id="ob-err4" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obSalvarGestora()">Concluir configuração →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 4 de 4</div>';
 }
 
 async function obSalvarGestora(){
@@ -582,13 +509,7 @@ async function obSalvarGestora(){
 }
 
 function renderOBConcluido(){
-  document.getElementById('ob-body').innerHTML=`
-    <div style="text-align:center;padding:20px 0">
-      <div style="font-size:48px;margin-bottom:16px">🎉</div>
-      <div style="font-size:24px;font-weight:800;color:#1DE9B6;margin-bottom:8px">Sistema configurado!</div>
-      <div style="font-size:14px;color:rgba(255,255,255,.6);margin-bottom:32px">Tudo pronto para usar. Faça login para começar.</div>
-      <button class="bl" onclick="obIrLogin()">Ir para o login →</button>
-    </div>`;
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;padding:20px 0">\n      <div style="font-size:48px;margin-bottom:16px">🎉</div>\n      <div style="font-size:24px;font-weight:800;color:#1DE9B6;margin-bottom:8px">Sistema configurado!</div>\n      <div style="font-size:14px;color:rgba(255,255,255,.6);margin-bottom:32px">Tudo pronto para usar. Faça login para começar.</div>\n      <button class="bl" onclick="obIrLogin()">Ir para o login →</button>\n    </div>';
 }
 
 function obIrLogin(){
@@ -670,57 +591,46 @@ async function renderSAEmpresas(){
     gt('empresas','?select=*&order=created_at.desc'),
     gt('codigos_ativacao','?select=empresa_id,usado')
   ]);
-  let h='<div class="h1">🏢 Empresas cadastradas</div>';
+  let h='<div class="h1">Empresas cadastradas</div>';
   if(!empresas.length){
     h+='<div class="card"><div class="em">Nenhuma empresa cadastrada ainda.</div></div>';
   } else {
     empresas.forEach(e=>{
-      const cod=codigos.find(c=>c.empresa_id===e.id);
-      h+=`<div class="card">
-        <div style="display:flex;align-items:center;gap:12px">
-          ${e.logo_base64?`<img src="data:image/png;base64,${e.logo_base64}" style="height:40px;border-radius:8px;background:#000;padding:4px">`
-            :`<div style="width:40px;height:40px;border-radius:8px;background:${e.cor_principal||'#00897B'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px">${e.nome[0]}</div>`}
-          <div style="flex:1">
-            <div class="rn">${e.nome}</div>
-            <div class="rs">ID: ${e.id} · ${e.cnpj||'CNPJ não informado'}</div>
-            <div class="rs">${e.telefone||''} ${e.endereco?'· '+e.endereco:''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <span class="bx ${e.ativa?'ok':'al'}">${e.ativa?'Ativa':'Inativa'}</span>
-          </div>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn bsm" onclick="saAcessar(${e.id})" style="font-size:12px"><i class="ti ti-login"></i> Acessar como esta empresa</button>
-          <button class="btn bd2r" onclick="saDesativar(${e.id},'${e.nome}')"><i class="ti ti-ban"></i> ${e.ativa?'Desativar':'Ativar'}</button>
-        </div>
-      </div>`;
+      const logoH=e.logo_base64
+        ?'<img src="data:image/png;base64,'+e.logo_base64+'" style="height:40px;border-radius:8px;background:#000;padding:4px">'
+        :'<div style="width:40px;height:40px;border-radius:8px;background:'+(e.cor_principal||'#00897B')+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px">'+e.nome[0]+'</div>';
+      h+='<div class="card">'
+        +'<div style="display:flex;align-items:center;gap:12px">'+logoH
+        +'<div style="flex:1"><div class="rn">'+e.nome+'</div>'
+        +'<div class="rs">ID: '+e.id+' · '+(e.cnpj||'CNPJ não informado')+'</div>'
+        +'<div class="rs">'+(e.telefone||'')+' '+(e.endereco?'· '+e.endereco:'')+'</div></div>'
+        +'<span class="bx '+(e.ativa?'ok':'al')+'">'+(e.ativa?'Ativa':'Inativa')+'</span>'
+        +'</div>'
+        +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn bsm" onclick="saAcessar('+e.id+')"><i class="ti ti-login"></i> Acessar</button>'
+        +'<button class="btn bd2r" onclick="saDesativar('+e.id+')">Desativar</button>'
+        +'</div></div>';
     });
   }
   document.getElementById('ct').innerHTML=h;
   window.saAcessar=async(id)=>{
     const res=await gt('empresas','?id=eq.'+id+'&select=*');
     if(!res.length)return;
-    EMP=res[0];
-    localStorage.setItem('me_empresa_id',EMP.id);
-    aplicarIdentidade(EMP);
-    S={tipo:'gestor'};
-    sair();
-    // Reabrir direto no app como gestora desta empresa
-    setTimeout(async()=>{
+    EMP=res[0];localStorage.setItem('me_empresa_id',String(EMP.id));aplicarIdentidade(EMP);
+    S={tipo:'gestor'};sair();
+    setTimeout(()=>{
       document.getElementById('pg-login').style.display='none';
       document.getElementById('app').style.display='flex';
-      document.getElementById('uc').textContent='👑 Gestora — '+EMP.nome;
-      buildNav('gestor');
-      navTo('g-metas');
-    },100);
+      document.getElementById('uc').textContent='Gestora — '+EMP.nome;
+      buildNav('gestor');navTo('g-metas');
+    },200);
   };
-  window.saDesativar=async(id,nome)=>{
-    const res=await gt('empresas','?id=eq.'+id+'&select=ativa');
+  window.saDesativar=async(id)=>{
+    const res=await gt('empresas','?id=eq.'+id+'&select=ativa,nome');
     if(!res.length)return;
-    const novoEstado=!res[0].ativa;
-    if(!confirm((novoEstado?'Ativar':'Desativar')+' a empresa '+nome+'?'))return;
-    await pk('empresas','?id=eq.'+id,{ativa:novoEstado});
-    renderSAEmpresas();
+    const novo=!res[0].ativa;
+    if(!confirm((novo?'Ativar':'Desativar')+' a empresa '+res[0].nome+'?'))return;
+    await pk('empresas','?id=eq.'+id,{ativa:novo});renderSAEmpresas();
   };
 }
 
@@ -1109,227 +1019,128 @@ async function gMais(){
     gt('vendas','?select=func_id,valor,data_venda'+eid()),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
   ]);
-
   const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
   const tot={};vendasMes.forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
   const mm={};metas.forEach(m=>mm[m.func_id]=parseFloat(m.valor));
   const vends=funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente');
   const tV=vends.reduce((s,f)=>s+(tot[f.id]||0),0);
   const tM=vends.reduce((s,f)=>s+(mm[f.id]||0),0);
-  const dr=dR(mS,aS),dp=dP(mS,aS);
+  const dr=dR(mS,aS),dp=dP(mS,aS),dt2=dT(mS,aS);
   const mediaDia=dp>0?tV/dp:0;
-  const projecao=mediaDia*22;
-  const diasUteisTotais=22;
-
-  // Vendas por dia do mês
-  const porDia={};
-  vendasMes.forEach(v=>{
-    const d=v.data_venda.split('/')[0];
-    porDia[d]=(porDia[d]||0)+parseFloat(v.valor);
-  });
-
-  // Vendas por dia da semana
-  const porSemana={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
-  const contSemana={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
-  vendasMes.forEach(v=>{
-    const [dd,mm2,aa]=v.data_venda.split('/');
-    const ds=new Date(+aa,+mm2-1,+dd).getDay();
-    porSemana[ds]+=parseFloat(v.valor);
-    contSemana[ds]++;
-  });
-
-  // Acumulado diário
-  const diasDoMes=[];
-  const hoje=new Date(2026,4,12);
-  const init=new Date(aS,mS-1,1);
-  const fim2=new Date(aS,mS,0);
-  let acum=0;
-  const acumDias=[];
-  for(let d=new Date(init);d<=fim2;d.setDate(d.getDate()+1)){
-    if(d.getDay()===0||d.getDay()===6)continue;
-    const dd=String(d.getDate()).padStart(2,'0');
-    diasDoMes.push(dd);
-    acum+=(porDia[dd]||0);
-    acumDias.push(d<=hoje?acum:null);
-  }
-
-  const nDias=diasDoMes.length;
-  const maxDia=Math.max(...Object.values(porDia).concat([1]));
-  const maxSem=Math.max(...Object.values(porSemana).concat([1]));
-  const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const CORES_F=['#00897B','#534AB7','#BA7517','#D85A30','#185FA5','#639922','#00838F','#C62828'];
-
-  // Ranking vendedoras por % da meta
+  const projecao=mediaDia*dt2;
+  const pGeral=tM>0?tV/tM*100:0;
+  const ritmoOk=projecao>=tM;
   const rankVends=[...vends].sort((a,b)=>{
     const pA=mm[a.id]>0?(tot[a.id]||0)/mm[a.id]*100:0;
     const pB=mm[b.id]>0?(tot[b.id]||0)/mm[b.id]*100:0;
     return pB-pA;
   });
-  const maxVend=Math.max(...rankVends.map(f=>mm[f.id]>0?(tot[f.id]||0)/mm[f.id]*100:0),1);
 
-  let h=`<div class="h1">Relatório</div>${mSel('gMais()')}`;
+  let h='<div class="h1">Relatório</div>'+mSel('gMais()');
 
-  // ── CARD RESUMO GERAL ──
-  const pGeral=tM>0?tV/tM*100:0;
-  const ritmoOk=projecao>=tM;
-  h+=`<div class="card" style="border-top:3px solid var(--td)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div>
-        <div style="font-size:13px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Visão Geral — ${nM(mS,aS)}</div>
-        <div style="font-size:28px;font-weight:800;color:${pC(pGeral)}">${pp(pGeral)} <span style="font-size:14px;font-weight:400;color:var(--t2)">da meta</span></div>
-      </div>
-      <div style="text-align:center;background:${ritmoOk?'var(--tl)':'#FFEBEE'};border-radius:12px;padding:10px 14px">
-        <div style="font-size:20px">${ritmoOk?'🚀':'⚠️'}</div>
-        <div style="font-size:11px;font-weight:600;color:${ritmoOk?'var(--tdd)':'#C62828'};margin-top:2px">${ritmoOk?'No ritmo!':'Atenção'}</div>
-      </div>
-    </div>
-    <div class="g3">
-      <div class="mx"><label>Total vendido</label><div class="v">${fi(tV)}</div></div>
-      <div class="mx"><label>Meta total</label><div class="v">${fi(tM)}</div></div>
-      <div class="mx"><label>Projeção final</label><div class="v" style="color:${ritmoOk?'var(--td)':'#E24B4A'}">${fi(projecao)}</div><div class="s">${fi(mediaDia)}/dia</div></div>
-    </div>
-    <div class="pb" style="height:10px;margin-top:12px"><div class="pf" style="width:${Math.min(pGeral,100)}%;background:${pC(pGeral)}"></div></div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:4px">
-      <span>0%</span><span style="color:${pC(pGeral)};font-weight:600">${pp(pGeral)}</span><span>100%</span>
-    </div>
-  </div>`;
+  // Card visão geral
+  h+='<div class="card" style="border-top:3px solid var(--td)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+    +'<div><div style="font-size:13px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Visão Geral — '+nM(mS,aS)+'</div>'
+    +'<div style="font-size:28px;font-weight:800;color:'+pC(pGeral)+'">'+pp(pGeral)+' <span style="font-size:14px;font-weight:400;color:var(--t2)">da meta</span></div></div>'
+    +'<div style="text-align:center;background:'+(ritmoOk?'var(--tl)':'#FFEBEE')+';border-radius:12px;padding:10px 14px">'
+    +'<div style="font-size:20px">'+(ritmoOk?'🚀':'⚠️')+'</div>'
+    +'<div style="font-size:11px;font-weight:600;color:'+(ritmoOk?'var(--tdd)':'#C62828')+';margin-top:2px">'+(ritmoOk?'No ritmo!':'Atenção')+'</div>'
+    +'</div></div>'
+    +'<div class="g3">'
+    +'<div class="mx"><label>Total vendido</label><div class="v">'+fi(tV)+'</div></div>'
+    +'<div class="mx"><label>Meta total</label><div class="v">'+fi(tM)+'</div></div>'
+    +'<div class="mx"><label>Projeção</label><div class="v" style="color:'+(ritmoOk?'var(--td)':'#E24B4A')+'">'+fi(projecao)+'</div><div class="s">'+fi(mediaDia)+'/dia</div></div>'
+    +'</div>'
+    +'<div class="pb" style="height:10px;margin-top:12px"><div class="pf" style="width:'+Math.min(pGeral,100)+'%;background:'+pC(pGeral)+'"></div></div>'
+    +'</div>';
 
-  // ── RITMO ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-trending-up"></i>Ritmo atual vs necessário</div>
-    <div class="g3">
-      <div class="mx"><label>Vendendo/dia</label><div class="v" style="font-size:14px">${fi(mediaDia)}</div></div>
-      <div class="mx"><label>Precisa/dia</label><div class="v" style="font-size:14px;color:${mediaDia>=(tM-tV)/Math.max(dr,1)?'var(--td)':'#E24B4A'}">${fi(dr>0?(tM-tV)/dr:0)}</div></div>
-      <div class="mx"><label>Dias restantes</label><div class="v" style="font-size:14px">${dr}</div><div class="s">dias úteis</div></div>
-    </div>
-  </div>`;
+  // Ritmo
+  h+='<div class="card"><div class="ct2"><i class="ti ti-trending-up"></i>Ritmo atual vs necessário</div>'
+    +'<div class="g3">'
+    +'<div class="mx"><label>Vendendo/dia</label><div class="v" style="font-size:14px">'+fi(mediaDia)+'</div></div>'
+    +'<div class="mx"><label>Precisa/dia</label><div class="v" style="font-size:14px;color:'+(mediaDia>=(tM-tV)/Math.max(dr,1)?'var(--td)':'#E24B4A')+'">'+fi(dr>0?(tM-tV)/dr:0)+'</div></div>'
+    +'<div class="mx"><label>Dias restantes</label><div class="v" style="font-size:14px">'+dr+'</div><div class="s">dias úteis</div></div>'
+    +'</div></div>';
 
-  // ── EVOLUÇÃO DIÁRIA (linha) ──
-  const svgW=340,svgH=100,padL=8,padR=8,padT=8,padB=20;
-  const chartW=svgW-padL-padR,chartH=svgH-padT-padB;
-  const maxAcum=Math.max(tM,...acumDias.filter(x=>x!==null),1);
-  // linha de meta
-  const metaY=padT+chartH-(tM/maxAcum)*chartH;
-  // pontos da linha de vendas
-  const pts=acumDias.map((v,i)=>{
-    if(v===null)return null;
-    const x=padL+(i/(nDias-1||1))*chartW;
-    const y=padT+chartH-(v/maxAcum)*chartH;
-    return{x,y,v,d:diasDoMes[i]};
-  }).filter(Boolean);
-  const linePath=pts.map((p,i)=>(i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(' ');
-  const areaPath=pts.length?`${linePath} L${pts[pts.length-1].x},${padT+chartH} L${pts[0].x},${padT+chartH} Z`:'';
-
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-chart-line"></i>Evolução diária acumulada</div>
-    <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;overflow:visible">
-      <!-- área -->
-      <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00897B" stop-opacity=".25"/><stop offset="100%" stop-color="#00897B" stop-opacity="0"/></linearGradient></defs>
-      ${areaPath?`<path d="${areaPath}" fill="url(#gr)"/>`:''}
-      <!-- linha meta -->
-      <line x1="${padL}" y1="${metaY}" x2="${padL+chartW}" y2="${metaY}" stroke="#E24B4A" stroke-width="1.5" stroke-dasharray="4,3"/>
-      <text x="${padL+chartW-2}" y="${metaY-3}" fill="#E24B4A" font-size="8" text-anchor="end">Meta ${fi(tM)}</text>
-      <!-- linha vendas -->
-      ${linePath?`<path d="${linePath}" fill="none" stroke="#00897B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:''}
-      <!-- pontos -->
-      ${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="#00897B"/>`).join('')}
-      <!-- eixo X: primeiro e último dia -->
-      ${diasDoMes.length>0?`<text x="${padL}" y="${svgH-4}" fill="#aaa" font-size="8">${diasDoMes[0]}/${mS<10?'0'+mS:mS}</text><text x="${padL+chartW}" y="${svgH-4}" fill="#aaa" font-size="8" text-anchor="end">${diasDoMes[diasDoMes.length-1]}/${mS<10?'0'+mS:mS}</text>`:''}
-    </svg>
-  </div>`;
-
-  // ── RANKING VENDEDORAS ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-trophy"></i>Ranking de vendedoras</div>
-    ${rankVends.map((f,i)=>{
-      const v=tot[f.id]||0,meta=mm[f.id]||0,pct=tV>0?v/tV*100:0;
-      const barW=maxVend>0?v/maxVend*100:0;
-      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-    const percMeta=meta>0?v/meta*100:0;
-    const barWPct=Math.min(percMeta,100);
+  // Ranking
+  h+='<div class="card"><div class="ct2"><i class="ti ti-trophy"></i>Ranking por % da meta</div>';
+  rankVends.forEach((f,i)=>{
+    const v=tot[f.id]||0,meta=mm[f.id]||0,percMeta=meta>0?v/meta*100:0;
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
     const alertaBaixa=percMeta<71&&dr>0;
-    return`<div style="margin-bottom:14px;padding:10px;background:${alertaBaixa?'#FFF8F8':'var(--bg)'};border-radius:10px;border:${alertaBaixa?'1px solid #F09595':'1px solid transparent'}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <span style="font-size:18px;width:28px">${medal||'#'+(i+1)}</span>
-          <span style="font-weight:700;font-size:14px;flex:1">${f.nome}</span>
-          <span style="font-size:22px;font-weight:800;color:${pC(percMeta)}">${pp(percMeta)}</span>
-        </div>
-        <div style="height:10px;background:rgba(0,0,0,.06);border-radius:999px;overflow:hidden;margin-bottom:4px">
-          <div style="height:100%;width:${barWPct}%;background:${pC(percMeta)};border-radius:999px;transition:.4s"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2)">
-          <span>Vendido: <strong>${fi(v)}</strong> de ${fi(meta)}</span>
-          <span>Comissão: <strong style="color:var(--td)">${fm(cC(meta,v))}</strong></span>
-        </div>
-        ${alertaBaixa?`<div style="font-size:11px;color:#C62828;margin-top:4px;font-weight:600">⚠️ Abaixo de 71% — sem comissão no ritmo atual</div>`:''}
-      </div>`;
-    }).join('')}
-  </div>`;
+    h+='<div style="margin-bottom:14px;padding:10px;background:'+(alertaBaixa?'#FFF8F8':'var(--bg)')+';border-radius:10px;border:1px solid '+(alertaBaixa?'#F09595':'transparent')+'">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      +'<span style="font-size:18px;width:28px">'+medal+'</span>'
+      +'<span style="font-weight:700;font-size:14px;flex:1">'+f.nome+'</span>'
+      +'<span style="font-size:22px;font-weight:800;color:'+pC(percMeta)+'">'+pp(percMeta)+'</span>'
+      +'</div>'
+      +'<div class="pb" style="height:10px;margin-bottom:4px"><div class="pf" style="width:'+Math.min(percMeta,100)+'%;background:'+pC(percMeta)+'"></div></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2)">'
+      +'<span>Vendido: <strong>'+fi(v)+'</strong> de '+fi(meta)+'</span>'
+      +'<span>Comissão: <strong style="color:var(--td)">'+fm(cC(meta,v))+'</strong></span>'
+      +'</div>'
+      +(alertaBaixa?'<div style="font-size:11px;color:#C62828;margin-top:4px;font-weight:600">⚠️ Abaixo de 71% — sem comissão</div>':'')
+      +'</div>';
+  });
+  h+='</div>';
 
-  // ── PARTICIPAÇÃO POR FILIAL (barras horizontais) ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-building-store"></i>Participação por filial</div>
-    ${fils.map((fl,i)=>{
-      const fs=vends.filter(f=>f.filial_id===fl.id);
-      const fV=fs.reduce((s,f)=>s+(tot[f.id]||0),0);
-      const fM=fs.reduce((s,f)=>s+(mm[f.id]||0),0);
-      const pct=tV>0?fV/tV*100:0;
-      const pMeta=fM>0?fV/fM*100:0;
-      return`<div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-weight:600;font-size:13px">${fl.nome}</span>
-          <span style="font-size:12px"><strong>${fi(fV)}</strong> <span style="color:var(--t2)">(${pp(pct)} do total)</span></span>
-        </div>
-        <div style="height:10px;background:var(--bg);border-radius:999px;overflow:hidden">
-          <div style="height:100%;width:${Math.min(pMeta,100)}%;background:${CORES_F[i%CORES_F.length]};border-radius:999px"></div>
-        </div>
-        <div style="font-size:10px;color:var(--t2);margin-top:2px">${pp(pMeta)} da meta · ${fs.length} func.</div>
-      </div>`;
-    }).join('')}
-  </div>`;
+  // Por filial
+  h+='<div class="card"><div class="ct2"><i class="ti ti-building-store"></i>Participação por filial</div>';
+  fils.forEach((fl,i)=>{
+    const fs=vends.filter(f=>f.filial_id===fl.id);
+    const fV=fs.reduce((s,f)=>s+(tot[f.id]||0),0);
+    const fM=fs.reduce((s,f)=>s+(mm[f.id]||0),0);
+    const pct=tV>0?fV/tV*100:0,pMeta=fM>0?fV/fM*100:0;
+    h+='<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-weight:600;font-size:13px">'+fl.nome+'</span>'
+      +'<span style="font-size:12px"><strong>'+fi(fV)+'</strong> <span style="color:var(--t2)">('+pp(pct)+')</span></span>'
+      +'</div>'
+      +'<div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(pMeta,100)+'%;background:'+['#00695C','#534AB7','#BA7517','#185FA5'][i%4]+'"></div></div>'
+      +'<div style="font-size:10px;color:var(--t2);margin-top:2px">'+pp(pMeta)+' da meta · '+fs.length+' func.</div>'
+      +'</div>';
+  });
+  h+='</div>';
 
-  // ── MELHOR DIA DA SEMANA ──
-  const maxSemVal=Math.max(...[1,2,3,4,5].map(d=>porSemana[d]||0),1);
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-calendar-week"></i>Vendas por dia da semana</div>
-    <div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">
-      ${[1,2,3,4,5].map(d=>{
-        const v=porSemana[d]||0;
-        const h2=maxSemVal>0?Math.max((v/maxSemVal)*70,2):2;
-        const melhor=v===maxSemVal&&v>0;
-        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-          <div style="font-size:9px;color:var(--t2);font-weight:600">${fi(v).replace('R$','')}</div>
-          <div style="width:100%;height:${h2}px;background:${melhor?'var(--td)':'var(--tl)'};border-radius:4px 4px 0 0;transition:.4s"></div>
-          <div style="font-size:10px;font-weight:${melhor?'700':'400'};color:${melhor?'var(--td)':'var(--t2)'}">${DIAS_SEM[d]}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="font-size:12px;color:var(--t2);text-align:center">
-      Melhor dia: <strong style="color:var(--td)">${DIAS_SEM[[1,2,3,4,5].reduce((best,d)=>porSemana[d]>porSemana[best]?d:best,1)]}</strong>
-    </div>
-  </div>`;
+  // Melhor dia da semana
+  const porSem={1:0,2:0,3:0,4:0,5:0,6:0};
+  vendasMes.forEach(v=>{
+    const [dd,mm2,aa]=v.data_venda.split('/');
+    const ds=new Date(+aa,+mm2-1,+dd).getDay();
+    if(ds>=1&&ds<=6)porSem[ds]+=parseFloat(v.valor);
+  });
+  const maxSem=Math.max(...Object.values(porSem),1);
+  const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  h+='<div class="card"><div class="ct2"><i class="ti ti-calendar-week"></i>Vendas por dia da semana</div>'
+    +'<div style="display:flex;align-items:flex-end;gap:6px;height:90px;margin-bottom:8px">';
+  [1,2,3,4,5,6].forEach(d=>{
+    const val=porSem[d]||0,h2=maxSem>0?Math.max((val/maxSem)*75,2):2,melhor=val===maxSem&&val>0;
+    h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+      +'<div style="font-size:9px;color:var(--t2)">'+fi(val).replace('R$','')+'</div>'
+      +'<div style="width:100%;height:'+h2+'px;background:'+(melhor?'var(--td)':'var(--tl)')+';border-radius:4px 4px 0 0"></div>'
+      +'<div style="font-size:10px;font-weight:'+(melhor?'700':'400')+';color:'+(melhor?'var(--td)':'var(--t2)')+'">'+DSEM[d]+'</div>'
+      +'</div>';
+  });
+  h+='</div></div>';
 
-  // ── QUANTO FALTA POR FUNCIONÁRIA ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-target"></i>Quanto falta para cada uma</div>
-    ${rankVends.map(f=>{
-      const v=tot[f.id]||0,meta=mm[f.id]||0,falta=Math.max(meta-v,0);
-      const p=meta>0?v/meta*100:0;
-      const nd=dr>0?falta/dr:0;
-      return`<div class="ri">
-        <div style="width:36px;height:36px;border-radius:50%;background:${pC(p)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">${Math.round(p)}%</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:13px">${f.nome}</div>
-          <div class="pb" style="margin:4px 0 2px"><div class="pf" style="width:${Math.min(p,100)}%;background:${pC(p)}"></div></div>
-          <div style="font-size:11px;color:var(--t2)">${falta>0?'Falta '+fi(falta)+' · '+fi(nd)+'/dia útil':'✅ Meta batida!'}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:12px;font-weight:700">${fi(v)}</div>
-          <div style="font-size:10px;color:var(--t2)">de ${fi(meta)}</div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
+  // Quanto falta por funcionária
+  h+='<div class="card"><div class="ct2"><i class="ti ti-target"></i>Quanto falta para cada uma</div>';
+  rankVends.forEach(f=>{
+    const v=tot[f.id]||0,meta=mm[f.id]||0,falta=Math.max(meta-v,0),p=meta>0?v/meta*100:0,nd=dr>0?falta/dr:0;
+    h+='<div class="ri">'
+      +'<div style="width:38px;height:38px;border-radius:50%;background:'+pC(p)+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">'+Math.round(p)+'%</div>'
+      +'<div style="flex:1;min-width:0;margin-left:4px">'
+      +'<div style="font-weight:600;font-size:13px">'+f.nome+'</div>'
+      +'<div class="pb" style="margin:4px 0 2px"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pC(p)+'"></div></div>'
+      +'<div style="font-size:11px;color:var(--t2)">'+(falta>0?'Falta '+fi(falta)+' · '+fi(nd)+'/dia útil':'✅ Meta batida!')+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0;margin-left:8px">'
+      +'<div style="font-size:12px;font-weight:700">'+fi(v)+'</div>'
+      +'<div style="font-size:10px;color:var(--t2)">de '+fi(meta)+'</div>'
+      +'</div></div>';
+  });
+  h+='</div>';
 
   document.getElementById('ct').innerHTML=h;
 }
@@ -1345,168 +1156,130 @@ async function fRelatorio(){
   const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
   const v=vendasMes.reduce((s,x)=>s+parseFloat(x.valor),0);
   const p=meta>0?v/meta*100:0;
-  const dr=dR(mS,aS),dp=dP(mS,aS);
-  const mediaDia=dp>0?v/dp:0;
-  const projecao=mediaDia*22;
+  const dr=dR(mS,aS),dp=dP(mS,aS),dt2=dT(mS,aS);
   const falta=Math.max(meta-v,0);
-  const nd=dr>0?falta/dr:0;
-  const faixa=gF(p);
-  const proxFaixa=FAIXAS.find(x=>x.de>p&&x.pct>0);
-  const faltaProx=proxFaixa?meta*(proxFaixa.de/100)-v:0;
+  const nd=dr>0?falta/dr:0,ns=nd*6,mediaDia=dp>0?v/dp:0,proj=mediaDia*dt2;
+  const faixa=gF(p),noRitmo=mediaDia>=nd;
+  const proxFx=FAIXAS.find(x=>x.de>p&&x.pct>0);
+  const faltaProx=proxFx?meta*(proxFx.de/100)-v:0;
+  const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
   // Vendas por dia da semana
-  const porSemana={1:0,2:0,3:0,4:0,5:0};
-  vendasMes.forEach(v2=>{
-    const [dd,mm2,aa]=v2.data_venda.split('/');
+  const porSem={1:0,2:0,3:0,4:0,5:0,6:0};
+  vendasMes.forEach(vd=>{
+    const [dd,mm2,aa]=vd.data_venda.split('/');
     const ds=new Date(+aa,+mm2-1,+dd).getDay();
-    if(ds>=1&&ds<=5) porSemana[ds]+=parseFloat(v2.valor);
+    if(ds>=1&&ds<=6)porSem[ds]+=parseFloat(vd.valor);
   });
-  const maxSem=Math.max(...Object.values(porSemana),1);
-  const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const maxSem=Math.max(...Object.values(porSem),1);
 
-  // Acumulado diário
-  const porDia={};
-  vendasMes.forEach(vd=>{const d=vd.data_venda.split('/')[0];porDia[d]=(porDia[d]||0)+parseFloat(vd.valor)});
-  const hoje2=new Date(2026,4,12);
-  const init=new Date(aS,mS-1,1),fim2=new Date(aS,mS,0);
-  const diasDoMes=[],acumDias=[];let acum=0;
-  for(let d=new Date(init);d<=fim2;d.setDate(d.getDate()+1)){
-    if(d.getDay()===0||d.getDay()===6)continue;
-    const dd=String(d.getDate()).padStart(2,'0');
-    diasDoMes.push(dd);acum+=(porDia[dd]||0);
-    acumDias.push(d<=hoje2?acum:null);
+  // Mensagem motivacional
+  function getMotiv(){
+    if(p>=120)return{e:'🏆',m:'Incrível! Você superou 120%! Resultado extraordinário!',c:'#4527A0'};
+    if(p>=100)return{e:'🎉',m:'META BATIDA! Continue para maximizar sua comissão!',c:'#00695C'};
+    if(p>=85) return{e:'🚀',m:'Quase lá! Falta só '+fi(falta)+'. Você consegue!',c:'#00695C'};
+    if(p>=71) return proxFx&&faltaProx>0?{e:'💪',m:'Comissão garantida! Faltam '+fi(faltaProx)+' para subir de faixa!',c:'#BA7517'}:{e:'💪',m:'Na faixa! Venda '+fi(nd)+'/dia para crescer!',c:'#BA7517'};
+    if(p>=40) return{e:'⚡',m:'Você pode mais! Venda '+fi(nd)+' por dia e garante comissão!',c:'#E24B4A'};
+    return{e:'🌟',m:'Foco total! Venda '+fi(nd)+'/dia e você chega lá!',c:'#E24B4A'};
   }
-  const nDias=diasDoMes.length;
-  const maxAcum=Math.max(meta,...acumDias.filter(x=>x!==null),1);
-  const metaY2=8+72-(meta/maxAcum)*72;
-  const pts=acumDias.map((val,i)=>{
-    if(val===null)return null;
-    const x=8+(i/(nDias-1||1))*324,y=8+72-(val/maxAcum)*72;
-    return{x,y,val};
-  }).filter(Boolean);
-  const lp=pts.map((pt,i)=>(i===0?`M${pt.x},${pt.y}`:`L${pt.x},${pt.y}`)).join(' ');
-  const ap=pts.length?`${lp} L${pts[pts.length-1].x},80 L${pts[0].x},80 Z`:'';
+  const motiv=getMotiv();
 
-  // Simulador: quanto ganho a mais em cada faixa acima
-  const simFaixas=FAIXAS.filter(fx=>fx.de>p&&fx.pct>0&&fx.de<=120);
+  let h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
+    +'<div class="av" style="width:44px;height:44px;font-size:15px;background:#E0F2F1;color:#00695C">'+in2(f.nome)+'</div>'
+    +'<div style="flex:1"><div style="font-size:17px;font-weight:700">'+f.nome+'</div>'
+    +'<div style="font-size:12px;color:var(--t2)">'+nM(mS,aS)+' · '+dr+' dias úteis restantes</div></div>'
+    +'</div>'+mSel('fRelatorio()');
 
-  let h=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-    <div class="av" style="width:44px;height:44px;font-size:15px;background:#E0F2F1;color:#00695C">${in2(f.nome)}</div>
-    <div style="flex:1"><div style="font-size:16px;font-weight:700">${f.nome}</div><div style="font-size:12px;color:var(--t2)">${nM(mS,aS)} · ${dr} dias úteis restantes</div></div>
-  </div>${mSel('fRelatorio()')}`;
+  // Motivacional
+  h+='<div class="card" style="background:'+motiv.c+'14;border:1.5px solid '+motiv.c+'33">'
+    +'<div style="display:flex;align-items:center;gap:12px">'
+    +'<span style="font-size:36px;flex-shrink:0">'+motiv.e+'</span>'
+    +'<div style="font-size:14px;font-weight:600;color:'+motiv.c+';line-height:1.5">'+motiv.m+'</div>'
+    +'</div></div>';
 
-  // ── TERMÔMETRO ──
-  const angulo=Math.min(p,120)/120*180;
-  const rad=(180-angulo)*Math.PI/180;
-  const cx=100,cy=80,r=65;
-  const nx=cx+r*Math.cos(rad),ny=cy-r*Math.sin(rad);
-  const corAgulha=pC(p);
-  h+=`<div class="card" style="border-top:3px solid ${corAgulha}">
-    <div class="ct2"><i class="ti ti-gauge"></i>Termômetro da meta</div>
-    <div style="display:flex;align-items:center;gap:16px">
-      <svg viewBox="0 0 200 90" style="width:180px;flex-shrink:0">
-        <!-- faixas coloridas -->
-        <path d="M${cx-r},${cy} A${r},${r} 0 0,1 ${cx+r*Math.cos(Math.PI*0.71)},${cy-r*Math.sin(Math.PI*0.71)}" fill="none" stroke="#FCEBEB" stroke-width="12" stroke-linecap="round"/>
-        <path d="M${cx+r*Math.cos(Math.PI*0.71)},${cy-r*Math.sin(Math.PI*0.71)} A${r},${r} 0 0,1 ${cx+r*Math.cos(Math.PI*0.42)},${cy-r*Math.sin(Math.PI*0.42)}" fill="none" stroke="#FAEEDA" stroke-width="12" stroke-linecap="round"/>
-        <path d="M${cx+r*Math.cos(Math.PI*0.42)},${cy-r*Math.sin(Math.PI*0.42)} A${r},${r} 0 0,1 ${cx+r*Math.cos(Math.PI*0.17)},${cy-r*Math.sin(Math.PI*0.17)}" fill="none" stroke="#E1F5EE" stroke-width="12" stroke-linecap="round"/>
-        <path d="M${cx+r*Math.cos(Math.PI*0.17)},${cy-r*Math.sin(Math.PI*0.17)} A${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="#B2DFDB" stroke-width="12" stroke-linecap="round"/>
-        <!-- agulha -->
-        <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${corAgulha}" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="${cx}" cy="${cy}" r="6" fill="${corAgulha}"/>
-        <!-- labels -->
-        <text x="18" y="${cy+4}" fill="#aaa" font-size="8">0%</text>
-        <text x="${cx-8}" y="12" fill="#aaa" font-size="8">60%</text>
-        <text x="155" y="${cy+4}" fill="#aaa" font-size="8">120%</text>
-      </svg>
-      <div>
-        <div style="font-size:36px;font-weight:800;color:${corAgulha}">${pp(p)}</div>
-        <div style="font-size:13px;color:var(--t2)">da meta de ${fi(meta)}</div>
-        <div class="bx ${bI(p).c}" style="margin-top:6px;font-size:12px">${bI(p).l}</div>
-      </div>
-    </div>
-  </div>`;
+  // Meta do dia
+  if(meta>0&&dr>0){
+    h+='<div class="card" style="background:#000;border:none;padding:16px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      +'<div><div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 Meta de hoje</div>'
+      +'<div style="font-size:34px;font-weight:800;color:#1DE9B6;line-height:1">'+fi(nd)+'</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">para estar no ritmo certo</div></div>'
+      +'<div style="text-align:center;background:rgba(255,255,255,.07);border-radius:12px;padding:12px 14px;flex-shrink:0">'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px">Sua média/dia</div>'
+      +'<div style="font-size:22px;font-weight:700;color:'+(noRitmo?'#1DE9B6':'#E24B4A')+'">'+fi(mediaDia)+'</div>'
+      +'<div style="font-size:11px;margin-top:6px">'+(noRitmo?'<span style="color:#1DE9B6;font-weight:600">✓ No ritmo!</span>':'<span style="color:#E24B4A;font-weight:600">⚠ Acelerar</span>')+'</div>'
+      +'</div></div></div>';
+  }
 
-  // ── EVOLUÇÃO DIÁRIA ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-chart-line"></i>Minha evolução no mês</div>
-    <svg viewBox="0 0 340 100" style="width:100%;overflow:visible">
-      <defs><linearGradient id="gr2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00897B" stop-opacity=".3"/><stop offset="100%" stop-color="#00897B" stop-opacity="0"/></linearGradient></defs>
-      ${ap?`<path d="${ap}" fill="url(#gr2)"/>`:''}
-      <line x1="8" y1="${metaY2}" x2="332" y2="${metaY2}" stroke="#E24B4A" stroke-width="1.5" stroke-dasharray="4,3"/>
-      <text x="330" y="${metaY2-3}" fill="#E24B4A" font-size="8" text-anchor="end">Meta</text>
-      ${lp?`<path d="${lp}" fill="none" stroke="#00897B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:''}
-      ${pts.map(pt=>`<circle cx="${pt.x}" cy="${pt.y}" r="2.5" fill="#00897B"/>`).join('')}
-      ${diasDoMes.length>0?`<text x="8" y="96" fill="#aaa" font-size="8">${diasDoMes[0]}/${mS<10?'0'+mS:mS}</text><text x="332" y="96" fill="#aaa" font-size="8" text-anchor="end">${diasDoMes[diasDoMes.length-1]}/${mS<10?'0'+mS:mS}</text>`:''}
-    </svg>
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:4px">
-      <span>Vendido: <strong>${fi(v)}</strong></span>
-      <span>Projeção: <strong style="color:${projecao>=meta?'var(--td)':'#E24B4A'}">${fi(projecao)}</strong></span>
-    </div>
-  </div>`;
+  // Progresso
+  h+='<div class="card" style="border-top:3px solid '+pC(p)+'">'
+    +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">'
+    +'<span style="font-size:38px;font-weight:800;color:'+pC(p)+'">'+(meta>0?pp(p):'—')+'</span>'
+    +'<span style="font-size:13px;color:var(--t2)">'+nM(mS,aS)+'</span></div>'
+    +'<div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pC(p)+'"></div></div>'
+    +'<div class="g3" style="margin-top:12px">'
+    +'<div class="mx"><label>Vendido</label><div class="v" style="font-size:14px">'+fi(v)+'</div></div>'
+    +'<div class="mx"><label>Meta</label><div class="v" style="font-size:14px">'+(meta>0?fi(meta):'Não definida')+'</div></div>'
+    +'<div class="mx"><label>Comissão</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(cC(meta,v))+'</div><div class="s">faixa '+faixa.pct+'%</div></div>'
+    +'</div></div>';
 
-  // ── PARA BATER A META ──
-  if(falta>0&&dr>0){
-    h+=`<div class="card" style="background:var(--tl)">
-      <div class="ct2" style="color:var(--tdd)"><i class="ti ti-target"></i>Para bater a meta</div>
-      <div class="nr">
-        <div class="nv"><div class="n">${fi(nd)}</div><div class="l">por dia útil</div></div>
-        <div class="nv"><div class="n">${fi(nd*5)}</div><div class="l">por semana</div></div>
-        <div class="nv"><div class="n">${fi(falta)}</div><div class="l">total restante</div></div>
-      </div>
-      ${proxFaixa&&faltaProx>0?`<div style="text-align:center;font-size:12px;color:var(--tdd);margin-top:10px;font-weight:500">Próxima faixa (${proxFaixa.pct}%): falta <strong>${fi(Math.max(faltaProx,0))}</strong></div>`:''}
-    </div>`;
+  // Para bater a meta
+  if(meta>0&&falta>0&&dr>0){
+    h+='<div class="card" style="background:var(--tl)">'
+      +'<div class="ct2" style="color:var(--tdd)"><i class="ti ti-target"></i>Para bater a meta</div>'
+      +'<div class="nr">'
+      +'<div class="nv"><div class="n">'+fi(nd)+'</div><div class="l">por dia útil</div></div>'
+      +'<div class="nv"><div class="n">'+fi(ns)+'</div><div class="l">por semana</div></div>'
+      +'<div class="nv"><div class="n">'+fi(falta)+'</div><div class="l">total restante</div></div>'
+      +'</div>'
+      +(proxFx&&faltaProx>0?'<div style="text-align:center;font-size:12px;color:var(--tdd);margin-top:10px;font-weight:500">Próxima faixa ('+proxFx.pct+'%): falta <strong>'+fi(Math.max(faltaProx,0))+'</strong></div>':'')
+      +'</div>';
   } else if(p>=100){
-    h+=`<div class="card" style="text-align:center;padding:20px;background:var(--tl)">
-      <div style="font-size:28px">🎉</div>
-      <div style="font-weight:700;color:var(--tdd);font-size:16px;margin-top:4px">Meta batida! Parabéns!</div>
-      <div style="font-size:12px;color:var(--td);margin-top:4px">Comissão: ${fm(cC(meta,v))} (${faixa.pct}%)</div>
-    </div>`;
+    h+='<div class="card" style="text-align:center;padding:20px;background:var(--tl)">'
+      +'<div style="font-size:28px">🎉</div>'
+      +'<div style="font-weight:700;color:var(--tdd);font-size:16px;margin-top:4px">Meta batida! Parabéns!</div>'
+      +'<div style="font-size:12px;color:var(--td);margin-top:4px">Comissão: '+fm(cC(meta,v))+' ('+faixa.pct+'%)</div>'
+      +'</div>';
   }
 
-  // ── MEUS MELHORES DIAS ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-calendar-week"></i>Meus melhores dias da semana</div>
-    <div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">
-      ${[1,2,3,4,5].map(d=>{
-        const val=porSemana[d]||0;
-        const h2=maxSem>0?Math.max((val/maxSem)*70,2):2;
-        const melhor=val===maxSem&&val>0;
-        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-          <div style="font-size:9px;color:var(--t2)">${val>0?fi(val).replace('R$',''):''}</div>
-          <div style="width:100%;height:${h2}px;background:${melhor?'var(--td)':'var(--tl)'};border-radius:4px 4px 0 0"></div>
-          <div style="font-size:10px;font-weight:${melhor?'700':'400'};color:${melhor?'var(--td)':'var(--t2)'}">${DIAS_SEM[d]}</div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
+  // Melhores dias da semana
+  h+='<div class="card"><div class="ct2"><i class="ti ti-calendar-week"></i>Meus melhores dias</div>'
+    +'<div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">';
+  [1,2,3,4,5,6].forEach(d=>{
+    const val=porSem[d]||0,h2=maxSem>0?Math.max((val/maxSem)*70,2):2,melhor=val===maxSem&&val>0;
+    h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">'
+      +'<div style="font-size:9px;color:var(--t2)">'+(val>0?fi(val).replace('R$',''):'')+'</div>'
+      +'<div style="width:100%;height:'+h2+'px;background:'+(melhor?'var(--td)':'var(--tl)')+';border-radius:4px 4px 0 0"></div>'
+      +'<div style="font-size:10px;font-weight:'+(melhor?'700':'400')+';color:'+(melhor?'var(--td)':'var(--t2)')+'">'+DSEM[d]+'</div>'
+      +'</div>';
+  });
+  h+='</div></div>';
 
-  // ── SIMULADOR DE COMISSÃO ──
-  h+=`<div class="card">
-    <div class="ct2"><i class="ti ti-calculator"></i>Simulador de comissão</div>
-    <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Sua comissão atual</div>
-      <div style="font-size:22px;font-weight:700;color:var(--td)">${fm(cC(meta,v))}</div>
-      <div style="font-size:11px;color:var(--t2)">Faixa ${faixa.pct}% sobre ${fi(v)} vendidos</div>
-    </div>
-    ${simFaixas.length?`<div style="font-size:12px;color:var(--t2);margin-bottom:8px;font-weight:600">Se você vender mais...</div>`:''}
-    ${simFaixas.map(fx=>{
-      const vendNec=meta*(fx.de/100);
-      const faltaSim=Math.max(vendNec-v,0);
-      const comisNova=cC(meta,vendNec);
-      const ganhoExtra=comisNova-cC(meta,v);
-      return`<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px">
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:600">Faixa ${fx.pct}% (${fx.de}% da meta)</div>
-          <div style="font-size:11px;color:var(--t2)">Falta vender ${fi(faltaSim)}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:14px;font-weight:700;color:var(--td)">${fm(comisNova)}</div>
-          <div style="font-size:10px;color:#00695C">+${fm(ganhoExtra)} a mais</div>
-        </div>
-      </div>`;
-    }).join('')}
-    ${simFaixas.length===0?`<div style="text-align:center;color:var(--td);font-weight:600;padding:10px">🎯 Você está na faixa máxima!</div>`:''}
-  </div>`;
+  // Simulador de comissão
+  const simFaixas=FAIXAS.filter(fx=>fx.de>p&&fx.pct>0&&fx.de<=120);
+  h+='<div class="card"><div class="ct2"><i class="ti ti-calculator"></i>Simulador de comissão</div>'
+    +'<div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px">'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:4px">Sua comissão atual</div>'
+    +'<div style="font-size:22px;font-weight:700;color:var(--td)">'+fm(cC(meta,v))+'</div>'
+    +'<div style="font-size:11px;color:var(--t2)">Faixa '+faixa.pct+'% sobre '+fi(v)+' vendidos</div>'
+    +'</div>';
+  simFaixas.forEach(fx=>{
+    const vendNec=meta*(fx.de/100),faltaSim=Math.max(vendNec-v,0),comisNova=cC(meta,vendNec),ganho=comisNova-cC(meta,v);
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px">'
+      +'<div style="flex:1"><div style="font-size:12px;font-weight:600">Faixa '+fx.pct+'% ('+fx.de+'% da meta)</div>'
+      +'<div style="font-size:11px;color:var(--t2)">Falta vender '+fi(faltaSim)+'</div></div>'
+      +'<div style="text-align:right"><div style="font-size:14px;font-weight:700;color:var(--td)">'+fm(comisNova)+'</div>'
+      +'<div style="font-size:10px;color:#00695C">+'+fm(ganho)+' a mais</div></div>'
+      +'</div>';
+  });
+  if(!simFaixas.length)h+='<div style="text-align:center;color:var(--td);font-weight:600;padding:10px">🎯 Você está na faixa máxima!</div>';
+  h+='</div>';
+
+  // Últimas vendas do mês
+  h+='<div class="card"><div class="ct2"><i class="ti ti-clock"></i>Lançamentos — '+nM(mS,aS)+'</div>'
+    +vendasMes.slice(0,10).map(vd=>'<div class="ri"><span style="color:var(--t2);font-size:13px">'+vd.data_venda+'</span><span style="font-weight:700;margin-left:auto">'+fm(parseFloat(vd.valor))+'</span></div>').join('')
+    +(vendasMes.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')
+    +'</div>';
 
   document.getElementById('ct').innerHTML=h;
 }
@@ -1727,6 +1500,67 @@ async function fComunic(){
 }
 
 // ── GESTORA: CONFIGURAÇÕES DA EMPRESA ──
+
+// ── HISTÓRICO DE LANÇAMENTOS (global para uso em gConfig) ──
+async function carregarHistorico(){
+  const selEl=document.getElementById('hist-func');
+  if(!selEl) return;
+  const funcId=selEl.value||'';
+  const q=funcId
+    ?'?func_id=eq.'+funcId+'&order=created_at.desc&limit=50&select=*,funcionarias(nome)'+eid()
+    :'?order=created_at.desc&limit=50&select=*,funcionarias(nome)'+eid();
+  const vendas=await gt('vendas',q);
+  const el=document.getElementById('hist-lista');
+  if(!el) return;
+  if(!vendas||!vendas.length){el.innerHTML='<div class="em" style="padding:20px">Nenhum lançamento.</div>';return}
+  el.innerHTML=vendas.map(v=>'<div class="ri" id="vl-'+v.id+'">'
+    +'<div style="flex:1;min-width:0"><div class="rn">'+(v.funcionarias?v.funcionarias.nome:'—')+'</div>'
+    +'<div class="rs">'+v.data_venda+'</div></div>'
+    +'<span style="font-weight:700;font-size:15px;margin-right:10px">'+fm(parseFloat(v.valor))+'</span>'
+    +'<div style="display:flex;gap:6px;flex-shrink:0">'
+    +'<button class="btn bsm" onclick="editVendaH('+v.id+')" title="Editar"><i class="ti ti-edit"></i></button>'
+    +'<button class="btn bd2r" onclick="delVenda('+v.id+')"><i class="ti ti-trash"></i></button>'
+    +'</div></div>'
+  ).join('');
+}
+
+async function editVendaH(id){
+  // Buscar dados da venda para edição
+  const res=await gt('vendas','?id=eq.'+id+'&select=valor,data_venda');
+  if(!res.length)return;
+  editVenda(id,res[0].valor,res[0].data_venda);
+}
+
+async function editVenda(id,valor,data){
+  const el=document.getElementById('vl-'+id);if(!el)return;
+  const parts=data.split('/');
+  const dataISO=parts[2]+'-'+parts[1]+'-'+parts[0];
+  el.innerHTML='<div style="flex:1;display:flex;flex-direction:column;gap:8px">'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<input type="text" inputmode="numeric" id="ev-v-'+id+'" value="'+fmtMeta(valor)+'" onkeydown="return metaKey(event)" oninput="maskMeta(this)" style="flex:1;padding:10px;border:1.5px solid var(--td);border-radius:8px;font-size:15px;font-weight:700;text-align:right">'
+    +'<input type="date" id="ev-d-'+id+'" value="'+dataISO+'" style="width:140px;padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px">'
+    +'</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bp bsm" style="flex:1" onclick="saveVenda('+id+')"><i class="ti ti-check"></i> Salvar</button>'
+    +'<button class="btn bsm" onclick="carregarHistorico()">Cancelar</button>'
+    +'</div></div>';
+}
+
+async function saveVenda(id){
+  const val=parseMeta(document.getElementById('ev-v-'+id).value);
+  const dataISO=document.getElementById('ev-d-'+id).value;
+  if(!val||!dataISO){alert('Preencha valor e data.');return}
+  const p=dataISO.split('-');
+  await pk('vendas','?id=eq.'+id,{valor:val,data_venda:p[2]+'/'+p[1]+'/'+p[0]});
+  carregarHistorico();
+}
+
+async function delVenda(id){
+  if(!confirm('Excluir este lançamento?'))return;
+  await dl('vendas','?id=eq.'+id);
+  carregarHistorico();
+}
+
 async function gConfig(){
   const emp=EMP||{};
   const fils=await gt('filiais','?select=*'+eid());
@@ -1838,7 +1672,7 @@ async function gConfig(){
       +'<div class="rs">'+v.data_venda+'</div></div>'
       +'<span style="font-weight:700;font-size:15px;margin-right:10px">'+fm(parseFloat(v.valor))+'</span>'
       +'<div style="display:flex;gap:6px;flex-shrink:0">'
-      +'<button class="btn bsm" onclick="editVenda('+v.id+','+v.valor+',\''+v.data_venda+'\')"><i class="ti ti-edit"></i></button>'
+      +'<button class="btn bsm" onclick="editVendaH('+v.id+')"><i class="ti ti-edit"></i></button>'
       +'<button class="btn bd2r" onclick="delVenda('+v.id+')"><i class="ti ti-trash"></i></button>'
       +'</div></div>'
     ).join('');
@@ -1892,50 +1726,9 @@ function abrirModalRec(tipo, tel){
   m.style.display='flex';
 
   if(tipo==='func'){
-    document.getElementById('modal-rec-body').innerHTML=`
-      <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha</h3>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Confirme seu telefone e crie uma nova senha.</p>
-      <div class="fi"><label>Telefone</label>
-        <input id="rec-tel" type="tel" value="${tel}" placeholder="35999990001" inputmode="numeric">
-      </div>
-      <div class="fi"><label>Nova senha (mín. 4 caracteres)</label>
-        <input id="rec-s1" type="password" placeholder="••••••">
-      </div>
-      <div class="fi"><label>Confirmar nova senha</label>
-        <input id="rec-s2" type="password" placeholder="••••••">
-      </div>
-      <div id="rec-err" class="ae aer" style="display:none"></div>
-      <div id="rec-ok" class="ae aok" style="display:none"></div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn bp" style="flex:1" onclick="salvarNovaSenha()">
-          <i class="ti ti-key"></i> Salvar nova senha
-        </button>
-        <button class="btn" onclick="fecharModalRec()">Cancelar</button>
-      </div>`;
+    document.getElementById('modal-rec-body').innerHTML='\n      <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha</h3>\n      <p style="font-size:13px;color:#666;margin-bottom:16px">Confirme seu telefone e crie uma nova senha.</p>\n      <div class="fi"><label>Telefone</label>\n        <input id="rec-tel" type="tel" value="'+(tel)+'" placeholder="35999990001" inputmode="numeric">\n      </div>\n      <div class="fi"><label>Nova senha (mín. 4 caracteres)</label>\n        <input id="rec-s1" type="password" placeholder="••••••">\n      </div>\n      <div class="fi"><label>Confirmar nova senha</label>\n        <input id="rec-s2" type="password" placeholder="••••••">\n      </div>\n      <div id="rec-err" class="ae aer" style="display:none"></div>\n      <div id="rec-ok" class="ae aok" style="display:none"></div>\n      <div style="display:flex;gap:8px;margin-top:4px">\n        <button class="btn bp" style="flex:1" onclick="salvarNovaSenha()">\n          <i class="ti ti-key"></i> Salvar nova senha\n        </button>\n        <button class="btn" onclick="fecharModalRec()">Cancelar</button>\n      </div>';
   } else {
-    document.getElementById('modal-rec-body').innerHTML=`
-      <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha da gestora</h3>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Informe o ID da empresa e crie uma nova senha.</p>
-      <div class="ae" style="background:#FFF8E1;color:#7B5800;border:1px solid #F9A825;font-size:13px;margin-bottom:14px">
-        ⚠️ O ID da Maria Elegante é <strong>1</strong>. Apenas a senha de gestora será alterada.
-      </div>
-      <div class="fi"><label>ID da empresa</label>
-        <input id="rec-empid" type="number" placeholder="Ex: 1" inputmode="numeric">
-      </div>
-      <div class="fi"><label>Nova senha</label>
-        <input id="rec-gs1" type="password" placeholder="••••••">
-      </div>
-      <div class="fi"><label>Confirmar nova senha</label>
-        <input id="rec-gs2" type="password" placeholder="••••••">
-      </div>
-      <div id="rec-err" class="ae aer" style="display:none"></div>
-      <div id="rec-ok" class="ae aok" style="display:none"></div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn bp" style="flex:1" onclick="salvarNovaSenhaGestora()">
-          <i class="ti ti-key"></i> Salvar nova senha
-        </button>
-        <button class="btn" onclick="fecharModalRec()">Cancelar</button>
-      </div>`;
+    document.getElementById('modal-rec-body').innerHTML='\n      <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha da gestora</h3>\n      <p style="font-size:13px;color:#666;margin-bottom:16px">Informe o ID da empresa e crie uma nova senha.</p>\n      <div class="ae" style="background:#FFF8E1;color:#7B5800;border:1px solid #F9A825;font-size:13px;margin-bottom:14px">\n        ⚠️ O ID da Maria Elegante é <strong>1</strong>. Apenas a senha de gestora será alterada.\n      </div>\n      <div class="fi"><label>ID da empresa</label>\n        <input id="rec-empid" type="number" placeholder="Ex: 1" inputmode="numeric">\n      </div>\n      <div class="fi"><label>Nova senha</label>\n        <input id="rec-gs1" type="password" placeholder="••••••">\n      </div>\n      <div class="fi"><label>Confirmar nova senha</label>\n        <input id="rec-gs2" type="password" placeholder="••••••">\n      </div>\n      <div id="rec-err" class="ae aer" style="display:none"></div>\n      <div id="rec-ok" class="ae aok" style="display:none"></div>\n      <div style="display:flex;gap:8px;margin-top:4px">\n        <button class="btn bp" style="flex:1" onclick="salvarNovaSenhaGestora()">\n          <i class="ti ti-key"></i> Salvar nova senha\n        </button>\n        <button class="btn" onclick="fecharModalRec()">Cancelar</button>\n      </div>';
   }
 }
 
@@ -1984,56 +1777,7 @@ function mostrarTermo(funcId, funcNome){
   const hoje2=hj();
   const nomeEmp=EMP?EMP.nome:'a empresa';
   document.getElementById('modal-termo').style.display='block';
-  document.getElementById('modal-termo-body').innerHTML=`
-    <div style="text-align:center;margin-bottom:20px">
-      ${EMP&&EMP.logo_base64?`<img src="data:image/png;base64,${EMP.logo_base64}" style="height:44px;background:#000;padding:6px;border-radius:8px;margin-bottom:10px">`:''}
-      <h2 style="font-size:18px;font-weight:800">TERMO DE CONFIDENCIALIDADE</h2>
-      <p style="font-size:13px;color:#666;margin-top:4px">e Responsabilidade pelo Uso do Sistema</p>
-    </div>
-    <div style="font-size:14px;line-height:1.8;color:#1a1a1a">
-      <p style="margin-bottom:14px">Eu, <strong>${funcNome}</strong>, colaboradora de <strong>${nomeEmp}</strong>, ao acessar o sistema interno, declaro estar ciente e de acordo com os seguintes termos:</p>
-
-      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">
-        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">1. Sigilo das informações</p>
-        <p style="font-size:13px">Todas as informações acessadas — metas, comissões, dados de colegas, comunicados e documentos — são confidenciais e de propriedade exclusiva de <strong>${nomeEmp}</strong>. Comprometo-me a não divulgar, compartilhar ou transmitir tais informações a terceiros sem autorização da gestão.</p>
-      </div>
-
-      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">
-        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">2. Acesso individual e intransferível</p>
-        <p style="font-size:13px">Meu login e senha são individuais e intransferíveis. É proibido compartilhá-los com qualquer pessoa. Toda ação realizada com minhas credenciais é de minha exclusiva responsabilidade.</p>
-      </div>
-
-      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">
-        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">3. Integridade das informações</p>
-        <p style="font-size:13px">Comprometo-me a não adulterar, excluir ou inserir dados falsos. A manipulação intencional é considerada falta grave, sujeita a medidas disciplinares e legais.</p>
-      </div>
-
-      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">
-        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">4. Vigência</p>
-        <p style="font-size:13px">Este compromisso é válido durante todo o vínculo com <strong>${nomeEmp}</strong> e por prazo indeterminado após o término do contrato, no que se refere às informações sigilosas obtidas.</p>
-      </div>
-
-      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">
-        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">5. Penalidades</p>
-        <p style="font-size:13px">O descumprimento sujeita o infrator a responsabilização civil e criminal, incluindo a <strong>LGPD (Lei nº 13.709/2018)</strong> e o <strong>Código Civil Brasileiro</strong>.</p>
-      </div>
-
-      <div style="background:#E0F2F1;border-radius:10px;padding:14px;margin-bottom:20px;border:1px solid #80CBC4">
-        <p style="font-size:13px;color:#004D40"><strong>Colaboradora:</strong> ${funcNome}</p>
-        <p style="font-size:13px;color:#004D40"><strong>Empresa:</strong> ${nomeEmp}</p>
-        <p style="font-size:13px;color:#004D40"><strong>Data:</strong> ${hoje2}</p>
-        <p style="font-size:12px;color:#00695C;margin-top:8px">Ao clicar em "Li e concordo", você confirma que leu e aceita todos os termos, com validade de assinatura eletrônica conforme a <strong>MP 2.200-2/2001</strong> e a <strong>Lei nº 14.063/2020</strong>.</p>
-      </div>
-    </div>
-
-    <button class="btn bp" style="width:100%;justify-content:center;font-size:16px;padding:16px;margin-bottom:10px"
-      onclick="aceitarTermo(${funcId})">
-      <i class="ti ti-check"></i> Li e concordo com os termos
-    </button>
-    <button style="width:100%;padding:14px;background:none;border:1.5px solid #ccc;border-radius:10px;color:#666;font-size:14px;cursor:pointer;margin-bottom:24px"
-      onclick="recusarTermo()">
-      Não aceito — sair do sistema
-    </button>`;
+  document.getElementById('modal-termo-body').innerHTML='\n    <div style="text-align:center;margin-bottom:20px">\n      '+(EMP&&EMP.logo_base64?`<img src="data:image/png;base64,${EMP.logo_base64}" style="height:44px;background:#000;padding:6px;border-radius:8px;margin-bottom:10px">`:'')+'\n      <h2 style="font-size:18px;font-weight:800">TERMO DE CONFIDENCIALIDADE</h2>\n      <p style="font-size:13px;color:#666;margin-top:4px">e Responsabilidade pelo Uso do Sistema</p>\n    </div>\n    <div style="font-size:14px;line-height:1.8;color:#1a1a1a">\n      <p style="margin-bottom:14px">Eu, <strong>'+(funcNome)+'</strong>, colaboradora de <strong>'+(nomeEmp)+'</strong>, ao acessar o sistema interno, declaro estar ciente e de acordo com os seguintes termos:</p>\n\n      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">\n        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">1. Sigilo das informações</p>\n        <p style="font-size:13px">Todas as informações acessadas — metas, comissões, dados de colegas, comunicados e documentos — são confidenciais e de propriedade exclusiva de <strong>'+(nomeEmp)+'</strong>. Comprometo-me a não divulgar, compartilhar ou transmitir tais informações a terceiros sem autorização da gestão.</p>\n      </div>\n\n      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">\n        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">2. Acesso individual e intransferível</p>\n        <p style="font-size:13px">Meu login e senha são individuais e intransferíveis. É proibido compartilhá-los com qualquer pessoa. Toda ação realizada com minhas credenciais é de minha exclusiva responsabilidade.</p>\n      </div>\n\n      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">\n        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">3. Integridade das informações</p>\n        <p style="font-size:13px">Comprometo-me a não adulterar, excluir ou inserir dados falsos. A manipulação intencional é considerada falta grave, sujeita a medidas disciplinares e legais.</p>\n      </div>\n\n      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">\n        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">4. Vigência</p>\n        <p style="font-size:13px">Este compromisso é válido durante todo o vínculo com <strong>'+(nomeEmp)+'</strong> e por prazo indeterminado após o término do contrato, no que se refere às informações sigilosas obtidas.</p>\n      </div>\n\n      <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:10px">\n        <p style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#00695C;margin-bottom:6px">5. Penalidades</p>\n        <p style="font-size:13px">O descumprimento sujeita o infrator a responsabilização civil e criminal, incluindo a <strong>LGPD (Lei nº 13.709/2018)</strong> e o <strong>Código Civil Brasileiro</strong>.</p>\n      </div>\n\n      <div style="background:#E0F2F1;border-radius:10px;padding:14px;margin-bottom:20px;border:1px solid #80CBC4">\n        <p style="font-size:13px;color:#004D40"><strong>Colaboradora:</strong> '+(funcNome)+'</p>\n        <p style="font-size:13px;color:#004D40"><strong>Empresa:</strong> '+(nomeEmp)+'</p>\n        <p style="font-size:13px;color:#004D40"><strong>Data:</strong> '+(hoje2)+'</p>\n        <p style="font-size:12px;color:#00695C;margin-top:8px">Ao clicar em "Li e concordo", você confirma que leu e aceita todos os termos, com validade de assinatura eletrônica conforme a <strong>MP 2.200-2/2001</strong> e a <strong>Lei nº 14.063/2020</strong>.</p>\n      </div>\n    </div>\n\n    <button class="btn bp" style="width:100%;justify-content:center;font-size:16px;padding:16px;margin-bottom:10px"\n      onclick="aceitarTermo('+(funcId)+')">\n      <i class="ti ti-check"></i> Li e concordo com os termos\n    </button>\n    <button style="width:100%;padding:14px;background:none;border:1.5px solid #ccc;border-radius:10px;color:#666;font-size:14px;cursor:pointer;margin-bottom:24px"\n      onclick="recusarTermo()">\n      Não aceito — sair do sistema\n    </button>';
 }
 
 async function aceitarTermo(funcId){
