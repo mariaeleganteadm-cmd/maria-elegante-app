@@ -1728,183 +1728,148 @@ async function fComunic(){
 
 // ── GESTORA: CONFIGURAÇÕES DA EMPRESA ──
 async function gConfig(){
-  const emp = EMP || {};
-  const fils = await gt('filiais','?select=*'+eid());
+  const emp=EMP||{};
+  const fils=await gt('filiais','?select=*'+eid());
+  const funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,perfil,filial_id');
 
-  let h=`<div class="h1">Empresa</div>
-  <div class="card" style="border-top:3px solid var(--td)">
-    <div class="ct2"><i class="ti ti-building"></i>Dados da empresa</div>
-    <div id="cfg-ok" class="ae aok" style="display:none"></div>
-    <div id="cfg-err" class="ae aer" style="display:none"></div>
+  const logoHtml=emp.logo_base64
+    ?'<img src="data:image/png;base64,'+emp.logo_base64+'" style="height:64px;border-radius:10px;background:#000;padding:6px">'
+    :'<div style="width:72px;height:72px;border-radius:50%;background:var(--tl);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:28px">'+String.fromCodePoint(0x1F3EA)+'</div>';
 
-    <div style="text-align:center;margin-bottom:16px">
-      <div id="cfg-logo-prev" style="margin-bottom:10px">
-        ${emp.logo_base64
-          ?`<img src="data:image/png;base64,${emp.logo_base64}" style="height:64px;border-radius:10px;background:#000;padding:6px">`
-          :`<div style="width:72px;height:72px;border-radius:50%;background:var(--tl);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:28px">🏪</div>`}
-      </div>
-      <label style="display:inline-flex;align-items:center;gap:8px;background:var(--bg);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--td);border:1.5px solid var(--tb)">
-        <i class="ti ti-upload" style="font-size:18px"></i> Alterar logo
-        <input type="file" accept="image/*" id="cfg-logo-file" style="display:none" onchange="cfgCarregarLogo(this)">
-      </label>
-    </div>
+  let h='<div class="h1">Empresa</div>'
+    +'<div class="card" style="border-top:3px solid var(--td)">'
+    +'<div class="ct2"><i class="ti ti-building"></i>Dados da empresa</div>'
+    +'<div id="cfg-ok" class="ae aok" style="display:none"></div>'
+    +'<div id="cfg-err" class="ae aer" style="display:none"></div>'
+    +'<div style="text-align:center;margin-bottom:16px">'
+    +'<div id="cfg-logo-prev" style="margin-bottom:10px">'+logoHtml+'</div>'
+    +'<label style="display:inline-flex;align-items:center;gap:8px;background:var(--bg);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--td);border:1.5px solid var(--tb)">'
+    +'<i class="ti ti-upload" style="font-size:18px"></i> Alterar logo'
+    +'<input type="file" accept="image/*" id="cfg-logo-file" style="display:none" onchange="cfgCarregarLogo(this)">'
+    +'</label></div>'
+    +'<div class="fi"><label>Nome da empresa</label><input id="cfg-nome" value="'+(emp.nome||'')+'" placeholder="Ex: Maria Elegante"></div>'
+    +'<div class="fi"><label>CNPJ</label><input id="cfg-cnpj" value="'+(emp.cnpj||'')+'" placeholder="00.000.000/0001-00"></div>'
+    +'<div class="fi"><label>Telefone</label><input id="cfg-tel" type="tel" value="'+(emp.telefone||'')+'" placeholder="(35) 99999-0000"></div>'
+    +'<div class="fi"><label>Endereço</label><input id="cfg-end" value="'+(emp.endereco||'')+'" placeholder="Rua, número, cidade"></div>'
+    +'<div class="fi"><label>Cor principal</label>'
+    +'<div style="display:flex;gap:10px;align-items:center">'
+    +'<input type="color" id="cfg-cor" value="'+(emp.cor_principal||'#00897B')+'" style="width:52px;height:50px;border-radius:8px;border:1.5px solid var(--bd);cursor:pointer;padding:3px;background:#fff" onchange="document.documentElement.style.setProperty(\'--td\',this.value)">'
+    +'<span style="font-size:13px;color:var(--t2)">Cor dos botões e destaques</span>'
+    +'</div></div>'
+    +'<button class="btn bp" style="width:100%;justify-content:center" onclick="cfgSalvar()"><i class="ti ti-device-floppy"></i> Salvar alterações</button>'
+    +'</div>'
 
-    <div class="fi"><label>Nome da empresa</label>
-      <input id="cfg-nome" value="${emp.nome||''}" placeholder="Ex: Maria Elegante"></div>
-    <div class="fi"><label>CNPJ</label>
-      <input id="cfg-cnpj" value="${emp.cnpj||''}" placeholder="00.000.000/0001-00"></div>
-    <div class="fi"><label>Telefone</label>
-      <input id="cfg-tel" type="tel" value="${emp.telefone||''}" placeholder="(35) 99999-0000"></div>
-    <div class="fi"><label>Endereço</label>
-      <input id="cfg-end" value="${emp.endereco||''}" placeholder="Rua, número, cidade"></div>
-    <div class="fi"><label>Cor principal</label>
-      <div style="display:flex;gap:10px;align-items:center">
-        <input type="color" id="cfg-cor" value="${emp.cor_principal||'#00897B'}"
-          style="width:52px;height:50px;border-radius:8px;border:1.5px solid var(--bd);cursor:pointer;padding:3px;background:#fff"
-          onchange="document.documentElement.style.setProperty('--td',this.value)">
-        <span style="font-size:13px;color:var(--t2)">Cor dos botões e destaques</span>
-      </div>
-    </div>
-    <button class="btn bp" style="width:100%;justify-content:center" onclick="cfgSalvar()">
-      <i class="ti ti-device-floppy"></i> Salvar alterações
-    </button>
-  </div>
+    +'<div class="card"><div class="ct2"><i class="ti ti-building-store"></i>Filiais</div>'
+    +fils.map(f=>'<div class="ri"><div class="av" style="width:36px;height:36px;font-size:13px;background:var(--tl);color:var(--tdd)"><i class="ti ti-building-store"></i></div><div style="flex:1"><div class="rn">'+f.nome+'</div></div></div>').join('')
+    +'<div class="sep"></div><div class="fi"><label>Nova filial</label><input id="cfg-fil" placeholder="Ex: Filial Centro"></div>'
+    +'<button class="btn bp bsm" onclick="cfgAddFilial()"><i class="ti ti-plus"></i> Adicionar filial</button></div>'
 
-  <div class="card">
-    <div class="ct2"><i class="ti ti-building-store"></i>Filiais cadastradas</div>
-    ${fils.map(f=>{
-      const n=0;
-      return`<div class="ri">
-        <div class="av" style="width:36px;height:36px;font-size:13px;background:var(--tl);color:var(--tdd)"><i class="ti ti-building-store"></i></div>
-        <div style="flex:1"><div class="rn">${f.nome}</div></div>
-      </div>`;
-    }).join('')}
-    <div class="sep"></div>
-    <div class="fi"><label>Nova filial</label><input id="cfg-fil" placeholder="Ex: Filial Centro"></div>
-    <button class="btn bp bsm" onclick="cfgAddFilial()"><i class="ti ti-plus"></i> Adicionar filial</button>
-  </div>
+    // Histórico de lançamentos
+    +'<div class="card"><div class="ct2"><i class="ti ti-history"></i>Histórico de lançamentos</div>'
+    +'<div class="fi"><label>Filtrar por funcionária</label>'
+    +'<select id="hist-func" onchange="carregarHistorico()">'
+    +'<option value="">Todas</option>'
+    +funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente').map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
+    +'</select></div>'
+    +'<div id="hist-lista"><div class="ld"><i class="ti ti-loader"></i>Carregando...</div></div>'
+    +'</div>';
 
-  <div class="card">
-    <div class="ct2"><i class="ti ti-history"></i>Histórico de lançamentos</div>
-    <div class="fi"><label>Filtrar por funcionária</label>
-      <select id="hist-func" onchange="carregarHistorico()">
-        <option value="">Todas</option>
-      </select>
-    </div>
-    <div id="hist-lista"><div class="ld"><i class="ti ti-loader"></i>Carregando...</div></div>
-  </div>`;
-
-  document.getElementById('ct').innerHTML = h;
-
-  // Carregar funcionárias no select
-  const funcs = await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome');
-  const sel = document.getElementById('hist-func');
-  funcs.forEach(f=>sel.innerHTML+=`<option value="${f.id}">${f.nome}</option>`);
+  document.getElementById('ct').innerHTML=h;
   carregarHistorico();
 
-  let cfgLogoB64 = emp.logo_base64 || null;
+  let cfgLogoB64=emp.logo_base64||null;
 
-  window.cfgCarregarLogo = input => {
-    const file = input.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const max=300, ratio=Math.min(max/img.width,max/img.height);
-        canvas.width=img.width*ratio; canvas.height=img.height*ratio;
+  window.cfgCarregarLogo=input=>{
+    const file=input.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        const max=300,ratio=Math.min(max/img.width,max/img.height);
+        canvas.width=img.width*ratio;canvas.height=img.height*ratio;
         canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-        cfgLogoB64 = canvas.toDataURL('image/png').split(',')[1];
-        document.getElementById('cfg-logo-prev').innerHTML =
-          `<img src="data:image/png;base64,${cfgLogoB64}" style="height:64px;border-radius:10px;background:#000;padding:6px">`;
+        cfgLogoB64=canvas.toDataURL('image/png').split(',')[1];
+        document.getElementById('cfg-logo-prev').innerHTML='<img src="data:image/png;base64,'+cfgLogoB64+'" style="height:64px;border-radius:10px;background:#000;padding:6px">';
       };
-      img.src = e.target.result;
+      img.src=e.target.result;
     };
     reader.readAsDataURL(file);
   };
 
-  window.cfgSalvar = async () => {
-    const ok=document.getElementById('cfg-ok'), err=document.getElementById('cfg-err');
-    ok.style.display='none'; err.style.display='none';
-    const nome = document.getElementById('cfg-nome').value.trim();
+  window.cfgSalvar=async()=>{
+    const ok=document.getElementById('cfg-ok'),err=document.getElementById('cfg-err');
+    ok.style.display='none';err.style.display='none';
+    const nome=(document.getElementById('cfg-nome').value||'').trim();
     if(!nome){err.textContent='Digite o nome da empresa.';err.style.display='block';return}
-    const body = {
+    const body={
       nome,
-      cnpj: document.getElementById('cfg-cnpj').value.trim(),
-      telefone: document.getElementById('cfg-tel').value.trim(),
-      endereco: document.getElementById('cfg-end').value.trim(),
-      cor_principal: document.getElementById('cfg-cor').value,
-      logo_base64: cfgLogoB64,
+      cnpj:(document.getElementById('cfg-cnpj').value||'').trim(),
+      telefone:(document.getElementById('cfg-tel').value||'').trim(),
+      endereco:(document.getElementById('cfg-end').value||'').trim(),
+      cor_principal:document.getElementById('cfg-cor').value,
+      logo_base64:cfgLogoB64
     };
-    await pk('empresas','?id=eq.'+EMP.id, body);
-    EMP = {...EMP, ...body};
-    localStorage.setItem('me_empresa_id', EMP.id);
+    await pk('empresas','?id=eq.'+EMP.id,body);
+    EMP={...EMP,...body};
+    localStorage.setItem('me_empresa_id',String(EMP.id));
     aplicarIdentidade(EMP);
-    ok.textContent='✅ Dados salvos com sucesso!'; ok.style.display='block';
-    setTimeout(()=>ok.style.display='none', 3000);
+    ok.textContent='✅ Dados salvos com sucesso!';ok.style.display='block';
+    setTimeout(()=>ok.style.display='none',3000);
   };
 
-  window.cfgAddFilial = async () => {
-    const nm = (document.getElementById('cfg-fil').value||'').trim();
+  window.cfgAddFilial=async()=>{
+    const nm=(document.getElementById('cfg-fil').value||'').trim();
     if(!nm){alert('Digite o nome.');return}
     await pt('filiais',{nome:nm,empresa_id:EMP?EMP.id:null});
     gConfig();
   };
 
-  window.carregarHistorico = async () => {
-    const funcId = document.getElementById('hist-func').value;
-    const p = funcId ? `?func_id=eq.${funcId}${eid()}&order=created_at.desc&limit=50&select=*,funcionarias(nome)`
-                     : `?${eid().slice(1)}&order=created_at.desc&limit=50&select=*,funcionarias(nome)`;
-    const vendas = await gt('vendas', funcId
-      ? `?func_id=eq.${funcId}&order=created_at.desc&limit=50&select=*,funcionarias(nome)`
-      : `?select=*,funcionarias(nome)&order=created_at.desc&limit=50${eid()}`);
-    const el = document.getElementById('hist-lista');
-    if(!vendas.length){el.innerHTML='<div class="em" style="padding:20px">Nenhum lançamento.</div>';return}
-    el.innerHTML = vendas.map(v=>`
-      <div class="ri" id="venda-${v.id}">
-        <div style="flex:1;min-width:0">
-          <div class="rn">${v.funcionarias?v.funcionarias.nome:'—'}</div>
-          <div class="rs">${v.data_venda}</div>
-        </div>
-        <div style="font-size:15px;font-weight:700;margin-right:10px">${fm(parseFloat(v.valor))}</div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn bsm" onclick="editarVenda(${v.id},${v.valor},'${v.data_venda}')" style="padding:8px 10px"><i class="ti ti-edit"></i></button>
-          <button class="btn bd2r" onclick="excluirVenda(${v.id})" style="padding:8px 10px"><i class="ti ti-trash"></i></button>
-        </div>
-      </div>`).join('');
+  window.carregarHistorico=async()=>{
+    const funcId=(document.getElementById('hist-func')||{}).value||'';
+    const q=funcId
+      ?'?func_id=eq.'+funcId+'&order=created_at.desc&limit=50&select=*,funcionarias(nome)'+eid()
+      :'?order=created_at.desc&limit=50&select=*,funcionarias(nome)'+eid();
+    const vendas=await gt('vendas',q);
+    const el=document.getElementById('hist-lista');
+    if(!vendas||!vendas.length){el.innerHTML='<div class="em" style="padding:20px">Nenhum lançamento.</div>';return}
+    el.innerHTML=vendas.map(v=>'<div class="ri" id="vl-'+v.id+'">'
+      +'<div style="flex:1;min-width:0"><div class="rn">'+(v.funcionarias?v.funcionarias.nome:'—')+'</div>'
+      +'<div class="rs">'+v.data_venda+'</div></div>'
+      +'<span style="font-weight:700;font-size:15px;margin-right:10px">'+fm(parseFloat(v.valor))+'</span>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+      +'<button class="btn bsm" onclick="editVenda('+v.id+','+v.valor+',\''+v.data_venda+'\')"><i class="ti ti-edit"></i></button>'
+      +'<button class="btn bd2r" onclick="delVenda('+v.id+')"><i class="ti ti-trash"></i></button>'
+      +'</div></div>'
+    ).join('');
   };
 
-  window.editarVenda = (id, valor, data) => {
-    // Converter data DD/MM/YYYY → YYYY-MM-DD
-    const [dd,mm2,aa] = data.split('/');
-    const dataISO = `${aa}-${mm2}-${dd}`;
-    const el = document.getElementById('venda-'+id);
-    el.innerHTML = `
-      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-        <input type="text" inputmode="numeric" id="ev-val-${id}" value="${fmtMeta(valor)}"
-          onkeydown="return metaKey(event)" oninput="maskMeta(this)"
-          style="padding:10px;border:1.5px solid var(--td);border-radius:8px;font-size:15px;font-weight:700;text-align:right">
-        <input type="date" id="ev-dat-${id}" value="${dataISO}"
-          style="padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px">
-        <div style="display:flex;gap:8px">
-          <button class="btn bp bsm" style="flex:1" onclick="salvarEdicaoVenda(${id})"><i class="ti ti-check"></i> Salvar</button>
-          <button class="btn bsm" onclick="carregarHistorico()">Cancelar</button>
-        </div>
-      </div>`;
+  window.editVenda=(id,valor,data)=>{
+    const el=document.getElementById('vl-'+id);if(!el)return;
+    const [dd,mm2,aa]=data.split('/');
+    const dataISO=aa+'-'+mm2+'-'+dd;
+    el.innerHTML='<div style="flex:1;display:flex;flex-direction:column;gap:8px">'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<input type="text" inputmode="numeric" id="ev-v-'+id+'" value="'+fmtMeta(valor)+'" onkeydown="return metaKey(event)" oninput="maskMeta(this)" style="flex:1;padding:10px;border:1.5px solid var(--td);border-radius:8px;font-size:15px;font-weight:700;text-align:right">'
+      +'<input type="date" id="ev-d-'+id+'" value="'+dataISO+'" style="width:140px;padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px">'
+      +'</div>'
+      +'<div style="display:flex;gap:8px">'
+      +'<button class="btn bp bsm" style="flex:1" onclick="saveVenda('+id+')"><i class="ti ti-check"></i> Salvar</button>'
+      +'<button class="btn bsm" onclick="carregarHistorico()">Cancelar</button>'
+      +'</div></div>';
   };
 
-  window.salvarEdicaoVenda = async id => {
-    const val = parseMeta(document.getElementById('ev-val-'+id).value);
-    const dataISO = document.getElementById('ev-dat-'+id).value;
+  window.saveVenda=async id=>{
+    const val=parseMeta(document.getElementById('ev-v-'+id).value);
+    const dataISO=document.getElementById('ev-d-'+id).value;
     if(!val||!dataISO){alert('Preencha valor e data.');return}
-    const [aa,mm2,dd] = dataISO.split('-');
-    const dataFmt = `${dd}/${mm2}/${aa}`;
-    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:dataFmt});
+    const [aa,mm2,dd]=dataISO.split('-');
+    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:dd+'/'+mm2+'/'+aa});
     carregarHistorico();
   };
 
-  window.excluirVenda = async id => {
-    if(!confirm('Excluir este lançamento?')) return;
+  window.delVenda=async id=>{
+    if(!confirm('Excluir este lançamento?'))return;
     await dl('vendas','?id=eq.'+id);
     carregarHistorico();
   };
