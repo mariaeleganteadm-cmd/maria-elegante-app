@@ -210,6 +210,142 @@ const FERIADOS_2026=new Set([
   '2026-12-08','2026-12-25'               // Imaculada, Natal
 ]);
 
+
+// ══════════════════════════════════════════════
+// MÓDULO DE SAZONALIDADE — Aprende com histórico
+// ══════════════════════════════════════════════
+
+// Datas especiais nacionais com multiplicadores de impacto
+// semana = qual semana do mês tem o pico (1-4)
+// mult = multiplicador de vendas nessa semana
+const DATAS_ESPECIAIS = [
+  {nome:'Dia das Mães',    mes:5,  semana:2, mult:1.45, desc:'2º domingo de maio'},
+  {nome:'Dia dos Namorados', mes:6, semana:2, mult:1.25, desc:'12 de junho'},
+  {nome:'Dia das Crianças', mes:10, semana:1, mult:1.30, desc:'12 de outubro'},
+  {nome:'Black Friday',    mes:11, semana:4, mult:1.50, desc:'última sexta de novembro'},
+  {nome:'Natal',           mes:12, semana:2, mult:1.40, desc:'semanas 2 e 3 de dezembro'},
+  {nome:'Natal',           mes:12, semana:3, mult:1.50, desc:'semana antes do Natal'},
+  {nome:'Volta às Aulas',  mes:2,  semana:1, mult:1.20, desc:'início de fevereiro'},
+  {nome:'Páscoa',          mes:4,  semana:1, mult:1.15, desc:'semana da Páscoa'},
+];
+
+// Obter semana do mês (1-4) de uma data
+function semanaDoMes(dt){
+  const dia = dt.getDate();
+  if(dia <= 7)  return 1;
+  if(dia <= 14) return 2;
+  if(dia <= 21) return 3;
+  return 4;
+}
+
+// Calcular multiplicador sazonal para uma semana/mês
+function multSazonal(mes, semana){
+  const especial = DATAS_ESPECIAIS.find(d => d.mes === mes && d.semana === semana);
+  return especial ? especial.mult : 1.0;
+}
+
+// Analisar histórico e calcular pesos reais por semana do mês
+function analisarPesosSemana(todasVendas){
+  // Agrupar por mes+semana
+  const grupos = {}; // key: "mes-semana"
+  todasVendas.forEach(v => {
+    const pts = v.data_venda.split('/');
+    if(pts.length < 3) return;
+    const dt = new Date(+pts[2], +pts[1]-1, +pts[0]);
+    const mes = dt.getMonth()+1;
+    const sem = semanaDoMes(dt);
+    const key = mes+'-'+sem;
+    if(!grupos[key]) grupos[key] = {total:0, cnt:0, mes, sem};
+    grupos[key].total += parseFloat(v.valor);
+    grupos[key].cnt++;
+  });
+
+  // Calcular peso médio por semana (1-4) considerando todos os meses
+  const pesoSem = {1:0, 2:0, 3:0, 4:0};
+  const cntSemMes = {1:0, 2:0, 3:0, 4:0};
+
+  Object.values(grupos).forEach(g => {
+    // Normalizar pelo multiplicador sazonal para isolar o padrão base
+    const multBase = multSazonal(g.mes, g.sem);
+    const totalBase = g.total / multBase;
+    pesoSem[g.sem] += totalBase;
+    cntSemMes[g.sem]++;
+  });
+
+  // Normalizar para somar 100%
+  const total = Object.values(pesoSem).reduce((s,v)=>s+v,0) || 1;
+  const pesos = {};
+  for(let s=1;s<=4;s++){
+    pesos[s] = pesoSem[s] / total;
+  }
+
+  return pesos;
+}
+
+// Distribuir meta mensal por semana considerando sazonalidade
+function distribuirMetaPorSemana(meta, mes, ano, pesosBase){
+  const semanas = [1,2,3,4];
+  const distribuicao = {};
+  let totalPeso = 0;
+
+  semanas.forEach(s => {
+    const pesoBase = pesosBase[s] || 0.25;
+    const mult = multSazonal(mes, s);
+    distribuicao[s] = pesoBase * mult;
+    totalPeso += distribuicao[s];
+  });
+
+  // Normalizar e calcular valor em R$
+  const resultado = {};
+  semanas.forEach(s => {
+    resultado[s] = Math.ceil(meta * (distribuicao[s]/totalPeso));
+  });
+
+  return resultado;
+}
+
+// Calcular meta diária inteligente considerando semana do mês
+function metaDiariaInteligente(meta, vendido, diasRestArray, pctDiaSem, pesosSemanais, mes){
+  const falta = Math.max(meta - vendido, 0);
+  if(!falta || !diasRestArray.length) return 0;
+
+  // Peso de cada dia restante = pctDiaSem * multSemana
+  const pesoTotal = diasRestArray.reduce((s, dt) => {
+    const ds = dt.getDay();
+    const sem = semanaDoMes(dt);
+    const pesoSem = pesosSemanais[sem] || 0.25;
+    const pesoDs = pctDiaSem[ds] || (1/6);
+    return s + (pesoDs * pesoSem * multSazonal(mes, sem));
+  }, 0) || 1;
+
+  // Peso do dia de hoje
+  const hoje = new Date(2026,4,19);
+  const dsHoje = hoje.getDay();
+  const semHoje = semanaDoMes(hoje);
+  const pesoHoje = (pctDiaSem[dsHoje]||1/6) * (pesosSemanais[semHoje]||0.25) * multSazonal(mes, semHoje);
+
+  return Math.ceil(falta * (pesoHoje / pesoTotal));
+}
+
+// Verificar datas especiais próximas (próximos 35 dias)
+function datasEspeciaisProximas(mes, ano){
+  const hoje = new Date(2026,4,19);
+  const alertas = [];
+  DATAS_ESPECIAIS.forEach(d => {
+    // Calcular data aproximada da data especial
+    let dtEsp;
+    if(d.mes === mes){
+      // Início da semana especial
+      dtEsp = new Date(ano, mes-1, (d.semana-1)*7 + 1);
+      const diffDias = Math.ceil((dtEsp - hoje) / (1000*60*60*24));
+      if(diffDias >= 0 && diffDias <= 35){
+        alertas.push({...d, diasRestantes: diffDias, ano});
+      }
+    }
+  });
+  return alertas;
+}
+
 function isFeriado(dt){
   const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');
   return FERIADOS_2026.has(y+'-'+m+'-'+d);
@@ -765,6 +901,20 @@ async function gMetas(){
       +'<div id="p-'+f.id+'" style="font-size:11px;color:var(--td);margin-top:5px;min-height:14px;font-weight:500"></div></div>';
   });
   document.getElementById('ct').innerHTML=h;
+  // Alertas de datas especiais na aba de lançar
+  const alertasGestor=datasEspeciaisProximas(mS,aS).concat(datasEspeciaisProximas(mS+1>12?1:mS+1,aS));
+  if(alertasGestor.length){
+    let alertHtml='';
+    alertasGestor.forEach(a=>{
+      alertHtml+='<div style="background:#FFF3E0;border:1px solid #FFB300;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">'
+        +'<span style="font-size:22px">📅</span>'
+        +'<div><div style="font-weight:700;font-size:13px;color:#E65100">'+a.nome+' em '+a.diasRestantes+' dias!</div>'
+        +'<div style="font-size:12px;color:#BF360C">Semana '+a.semana+'ª do mês '+MESES[a.mes-1]+' — impacto de +'+Math.round((a.mult-1)*100)+'% nas vendas</div>'
+        +'</div></div>';
+    });
+    h=h.replace('<div class="h1">Lançar vendas</div>','<div class="h1">Lançar vendas</div>'+alertHtml);
+  }
+
   window.prv=(id,m,va)=>{
     const nv=parseMeta(document.getElementById('v-'+id).value)||0;
     const el=document.getElementById('p-'+id);
@@ -1317,145 +1467,407 @@ async function renderAdmin(){
 // ── GERENTE: PAINEL DA FILIAL ──
 async function gGerente(){
   const f=S.func;
-  const [funcs,vendas,metas,filRaw]=await Promise.all([
+  const HOJE=new Date(2026,4,19);
+  const HOJE_DS=HOJE.getDay();
+  const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const hjStr=hj();
+
+  // Ontem (dia útil anterior)
+  const ontem=new Date(HOJE);
+  ontem.setDate(ontem.getDate()-1);
+  while(ontem.getDay()===0||isFeriado(ontem)) ontem.setDate(ontem.getDate()-1);
+  const ontemStr=String(ontem.getDate()).padStart(2,'0')+'/'+String(ontem.getMonth()+1).padStart(2,'0')+'/'+ontem.getFullYear();
+
+  const [funcs,vendas,metas,filRaw,vendasEmp]=await Promise.all([
     gt('funcionarias','?ativa=eq.true&filial_id=eq.'+f.filial_id+'&perfil=in.(vendedora,gerente)'+eid()+'&select=*'),
     gt('vendas','?select=func_id,valor,data_venda'+eid()),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*'),
-    gt('filiais','?id=eq.'+f.filial_id+'&select=nome')
+    gt('filiais','?id=eq.'+f.filial_id+'&select=nome'),
+    gt('vendas','?select=valor,data_venda'+eid())
   ]);
-  const nomeFil=filRaw.length?filRaw[0].nome:'Filial';
-  const tot={};vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS}).forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
-  const mm={};metas.forEach(m=>mm[m.func_id]=parseFloat(m.valor));
-  const dr=dR(mS,aS);
-  const tV=funcs.reduce((s,f)=>s+(tot[f.id]||0),0),tM=funcs.reduce((s,f)=>s+(mm[f.id]||0),0),tC=funcs.reduce((s,f)=>s+cC(mm[f.id]||0,tot[f.id]||0),0),pG=tM>0?tV/tM*100:0;
 
-  let h='<div class="h1"><i class="ti ti-building-store"></i> '+nomeFil+'</div>'+mSel('gGerente()')+'<div class="card" style="border-top:3px solid var(--t)"><div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Meta geral da filial — '+nM(mS,aS)+'</div><div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px"><span style="font-size:32px;font-weight:800;color:'+pC(pG)+'">'+pp(pG)+'</span><span class="bx '+bI(pG).c+'">'+bI(pG).l+'</span></div><div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(pG,100)+'%;background:'+pC(pG)+'"></div></div><div class="g3" style="margin-top:12px"><div class="mx"><label>Total vendido</label><div class="v">'+fi(tV)+'</div></div><div class="mx"><label>Soma das metas</label><div class="v">'+fi(tM)+'</div><div class="s">'+funcs.length+' vendedoras</div></div><div class="mx"><label>Comissão est.</label><div class="v" style="color:var(--td)">'+fm(tC)+'</div></div></div></div>';
-  h+='<div class="h1" style="margin-top:4px">Vendedoras</div>';
-  funcs.forEach((f,i)=>{
-    const v=tot[f.id]||0,m=mm[f.id]||0,p=m>0?v/m*100:0,co=cC(m,v),pc=pC(p),bi=bI(p),re=Math.max(m-v,0),nd=dr>0?re/dr:0,c=CORES[i%CORES.length];
-    h+='<div class="fc"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="av" style="width:38px;height:38px;font-size:13px;background:'+c.b+';color:'+c.c+'">'+in2(f.nome)+'</div><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-weight:700;font-size:14px">'+f.nome+'</span><span class="bx '+bi.c+'">'+bi.l+'</span></div><div style="font-size:11px;color:var(--t2);margin-top:2px">Meta: '+fi(m)+' · Vendido: '+fi(v)+' · Comis: '+fm(co)+'</div></div><span style="font-size:20px;font-weight:700;color:'+pc+'">'+pp(p)+'</span></div><div class="pb"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div>'+(re>0&&dr>0?'<div style="font-size:11px;color:var(--td);margin-top:5px;font-weight:500">Falta '+fi(re)+' · '+fi(nd)+'/dia útil</div>':'')+'</div>';
+  const nomeFil=filRaw.length?filRaw[0].nome:'Filial';
+  const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
+  const tot={};vendasMes.forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
+  const mm={};metas.forEach(m=>mm[m.func_id]=parseFloat(m.valor));
+  const dr=dR(mS,aS),dp=dP(mS,aS),dt2=dT(mS,aS);
+
+  // Padrão de vendas por dia da semana (toda empresa)
+  const pesoSem={1:0,2:0,3:0,4:0,5:0,6:0};
+  vendasEmp.forEach(vd=>{
+    const pts=vd.data_venda.split('/');
+    if(pts.length<3)return;
+    const dt=new Date(+pts[2],+pts[1]-1,+pts[0]);
+    const ds=dt.getDay();
+    if(ds>=1&&ds<=6) pesoSem[ds]+=parseFloat(vd.valor);
   });
+  const totalPeso=Object.values(pesoSem).reduce((s,v2)=>s+v2,0)||1;
+  const pctSem={};
+  for(let d=1;d<=6;d++) pctSem[d]=totalPeso>0?pesoSem[d]/totalPeso:1/6;
+
+  // Calcular meta do dia por vendedora
+  function metaHoje(funcId){
+    const meta=mm[funcId]||0;
+    const v2=tot[funcId]||0;
+    const falta=Math.max(meta-v2,0);
+    if(!falta||!dr) return 0;
+    const diasRest=[];
+    const dtI=new Date(HOJE);
+    const fimMes=new Date(2026,mS,0);
+    while(dtI<=fimMes){
+      if(isDiaUtil(dtI)) diasRest.push(dtI.getDay());
+      dtI.setDate(dtI.getDate()+1);
+    }
+    const pesoRest=diasRest.reduce((s,d)=>s+(pctSem[d]||1/6),0)||1;
+    return Math.ceil(falta*((pctSem[HOJE_DS]||1/6)/pesoRest));
+  }
+
+  // Totais da filial
+  const tV=funcs.reduce((s,f)=>s+(tot[f.id]||0),0);
+  const tM=funcs.reduce((s,f)=>s+(mm[f.id]||0),0);
+  const pG=tM>0?tV/tM*100:0;
+  const tMetaHoje=funcs.reduce((s,f)=>s+metaHoje(f.id),0);
+
+  // Vendas hoje e ontem da filial
+  const vendHojeFilial=vendasMes.filter(v=>v.data_venda===hjStr&&funcs.find(f=>f.id===v.func_id));
+  const vendOntemFilial=vendasMes.filter(v=>v.data_venda===ontemStr&&funcs.find(f=>f.id===v.func_id));
+  const totalHoje=vendHojeFilial.reduce((s,v)=>s+parseFloat(v.valor),0);
+  const totalOntem2=vendOntemFilial.reduce((s,v)=>s+parseFloat(v.valor),0);
+
+  let h='<div class="h1"><i class="ti ti-building-store"></i> '+nomeFil+'</div>'+mSel('gGerente()');
+
+  // ── PAINEL DO DIA ──
+  h+='<div class="card" style="background:#000;border:none;padding:16px;margin-bottom:12px">'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📅 '+DSEM[HOJE_DS]+' — O que a equipe precisa fazer hoje</div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:12px">'
+    +'<div style="flex:1;background:rgba(255,255,255,.07);border-radius:10px;padding:10px;text-align:center">'
+    +'<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">Meta coletiva hoje</div>'
+    +'<div style="font-size:24px;font-weight:800;color:#1DE9B6">'+fi(tMetaHoje)+'</div>'
+    +'</div>'
+    +'<div style="flex:1;background:rgba(255,255,255,.07);border-radius:10px;padding:10px;text-align:center">'
+    +'<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">Vendido hoje</div>'
+    +'<div style="font-size:24px;font-weight:800;color:'+(totalHoje>=tMetaHoje?'#1DE9B6':'#E24B4A')+'">'+fi(totalHoje)+'</div>'
+    +'</div>'
+    +'<div style="flex:1;background:rgba(255,255,255,.07);border-radius:10px;padding:10px;text-align:center">'
+    +'<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">Ontem</div>'
+    +'<div style="font-size:24px;font-weight:800;color:rgba(255,255,255,.7)">'+fi(totalOntem2)+'</div>'
+    +'</div>'
+    +'</div>'
+    // Lista individual
+    +funcs.map(func=>{
+      const mhoje=metaHoje(func.id);
+      const vhoje=vendasMes.filter(v=>v.data_venda===hjStr&&v.func_id===func.id).reduce((s,v)=>s+parseFloat(v.valor),0);
+      const pHoje=mhoje>0?vhoje/mhoje*100:0;
+      const status=pHoje>=100?'✅':pHoje>=50?'⚡':'🎯';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.08)">'
+        +'<div class="av" style="width:32px;height:32px;font-size:11px;background:#00897B;color:#fff">'+in2(func.nome)+'</div>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#fff">'+func.nome.split(' ')[0]+'</div>'
+        +'<div style="height:4px;background:rgba(255,255,255,.1);border-radius:999px;margin-top:4px;overflow:hidden">'
+        +'<div style="height:100%;width:'+Math.min(pHoje,100)+'%;background:'+(pHoje>=100?'#1DE9B6':pHoje>=50?'#BA7517':'#E24B4A')+';border-radius:999px"></div>'
+        +'</div></div>'
+        +'<div style="text-align:right">'
+        +'<div style="font-size:11px;color:rgba(255,255,255,.5)">meta: '+fi(mhoje)+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:'+(pHoje>=100?'#1DE9B6':'rgba(255,255,255,.7)')+'">'+status+' '+fi(vhoje)+'</div>'
+        +'</div></div>';
+    }).join('')
+    +'</div>';
+
+  // ── META GERAL DO MÊS ──
+  h+='<div class="card" style="border-top:3px solid var(--td)">'
+    +'<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Meta geral — '+nM(mS,aS)+'</div>'
+    +'<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">'
+    +'<span style="font-size:32px;font-weight:800;color:'+pC(pG)+'">'+pp(pG)+'</span>'
+    +'<span class="bx '+bI(pG).c+'">'+bI(pG).l+'</span>'
+    +'</div>'
+    +'<div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(pG,100)+'%;background:'+pC(pG)+'"></div></div>'
+    +'<div class="g3" style="margin-top:12px">'
+    +'<div class="mx"><label>Total vendido</label><div class="v">'+fi(tV)+'</div></div>'
+    +'<div class="mx"><label>Soma das metas</label><div class="v">'+fi(tM)+'</div><div class="s">'+funcs.length+' func.</div></div>'
+    +'<div class="mx"><label>Comissão est.</label><div class="v" style="color:var(--td)">'+fm(funcs.reduce((s,f)=>s+cC(mm[f.id]||0,tot[f.id]||0),0))+'</div></div>'
+    +'</div></div>';
+
+  // ── RANKING INDIVIDUAL ──
+  h+='<div class="h1" style="margin-top:4px">Equipe</div>';
+  [...funcs].sort((a,b)=>{
+    const pA=mm[a.id]>0?(tot[a.id]||0)/mm[a.id]*100:0;
+    const pB=mm[b.id]>0?(tot[b.id]||0)/mm[b.id]*100:0;
+    return pB-pA;
+  }).forEach((func,i)=>{
+    const v2=tot[func.id]||0,meta=mm[func.id]||0,p2=meta>0?v2/meta*100:0;
+    const falta2=Math.max(meta-v2,0),nd=dr>0?falta2/dr:0;
+    const mhoje=metaHoje(func.id);
+    h+='<div class="fc">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+      +'<div class="av" style="width:38px;height:38px;font-size:13px;background:'+['#E0F2F1','#EEEDFE','#FAEEDA','#FAECE7'][i%4]+';color:'+['#00695C','#534AB7','#BA7517','#D85A30'][i%4]+'">'+in2(func.nome)+'</div>'
+      +'<div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<span style="font-weight:700;font-size:14px">'+func.nome+'</span>'
+      +'<span class="bx '+bI(p2).c+'">'+bI(p2).l+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-top:2px">Meta hoje: <strong>'+fi(mhoje)+'</strong> · Falta mês: '+fi(falta2)+' · '+fi(nd)+'/dia</div>'
+      +'</div>'
+      +'<span style="font-size:20px;font-weight:700;color:'+pC(p2)+'">'+pp(p2)+'</span>'
+      +'</div>'
+      +'<div class="pb"><div class="pf" style="width:'+Math.min(p2,100)+'%;background:'+pC(p2)+'"></div></div>'
+      +(falta2>0&&dr>0?'<div style="font-size:11px;color:var(--td);margin-top:5px">Falta '+fi(falta2)+' · '+fi(nd)+'/dia útil</div>':'')
+      +'</div>';
+  });
+
   document.getElementById('ct').innerHTML=h;
 }
 
 // ── VENDEDORA: METAS ──
 async function fMetas(){
   const f=S.func;
-  const [vendas,metaR]=await Promise.all([
+  const HOJE=new Date(2026,4,19);
+  const HOJE_DS=HOJE.getDay(); // 0=Dom,1=Seg...6=Sab
+  const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  const [vendas,metaR,vendasFilial]=await Promise.all([
     gt('vendas','?func_id=eq.'+f.id+'&select=*&order=data_venda.desc'),
-    gt('metas_mensais','?func_id=eq.'+f.id+'&mes=eq.'+mS+'&ano=eq.'+aS+'&select=valor')
+    gt('metas_mensais','?func_id=eq.'+f.id+'&mes=eq.'+mS+'&ano=eq.'+aS+'&select=valor'),
+    gt('vendas','?select=valor,data_venda'+eid())
   ]);
+
   const meta=metaR.length?parseFloat(metaR[0].valor):0;
-  const vArr=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
-  const v=vArr.reduce((s,x)=>s+parseFloat(x.valor),0),p=meta>0?v/meta*100:0;
-  const faixa=gF(p),co=cC(meta,v),re=Math.max(meta-v,0);
+  const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
+  const v=vendasMes.reduce((s,x)=>s+parseFloat(x.valor),0);
+  const p=meta>0?v/meta*100:0;
   const dr=dR(mS,aS),dp=dP(mS,aS),dt2=dT(mS,aS);
-  const nd=dr>0?re/dr:0,ns=nd*6,proj=dp>0?(v/dp)*dt2:0; // sábado incluído: *6/semana
-  const pc=pC(p),bi=bI(p),prx=FAIXAS.find(x=>x.de>p&&x.pct>0),fp=prx?meta*(prx.de/100)-v:0;
-  const mediaDiaAtual=dp>0?v/dp:0;
-  const noRitmo=mediaDiaAtual>=nd;
+  const falta=Math.max(meta-v,0);
+  const faixa=gF(p),bi=bI(p);
 
-  // ── Mensagem motivacional ──
-  function getMsgMotiv(){
-    if(p>=120) return{emoji:'🏆',msg:'Incrível! Você superou 120% da meta! Resultado extraordinário!',cor:'#4527A0'};
-    if(p>=100) return{emoji:'🎉',msg:'META BATIDA! Você arrasou! Continue para maximizar sua comissão!',cor:'#00695C'};
-    if(p>=85)  return{emoji:'🚀',msg:'Quase lá! Só mais '+fi(re)+' e você bate a meta. Você consegue!',cor:'#00695C'};
-    if(p>=71){
-      if(fp>0) return{emoji:'💪',msg:'Comissão garantida! Faltam '+fi(fp)+' para subir de faixa e ganhar mais!',cor:'#BA7517'};
-      return{emoji:'💪',msg:'Na faixa de comissão! Venda '+fi(nd)+'/dia para crescer!',cor:'#BA7517'};
-    }
-    if(p>=40)  return{emoji:'⚡',msg:'Você pode mais! Venda '+fi(nd)+' por dia e garante sua comissão. Vai!',cor:'#E24B4A'};
-    return{emoji:'🌟',msg:'Foco total! Venda '+fi(nd)+'/dia e você chega lá. Acredite em você!',cor:'#E24B4A'};
-  }
-  const motiv=getMsgMotiv();
+  // ── ANÁLISE SAZONAL INTELIGENTE ──
+  // Pesos por dia da semana (baseado no histórico real)
+  const pesoSem={1:0,2:0,3:0,4:0,5:0,6:0};
+  vendasFilial.forEach(vd=>{
+    const pts=vd.data_venda.split('/');
+    if(pts.length<3)return;
+    const dt=new Date(+pts[2],+pts[1]-1,+pts[0]);
+    const ds=dt.getDay();
+    if(ds>=1&&ds<=6) pesoSem[ds]+=parseFloat(vd.valor);
+  });
+  const totalPesoDia=Object.values(pesoSem).reduce((s,v2)=>s+v2,0)||1;
+  const pctSem={};
+  for(let d=1;d<=6;d++) pctSem[d]=pesoSem[d]/totalPesoDia||1/6;
 
-  let h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
-    '<div class="av" style="width:44px;height:44px;font-size:15px;background:#E0F2F1;color:#00695C">'+in2(f.nome)+'</div>'+
-    '<div style="flex:1"><div style="font-size:17px;font-weight:700">'+f.nome+'</div>'+
-    '<div style="font-size:12px;color:var(--t2)">'+dr+' dias úteis restantes (Seg–Sáb)</div></div>'+
-    '<span class="bx '+bi.c+'">'+bi.l+'</span></div>'+mSel('fMetas()');
+  // Pesos por semana do mês (aprendizado automático)
+  const pesosSemanais=vendasFilial.length>20
+    ? analisarPesosSemana(vendasFilial)
+    : {1:0.30,2:0.25,3:0.25,4:0.20}; // padrão: 1ª semana mais forte
 
-  // Card motivacional
-  h+='<div class="card" style="background:'+motiv.cor+'14;border:1.5px solid '+motiv.cor+'33">'+
-    '<div style="display:flex;align-items:center;gap:12px">'+
-      '<span style="font-size:36px;flex-shrink:0">'+motiv.emoji+'</span>'+
-      '<div style="font-size:14px;font-weight:600;color:'+motiv.cor+';line-height:1.5">'+motiv.msg+'</div>'+
-    '</div></div>';
-
-  // Card meta do dia (destaque)
-  if(meta>0&&dr>0){
-    h+='<div class="card" style="background:#000;border:none;padding:16px">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'+
-        '<div>'+
-          '<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 Meta de hoje</div>'+
-          '<div style="font-size:34px;font-weight:800;color:#1DE9B6;line-height:1">'+fi(nd)+'</div>'+
-          '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">para estar no ritmo certo</div>'+
-        '</div>'+
-        '<div style="text-align:center;background:rgba(255,255,255,.07);border-radius:12px;padding:12px 14px;flex-shrink:0">'+
-          '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px">Sua média/dia</div>'+
-          '<div style="font-size:22px;font-weight:700;color:'+(noRitmo?'#1DE9B6':'#E24B4A')+'">'+fi(mediaDiaAtual)+'</div>'+
-          '<div style="font-size:11px;margin-top:6px">'+(noRitmo?'<span style="color:#1DE9B6;font-weight:600">✓ No ritmo!</span>':'<span style="color:#E24B4A;font-weight:600">⚠ Acelerar</span>')+'</div>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
+  // Dias restantes como objetos Date
+  const diasRestantesArray=[];
+  const dtIter=new Date(HOJE);
+  const fimMes=new Date(2026,mS,0);
+  while(dtIter<=fimMes){
+    if(isDiaUtil(dtIter)) diasRestantesArray.push(new Date(dtIter));
+    dtIter.setDate(dtIter.getDate()+1);
   }
 
-  h+='<div class="card" style="border-top:3px solid var(--t)"><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-size:38px;font-weight:800;color:'+pc+'">'+(meta>0?pp(p):'—')+'</span><span style="font-size:13px;color:var(--t2)">'+nM(mS,aS)+'</span></div><div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div><div class="g3" style="margin-top:12px"><div class="mx"><label>Vendido</label><div class="v" style="font-size:14px">'+fi(v)+'</div></div><div class="mx"><label>Meta</label><div class="v" style="font-size:14px">'+(meta>0?fi(meta):'Não definida')+'</div></div><div class="mx"><label>Comissão</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(co)+'</div><div class="s">faixa '+faixa.pct+'%</div></div></div></div>';
-  if(meta>0){
-    if(re>0&&dr>0){h+='<div class="card"><div class="ct2"><i class="ti ti-target"></i>Para bater a meta</div><div class="nr"><div class="nv"><div class="n">'+fi(nd)+'</div><div class="l">por dia útil</div></div><div class="nv"><div class="n">'+fi(ns)+'</div><div class="l">por semana</div></div><div class="nv"><div class="n">'+fi(proj)+'</div><div class="l">projeção</div></div></div>'+(prx&&fp>0?'<p style="text-align:center;font-size:12px;color:var(--t2);margin-top:10px">Próxima faixa ('+prx.pct+'%): falta <strong>'+fi(Math.max(fp,0))+'</strong></p>':'')+'</div>'}
-    else if(p>=100){h+='<div class="card" style="text-align:center;padding:20px;background:var(--tl)"><div style="font-size:28px">🎉</div><div style="font-weight:700;color:var(--tdd);font-size:16px;margin-top:4px">Meta batida! Parabéns!</div></div>'}
+  // Meta do dia usando sazonalidade completa
+  const metaHojeInteligente=metaDiariaInteligente(meta,v,diasRestantesArray,pctSem,pesosSemanais,mS);
+
+  // Distribuição da meta por semana do mês
+  const metaPorSemana=distribuirMetaPorSemana(meta,mS,aS,pesosSemanais);
+
+  // Alertas de datas especiais próximas
+  const alertasDatas=datasEspeciaisProximas(mS,aS)
+    .concat(datasEspeciaisProximas(mS+1>12?1:mS+1,aS));
+
+  // Vendas de ontem
+  const ontem=new Date(HOJE);
+  ontem.setDate(ontem.getDate()-1);
+  // Pular domingo e feriados
+  while(ontem.getDay()===0||isFeriado(ontem)) ontem.setDate(ontem.getDate()-1);
+  const ontemStr=String(ontem.getDate()).padStart(2,'0')+'/'+String(ontem.getMonth()+1).padStart(2,'0')+'/'+ontem.getFullYear();
+  const vendasOntem=vendasMes.filter(vd=>vd.data_venda===ontemStr);
+  const totalOntem=vendasOntem.reduce((s,x)=>s+parseFloat(x.valor),0);
+
+  // Meta que deveria ter feito ontem (ponderada)
+  const dsOntem=ontem.getDay();
+  const pesoOntemTotal=diasRestantesArray.concat([{ds:dsOntem}]).reduce((s,x)=>s+(pctSem[x.ds]||1/6),0)||1;
+  const metaOntem=Math.ceil(falta*(( pctSem[dsOntem]||1/6)/pesoOntemTotal));
+  const pctOntem=metaOntem>0?totalOntem/metaOntem*100:0;
+
+  // ── MENSAGEM DE APOIO BASEADA NO ONTEM + SITUAÇÃO ATUAL ──
+  function getMensagemApoio(){
+    // Primeiro verifica situação geral
+    if(p>=120) return{
+      e:'🏆',
+      titulo:'LENDÁRIA!',
+      msg:'Você superou 120% da meta! Sua comissão está no nível máximo. Que inspiração para toda a equipe!',
+      cor:'#4527A0',bg:'#EDE7F6'
+    };
+    if(p>=100) return{
+      e:'🎉',
+      titulo:'META BATIDA!',
+      msg:'Você arrasou! Mas não para por aqui — chegando a 120% sua comissão sobe de '+gF(p).pct+'% para 1%. Vamos lá, você consegue!',
+      cor:'#00695C',bg:'#E1F5EE'
+    };
+
+    // Mensagens baseadas no desempenho de ontem
+    if(totalOntem===0) return{
+      e:'⚡',
+      titulo:'Novo dia, nova chance!',
+      msg:'Hoje é '+DSEM[HOJE_DS]+' e historicamente é um ótimo dia para vender. Foco total — venda '+fi(metaHojeInteligente)+' hoje!',
+      cor:'#BA7517',bg:'#FAEEDA'
+    };
+    if(pctOntem>=100) return{
+      e:'🔥',
+      titulo:'Que dia incrível ontem!',
+      msg:'Você vendeu '+fi(totalOntem)+' ontem e superou a meta do dia! Mantém esse ritmo hoje e a meta mensal está no papo!',
+      cor:'#00695C',bg:'#E1F5EE'
+    };
+    if(pctOntem>=80) return{
+      e:'💪',
+      titulo:'Quase lá ontem!',
+      msg:'Você chegou a '+Math.round(pctOntem)+'% da meta de ontem — foi muito perto! Hoje é '+DSEM[HOJE_DS]+', vamos fechar com chave de ouro: '+fi(metaHojeInteligente)+'!',
+      cor:'#00695C',bg:'#E1F5EE'
+    };
+    if(pctOntem>=50) return{
+      e:'🌱',
+      titulo:'Construindo momentum!',
+      msg:'Ontem foram '+fi(totalOntem)+' — cada venda conta! Hoje mire em '+fi(metaHojeInteligente)+' e sua semana vai virar.',
+      cor:'#BA7517',bg:'#FAEEDA'
+    };
+    if(p>=85) return{
+      e:'🚀',
+      titulo:'A meta está perto!',
+      msg:'Você está em '+pp(p)+' da meta mensal — falta só '+fi(falta)+'! Hoje é o dia de dar o salto. Venda '+fi(metaHojeInteligente)+' e chegue lá!',
+      cor:'#00695C',bg:'#E1F5EE'
+    };
+    if(p>=71) return{
+      e:'💡',
+      titulo:'Comissão garantida, mas dá pra mais!',
+      msg:'Você já tem comissão de '+faixa.pct+'%, mas imagine ganhar 1% — precisa só chegar a 120%! Hoje venda '+fi(metaHojeInteligente)+' e suba de faixa!',
+      cor:'#BA7517',bg:'#FAEEDA'
+    };
+    return{
+      e:'🌟',
+      titulo:'Hoje é o dia da virada!',
+      msg:'Cada grande resultado começa com um dia especial. Foque em '+fi(metaHojeInteligente)+' hoje — você é capaz!',
+      cor:'#E24B4A',bg:'#FFEBEE'
+    };
   }
-  h+='<div class="card"><div class="ct2"><i class="ti ti-receipt"></i>Faixas de comissão</div><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:var(--t2)"><td style="padding:4px 6px">Faixa</td><td>%</td><td>Exemplo</td></tr>'+FAIXAS.map(x=>{const at=p>=x.de&&p<=x.ate,ev=meta*(x.de===0?0.35:(x.ate>500?1.25:(x.de+Math.min(x.ate,120))/2)/100);return'<tr style="'+(at?'background:var(--tl);font-weight:700;':'')+'"><td style="padding:6px">'+(x.ate>500?x.de+'%+':x.de+'–'+x.ate+'%')+'</td><td style="color:'+(x.pct>0?'var(--td)':'var(--t2)')+'">'+x.pct+'%</td><td>'+(x.pct>0&&meta>0?fm(ev*(x.pct/100)):'—')+'</td>'+(at?'<td><span class="bx tl">você aqui</span></td>':'<td></td>')+'</tr>'}).join('')+'</table></div>';
-  h+='<div class="card"><div class="ct2"><i class="ti ti-clock"></i>Lançamentos recentes — '+nM(mS,aS)+'</div>'+vArr.slice(0,15).map(x=>{
-    return '<div class="ri" id="vl-'+x.id+'">'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:13px;font-weight:600">'+x.data_venda+'</div>'+
-      '</div>'+
-      '<span style="font-weight:700;font-size:15px;margin-right:10px">'+fm(x.valor)+'</span>'+
-      '<div style="display:flex;gap:6px;flex-shrink:0">'+
-        '<button class="btn bsm" onclick="editLanc('+x.id+','+x.valor+',\''+x.data_venda+'\')"><i class="ti ti-edit"></i></button>'+
-        '<button class="btn bd2r" onclick="delLanc('+x.id+',this)"><i class="ti ti-trash"></i></button>'+
-      '</div>'+
-    '</div>';
-  }).join('')+(vArr.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')+'</div>';
 
-  window.editLanc=(id,valor,data)=>{
-    const el=document.getElementById('vl-'+id);
-    if(!el)return;
-    const [dd,mm2,aa]=data.split('/');
-    const dataISO=aa+'-'+mm2+'-'+dd;
-    el.innerHTML=
-      '<div style="flex:1;display:flex;flex-direction:column;gap:8px">'+
-        '<div style="display:flex;gap:8px;align-items:center">'+
-          '<input type="text" inputmode="numeric" id="el-v-'+id+'" value="'+fmtMeta(valor)+'" '+
-            'onkeydown="return metaKey(event)" oninput="maskMeta(this)" '+
-            'style="flex:1;padding:10px;border:1.5px solid var(--td);border-radius:8px;font-size:15px;font-weight:700;text-align:right">'+
-          '<input type="date" id="el-d-'+id+'" value="'+dataISO+'" '+
-            'style="width:140px;padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px">'+
-        '</div>'+
-        '<div style="display:flex;gap:8px">'+
-          '<button class="btn bp bsm" style="flex:1" onclick="saveLanc('+id+')"><i class="ti ti-check"></i> Salvar</button>'+
-          '<button class="btn bsm" onclick="gMetas()">Cancelar</button>'+
-        '</div>'+
-      '</div>';
-  };
+  const msg=getMensagemApoio();
+  const proxFx=FAIXAS.find(x=>x.de>p&&x.pct>0);
+  const faltaProx=proxFx?meta*(proxFx.de/100)-v:0;
+  const mediaDia=dp>0?v/dp:0;
+  const noRitmo=mediaDia>=metaHojeInteligente;
 
-  window.saveLanc=async(id)=>{
-    const val=parseMeta(document.getElementById('el-v-'+id).value);
-    const dataISO=document.getElementById('el-d-'+id).value;
-    if(!val||!dataISO){alert('Preencha valor e data.');return}
-    const [aa,mm2,dd]=dataISO.split('-');
-    const dataFmt=dd+'/'+mm2+'/'+aa;
-    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:dataFmt});
-    gMetas();
-  };
+  let h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
+    +'<div class="av" style="width:44px;height:44px;font-size:15px;background:#E0F2F1;color:#00695C">'+in2(f.nome)+'</div>'
+    +'<div style="flex:1"><div style="font-size:17px;font-weight:700">'+f.nome+'</div>'
+    +'<div style="font-size:12px;color:var(--t2)">'+DSEM[HOJE_DS]+' · '+dr+' dias úteis restantes</div></div>'
+    +'<span class="bx '+bi.c+'">'+bi.l+'</span>'
+    +'</div>'+mSel('fMetas()');
 
-  window.delLanc=async(id,btn)=>{
-    if(!confirm('Excluir este lançamento?'))return;
-    btn.disabled=true;
-    await dl('vendas','?id=eq.'+id);
-    gMetas();
-  };
+  // ── CARD DE MENSAGEM DE APOIO ──
+  h+='<div class="card" style="background:'+msg.bg+';border:1.5px solid '+msg.cor+'33">'
+    +'<div style="display:flex;align-items:flex-start;gap:12px">'
+    +'<span style="font-size:36px;flex-shrink:0">'+msg.e+'</span>'
+    +'<div><div style="font-size:15px;font-weight:800;color:'+msg.cor+';margin-bottom:4px">'+msg.titulo+'</div>'
+    +'<div style="font-size:14px;color:#1a1a1a;line-height:1.5">'+msg.msg+'</div>'
+    +'</div></div></div>';
+
+  // ── CARD META DO DIA (destaque) ──
+  if(meta>0&&dr>0&&p<100){
+    h+='<div class="card" style="background:#000;border:none;padding:16px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      +'<div>'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 Sua meta de hoje ('+DSEM[HOJE_DS]+')</div>'
+      +'<div style="font-size:38px;font-weight:800;color:#1DE9B6;line-height:1">'+fi(metaHojeInteligente)+'</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">baseado no padrão histórico de '+DSEM[HOJE_DS]+'</div>'
+      +'</div>'
+      +'<div style="text-align:center;background:rgba(255,255,255,.07);border-radius:12px;padding:12px 14px;flex-shrink:0">'
+      +'<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px">Ontem</div>'
+      +'<div style="font-size:18px;font-weight:700;color:'+(pctOntem>=100?'#1DE9B6':pctOntem>=70?'#BA7517':'#E24B4A')+'">'+fi(totalOntem)+'</div>'
+      +'<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">'+(totalOntem>0?Math.round(pctOntem)+'% da meta':'sem vendas')+'</div>'
+      +'</div>'
+      +'</div>'
+      // Barra de progresso do dia
+      +(vendasMes.filter(vd=>vd.data_venda===hj()).length>0?
+        (()=>{
+          const hj2=vendasMes.filter(vd=>vd.data_venda===hj()).reduce((s,x)=>s+parseFloat(x.valor),0);
+          const pHj=metaHojeInteligente>0?Math.min(hj2/metaHojeInteligente*100,100):0;
+          return '<div style="margin-top:12px">'
+            +'<div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px">'
+            +'<span>Hoje: '+fi(hj2)+'</span><span>'+Math.round(pHj)+'% da meta do dia</span></div>'
+            +'<div style="height:6px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden">'
+            +'<div style="height:100%;width:'+pHj+'%;background:#1DE9B6;border-radius:999px"></div>'
+            +'</div></div>';
+        })():'')
+      +'</div>';
+  } else if(p>=100){
+    h+='<div class="card" style="text-align:center;padding:20px;background:var(--tl)">'
+      +'<div style="font-size:32px">🎉</div>'
+      +'<div style="font-weight:800;color:var(--tdd);font-size:18px;margin-top:4px">META BATIDA!</div>'
+      +(p<120?'<div style="font-size:13px;color:var(--td);margin-top:8px">Agora vai para 120% e sua comissão sobe para 1%!<br>Falta só '+fi(falta*-1+meta*(1.2-1))+' para o nível máximo!</div>':'')
+      +'</div>';
+  }
+
+  // ── ANÁLISE DO DIA DA SEMANA ──
+  if(Object.values(pesoSem).some(v2=>v2>0)){
+    h+='<div class="card"><div class="ct2"><i class="ti ti-chart-bar"></i>Seus melhores dias historicamente</div>'
+      +'<div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">';
+    const maxPeso=Math.max(...[1,2,3,4,5,6].map(d=>pctSem[d]||0),0.01);
+    [1,2,3,4,5,6].forEach(d=>{
+      const pct=pctSem[d]||0;
+      const h2=Math.max((pct/maxPeso)*70,2);
+      const isHoje=d===HOJE_DS;
+      h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">'
+        +'<div style="font-size:9px;color:var(--t2);font-weight:600">'+Math.round(pct*100)+'%</div>'
+        +'<div style="width:100%;height:'+h2+'px;background:'+(isHoje?'var(--td)':'var(--tl)')+';border-radius:4px 4px 0 0;border:'+(isHoje?'2px solid var(--tdd)':'none')+'"></div>'
+        +'<div style="font-size:10px;font-weight:'+(isHoje?'800':'400')+';color:'+(isHoje?'var(--td)':'var(--t2)')+'">'+DSEM[d]+'</div>'
+        +'</div>';
+    });
+    h+='</div>'
+      +'<div style="font-size:12px;color:var(--t2);text-align:center">Hoje ('+DSEM[HOJE_DS]+') representa historicamente <strong>'+Math.round((pctSem[HOJE_DS]||1/6)*100)+'%</strong> das vendas semanais</div>'
+      +'</div>';
+  }
+
+  // ── PROGRESSO MENSAL ──
+  h+='<div class="card" style="border-top:3px solid '+pC(p)+'">'
+    +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">'
+    +'<span style="font-size:38px;font-weight:800;color:'+pC(p)+'">'+(meta>0?pp(p):'—')+'</span>'
+    +'<span style="font-size:13px;color:var(--t2)">da meta de '+nM(mS,aS)+'</span></div>'
+    +'<div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pC(p)+'"></div></div>'
+    +'<div class="g3" style="margin-top:12px">'
+    +'<div class="mx"><label>Vendido</label><div class="v" style="font-size:14px">'+fi(v)+'</div></div>'
+    +'<div class="mx"><label>Meta</label><div class="v" style="font-size:14px">'+(meta>0?fi(meta):'—')+'</div></div>'
+    +'<div class="mx"><label>Comissão est.</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(cC(meta,v))+'</div><div class="s">faixa '+faixa.pct+'%</div></div>'
+    +'</div></div>';
+
+  // ── PRÓXIMA FAIXA ──
+  if(proxFx&&faltaProx>0&&p<120){
+    const ganhoExtra=cC(meta,meta*proxFx.de/100)-cC(meta,v);
+    h+='<div class="card" style="background:linear-gradient(135deg,#00695C11,#00897B08);border:1.5px solid var(--tb)">'
+      +'<div class="ct2"><i class="ti ti-star"></i>Próxima faixa de comissão</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      +'<div><div style="font-size:22px;font-weight:800;color:var(--td)">'+proxFx.pct+'%</div>'
+      +'<div style="font-size:12px;color:var(--t2)">ao vender '+fi(meta*proxFx.de/100)+'</div></div>'
+      +'<div style="text-align:center;background:var(--tl);border-radius:10px;padding:10px 14px">'
+      +'<div style="font-size:11px;color:var(--t2);margin-bottom:2px">Falta vender</div>'
+      +'<div style="font-size:20px;font-weight:800;color:var(--tdd)">'+fi(faltaProx)+'</div>'
+      +'<div style="font-size:11px;color:var(--td);margin-top:2px">+'+fm(ganhoExtra)+' de comissão</div>'
+      +'</div></div></div>';
+  }
+
+  // ── LANÇAMENTOS DO DIA ──
+  const vendasHoje=vendasMes.filter(vd=>vd.data_venda===hj());
+  if(vendasHoje.length>0){
+    h+='<div class="card"><div class="ct2"><i class="ti ti-sun"></i>Vendas de hoje</div>'
+      +vendasHoje.map(vd=>'<div class="ri"><span style="font-size:13px;color:var(--t2)">'+vd.data_venda+'</span><span style="font-weight:700;margin-left:auto">'+fm(parseFloat(vd.valor))+'</span></div>').join('')
+      +'</div>';
+  }
+
+  // ── ÚLTIMOS LANÇAMENTOS ──
+  h+='<div class="card"><div class="ct2"><i class="ti ti-clock"></i>Lançamentos recentes</div>'
+    +vendasMes.slice(0,8).map(vd=>'<div class="ri"><span style="font-size:13px;color:var(--t2)">'+vd.data_venda+'</span><span style="font-weight:700;margin-left:auto">'+fm(parseFloat(vd.valor))+'</span></div>').join('')
+    +(vendasMes.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')
+    +'</div>';
+
   document.getElementById('ct').innerHTML=h;
 }
 
