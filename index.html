@@ -7,38 +7,38 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{--t:#1DE9B6;--td:#00897B;--tdd:#004D40;--tl:#E0F2F1;--tb:#80CBC4;--bg:#f0f2f5;--card:#fff;--tx:#1a1a1a;--t2:#666;--t3:#aaa;--bd:#e8e8e8;--bd2:#ccc;--rd:#E24B4A;--rl:#FCEBEB;--rdd:#791F1F;--gn:#1D9E75;--gl:#E1F5EE;--gd:#085041;--wn:#BA7517;--wl:#FAEEDA}
+:root{--t:#1DE9B6;--td:#00897B;--tdd:#004D40;--tl:#E0F2F1;--tb:#80CBC4;--bg:#F8F9FB;--card:#FFFFFF;--tx:#1a1a1a;--t2:#666;--t3:#aaa;--bd:#e8e8e8;--bd2:#ccc;--rd:#E24B4A;--rl:#FCEBEB;--rdd:#791F1F;--gn:#1D9E75;--gl:#E1F5EE;--gd:#085041;--wn:#BA7517;--wl:#FAEEDA}
 html{font-size:16px;-webkit-text-size-adjust:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;overflow-x:hidden}
-#splash{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;transition:opacity .4s}
+#splash{position:fixed;inset:0;background:#F8F9FB;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;transition:opacity .4s}
 #splash img{height:72px;width:auto;max-width:80vw}
-#splash p{color:#1DE9B6;font-size:14px;margin-top:16px;opacity:.8}
-#pg-onboard{min-height:100vh;min-height:100dvh;background:#000;padding:24px 16px}
+#splash p{color:var(--td);font-size:14px;margin-top:16px;opacity:.9}
+#pg-onboard{min-height:100vh;min-height:100dvh;background:#F8F9FB;padding:24px 16px}
 #pg-onboard>div{width:100%;max-width:420px;margin:0 auto;padding-top:32px}
-.ls{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#000;padding:20px 16px}
+.ls{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#F8F9FB;padding:20px 16px}
 .lb{width:100%;max-width:400px}
 .ll{text-align:center;margin-bottom:28px}
 .ll img{height:56px;width:auto;max-width:70vw}
-.ll p{color:#1DE9B6;font-size:13px;margin-top:10px;opacity:.8;letter-spacing:1px}
-.st{display:flex;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;margin-bottom:18px;gap:3px}
-.sb{flex:1;padding:11px 8px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;color:rgba(255,255,255,.5);transition:.15s;min-height:44px}
+.ll p{color:var(--td);font-size:13px;margin-top:10px;opacity:.8;letter-spacing:1px}
+.st{display:flex;background:#e8e4df;border-radius:10px;padding:3px;margin-bottom:18px;gap:3px}
+.sb{flex:1;padding:11px 8px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;color:#666;transition:.15s;min-height:44px}
 .sb.active{background:#00897B;color:#fff}
 .lf{margin-bottom:14px}
-.lf label{display:block;font-size:12px;color:rgba(255,255,255,.5);margin-bottom:6px;font-weight:500;letter-spacing:.5px;text-transform:uppercase}
-.lf input{width:100%;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:16px;outline:none;transition:.15s;-webkit-appearance:none;min-height:50px}
-.lf input:focus{border-color:#1DE9B6;background:rgba(29,233,182,.06)}
-.lf input::placeholder{color:rgba(255,255,255,.25)}
+.lf label{display:block;font-size:12px;color:#555;margin-bottom:6px;font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+.lf input{width:100%;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#fff;color:#1a1a1a;font-size:16px;outline:none;transition:.15s;-webkit-appearance:none;min-height:50px}
+.lf input:focus{border-color:var(--td);background:#f0faf8}
+.lf input::placeholder{color:#aaa}
 .bl{width:100%;padding:15px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:6px;min-height:50px;-webkit-appearance:none}
 .bl:active{background:#00695C}
-.le{background:rgba(226,75,74,.15);border:1px solid rgba(226,75,74,.3);color:#ff8a87;padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;display:none}
+.le{background:rgba(226,75,74,.15);border:1px solid rgba(226,75,74,.3);color:#c0392b;padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;display:none}
 .li{background:rgba(29,233,182,.08);border:1px solid rgba(29,233,182,.2);color:#1DE9B6;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
 #app{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
-.tb{background:#000;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;min-height:52px}
+.tb{background:#3a3a3a;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;min-height:52px}
 .tb img{height:28px;width:auto;max-width:120px}
 .uc{font-size:11px;color:#1DE9B6;background:rgba(29,233,182,.1);padding:4px 8px;border-radius:999px;border:1px solid rgba(29,233,182,.2);white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
-.lo{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:22px;padding:6px;display:flex;min-width:44px;min-height:44px;align-items:center;justify-content:center}
+.lo{background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:22px;padding:6px;display:flex;min-width:44px;min-height:44px;align-items:center;justify-content:center}
 .ct{flex:1;padding:12px;padding-bottom:80px;width:100%;max-width:680px;margin:0 auto;-webkit-overflow-scrolling:touch}
-.bn{position:fixed;bottom:0;left:0;right:0;background:#000;border-top:1px solid rgba(255,255,255,.08);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
+.bn{position:fixed;bottom:0;left:0;right:0;background:#3a3a3a;border-top:1px solid rgba(255,255,255,.1);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px 6px;border:none;background:none;cursor:pointer;color:rgba(255,255,255,.35);font-size:9px;gap:2px;min-height:54px;min-width:0}
 .nb i{font-size:20px}
 .nb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -319,7 +319,7 @@ function metaDiariaInteligente(meta, vendido, diasRestArray, pctDiaSem, pesosSem
   }, 0) || 1;
 
   // Peso do dia de hoje
-  const hoje = new Date(2026,4,19);
+  const hoje = new Date();
   const dsHoje = hoje.getDay();
   const semHoje = semanaDoMes(hoje);
   const pesoHoje = (pctDiaSem[dsHoje]||1/6) * (pesosSemanais[semHoje]||0.25) * multSazonal(mes, semHoje);
@@ -329,7 +329,7 @@ function metaDiariaInteligente(meta, vendido, diasRestArray, pctDiaSem, pesosSem
 
 // Verificar datas especiais próximas (próximos 35 dias)
 function datasEspeciaisProximas(mes, ano){
-  const hoje = new Date(2026,4,19);
+  const hoje = new Date();
   const alertas = [];
   DATAS_ESPECIAIS.forEach(d => {
     // Calcular data aproximada da data especial
@@ -361,14 +361,14 @@ function diasUteisPeriodo(inicio, fim){
 }
 
 function diasUteisPassados(mes, ano){
-  const hoje=new Date(2026,4,19); // data atual do sistema
+  const hoje=new Date(); // data atual do sistema
   const ini=new Date(ano,mes-1,1);
   const ate=hoje<new Date(ano,mes-1,1)?new Date(ano,mes-1,1):hoje;
   return Math.max(diasUteisPeriodo(ini,ate),1);
 }
 
 function diasUteisRestantes(mes, ano){
-  const hoje=new Date(2026,4,19);
+  const hoje=new Date();
   const fim=new Date(ano,mes,0);
   const ini=new Date(hoje); ini.setDate(ini.getDate()+1);
   if(ini>fim) return 0;
@@ -393,7 +393,8 @@ const bI=p=>{if(p>=120)return{c:'ov',l:'Acima de 120%'};if(p>=100)return{c:'ok',
 const dR=(m,a)=>diasUteisRestantes(m,a);
 const dP=(m,a)=>diasUteisPassados(m,a);
 const dT=(m,a)=>diasUteisTotais(m,a);
-const hj=()=>{const d=new Date(2026,4,19);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()};
+const hjISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const hj=()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()};
 const nM=(m,a)=>MESES[m-1]+'/'+a;
 
 // ── FILTRO POR EMPRESA ──
@@ -521,11 +522,11 @@ function renderOB(){
 }
 
 function renderOBCodigo(){
-  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:28px;font-weight:800;color:#fff;margin-bottom:8px">Bem-vindo!</div>\n      <div style="font-size:14px;color:rgba(255,255,255,.6)">Digite o código de ativação fornecido</div>\n    </div>\n    <div class="lf"><label>Código de ativação</label>\n      <input id="ob-cod" type="text" placeholder="Ex: ME-2026-ALFA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">\n    </div>\n    <div id="ob-err" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obValidarCodigo()">Continuar →</button>\n    <div style="margin-top:16px;text-align:center">\n      <button onclick="obJaTenhoConta()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">\n        Já tenho conta — fazer login\n      </button>\n    </div>\n    <div style="text-align:center;margin-top:8px;font-size:12px;color:rgba(255,255,255,.3)">Passo 1 de 4</div>';
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:28px;font-weight:800;color:#fff;margin-bottom:8px">Bem-vindo!</div>\n      <div style="font-size:14px;color:rgba(255,255,255,.6)">Digite o código de ativação fornecido</div>\n    </div>\n    <div class="lf"><label>Código de ativação</label>\n      <input id="ob-cod" type="text" placeholder="Ex: ME-2026-ALFA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">\n    </div>\n    <div id="ob-err" style="color:#c0392b;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obValidarCodigo()">Continuar →</button>\n    <div style="margin-top:16px;text-align:center">\n      <button onclick="obJaTenhoConta()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">\n        Já tenho conta — fazer login\n      </button>\n    </div>\n    <div style="text-align:center;margin-top:8px;font-size:12px;color:rgba(255,255,255,.3)">Passo 1 de 4</div>';
 }
 
 function obJaTenhoConta(){
-  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Já tenho conta</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Digite o ID da sua empresa para acessar</div>\n    </div>\n    <div class="lf"><label>ID da empresa</label>\n      <input id="ob-empid" type="number" placeholder="Ex: 1" inputmode="numeric">\n    </div>\n    <div id="ob-errc" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obConectarEmpresa()">Entrar →</button>\n    <div style="margin-top:16px;text-align:center">\n      <button onclick="renderOBCodigo()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">\n        ← Voltar\n      </button>\n    </div>';
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Já tenho conta</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Digite o ID da sua empresa para acessar</div>\n    </div>\n    <div class="lf"><label>ID da empresa</label>\n      <input id="ob-empid" type="number" placeholder="Ex: 1" inputmode="numeric">\n    </div>\n    <div id="ob-errc" style="color:#c0392b;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obConectarEmpresa()">Entrar →</button>\n    <div style="margin-top:16px;text-align:center">\n      <button onclick="renderOBCodigo()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;text-decoration:underline;padding:8px">\n        ← Voltar\n      </button>\n    </div>';
 }
 
 async function obConectarEmpresa(){
@@ -553,7 +554,7 @@ async function obValidarCodigo(){
 }
 
 function renderOBEmpresa(){
-  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Dados da empresa</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Configure a identidade do sistema</div>\n    </div>\n    <div class="lf"><label>Nome da empresa *</label><input id="ob-nome" placeholder="Ex: Loja Fashion"></div>\n    <div class="lf"><label>CNPJ</label><input id="ob-cnpj" placeholder="00.000.000/0001-00"></div>\n    <div class="lf"><label>Telefone</label><input id="ob-tel" type="tel" placeholder="(35) 99999-0000"></div>\n    <div class="lf"><label>Endereço</label><input id="ob-end" placeholder="Rua, número, cidade"></div>\n    <div class="lf"><label>Cor principal</label>\n      <div style="display:flex;gap:10px;align-items:center">\n        <input type="color" id="ob-cor" value="#00897B" style="width:50px;height:44px;border-radius:8px;border:none;cursor:pointer;padding:2px" onchange="OB.cor=this.value">\n        <span style="color:rgba(255,255,255,.6);font-size:13px">Cor do sistema (botões, destaques)</span>\n      </div>\n    </div>\n    <div class="lf"><label>Logo da empresa</label>\n      <input type="file" id="ob-logo" accept="image/*" style="color:rgba(255,255,255,.7)" onchange="obCarregarLogo(this)">\n      <div id="ob-logo-prev" style="margin-top:8px"></div>\n    </div>\n    <div id="ob-err2" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obSalvarEmpresa()">Continuar →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 2 de 4</div>';
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Dados da empresa</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Configure a identidade do sistema</div>\n    </div>\n    <div class="lf"><label>Nome da empresa *</label><input id="ob-nome" placeholder="Ex: Loja Fashion"></div>\n    <div class="lf"><label>CNPJ</label><input id="ob-cnpj" placeholder="00.000.000/0001-00"></div>\n    <div class="lf"><label>Telefone</label><input id="ob-tel" type="tel" placeholder="(35) 99999-0000"></div>\n    <div class="lf"><label>Endereço</label><input id="ob-end" placeholder="Rua, número, cidade"></div>\n    <div class="lf"><label>Cor principal</label>\n      <div style="display:flex;gap:10px;align-items:center">\n        <input type="color" id="ob-cor" value="#00897B" style="width:50px;height:44px;border-radius:8px;border:none;cursor:pointer;padding:2px" onchange="OB.cor=this.value">\n        <span style="color:rgba(255,255,255,.6);font-size:13px">Cor do sistema (botões, destaques)</span>\n      </div>\n    </div>\n    <div class="lf"><label>Logo da empresa</label>\n      <input type="file" id="ob-logo" accept="image/*" style="color:rgba(255,255,255,.7)" onchange="obCarregarLogo(this)">\n      <div id="ob-logo-prev" style="margin-top:8px"></div>\n    </div>\n    <div id="ob-err2" style="color:#c0392b;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obSalvarEmpresa()">Continuar →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 2 de 4</div>';
 }
 
 function obCarregarLogo(input){
@@ -599,8 +600,8 @@ async function obSalvarEmpresa(){
 
 let OB_filiais = [];
 function renderOBFiliais(){
-  const lista = OB_filiais.map((f,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span style="flex:1;color:#fff;font-size:14px">'+(f)+'</span><button onclick="OB_filiais.splice('+(i)+',1);renderOBFiliais()" style="background:rgba(226,75,74,.3);border:none;color:#ff8a87;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕</button></div>').join('');
-  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Filiais</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Cadastre as unidades da empresa</div>\n    </div>\n    '+(lista)+'\n    <div style="margin-top:12px;display:flex;gap:8px">\n      <input id="ob-fil" placeholder="Nome da filial" style="flex:1;padding:13px 14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none">\n      <button onclick="obAddFilial()" style="padding:13px 18px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;font-weight:600">+</button>\n    </div>\n    <div id="ob-err3" style="color:#ff8a87;font-size:13px;margin:8px 0;display:none"></div>\n    <button class="bl" style="margin-top:16px" onclick="obSalvarFiliais()">Continuar →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 3 de 4</div>';
+  const lista = OB_filiais.map((f,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1)"><span style="flex:1;color:#fff;font-size:14px">'+(f)+'</span><button onclick="OB_filiais.splice('+(i)+',1);renderOBFiliais()" style="background:rgba(226,75,74,.3);border:none;color:#c0392b;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕</button></div>').join('');
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Filiais</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Cadastre as unidades da empresa</div>\n    </div>\n    '+(lista)+'\n    <div style="margin-top:12px;display:flex;gap:8px">\n      <input id="ob-fil" placeholder="Nome da filial" style="flex:1;padding:13px 14px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#fff;color:#1a1a1a;font-size:14px;outline:none">\n      <button onclick="obAddFilial()" style="padding:13px 18px;background:#00897B;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;font-weight:600">+</button>\n    </div>\n    <div id="ob-err3" style="color:#c0392b;font-size:13px;margin:8px 0;display:none"></div>\n    <button class="bl" style="margin-top:16px" onclick="obSalvarFiliais()">Continuar →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 3 de 4</div>';
 }
 
 function obAddFilial(){
@@ -620,7 +621,7 @@ async function obSalvarFiliais(){
 }
 
 function renderOBGestora(){
-  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Conta da Gestora</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Crie o acesso principal do sistema</div>\n    </div>\n    <div class="lf"><label>Nome completo *</label><input id="ob-gnome" placeholder="Ex: Maria Santos"></div>\n    <div class="lf"><label>Telefone *</label><input id="ob-gtel" type="tel" placeholder="35999990000" inputmode="numeric"></div>\n    <div class="lf"><label>Senha *</label><input id="ob-gsen" type="password" placeholder="Mínimo 4 caracteres"></div>\n    <div class="lf"><label>Confirmar senha *</label><input id="ob-gsen2" type="password" placeholder="Repita a senha"></div>\n    <div id="ob-err4" style="color:#ff8a87;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obSalvarGestora()">Concluir configuração →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 4 de 4</div>';
+  document.getElementById('ob-body').innerHTML='\n    <div style="text-align:center;margin-bottom:24px">\n      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Conta da Gestora</div>\n      <div style="font-size:13px;color:rgba(255,255,255,.6)">Crie o acesso principal do sistema</div>\n    </div>\n    <div class="lf"><label>Nome completo *</label><input id="ob-gnome" placeholder="Ex: Maria Santos"></div>\n    <div class="lf"><label>Telefone *</label><input id="ob-gtel" type="tel" placeholder="35999990000" inputmode="numeric"></div>\n    <div class="lf"><label>Senha *</label><input id="ob-gsen" type="password" placeholder="Mínimo 4 caracteres"></div>\n    <div class="lf"><label>Confirmar senha *</label><input id="ob-gsen2" type="password" placeholder="Repita a senha"></div>\n    <div id="ob-err4" style="color:#c0392b;font-size:13px;margin-bottom:12px;display:none"></div>\n    <button class="bl" onclick="obSalvarGestora()">Concluir configuração →</button>\n    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.3)">Passo 4 de 4</div>';
 }
 
 async function obSalvarGestora(){
@@ -915,6 +916,9 @@ async function gMetas(){
     h=h.replace('<div class="h1">Lançar vendas</div>','<div class="h1">Lançar vendas</div>'+alertHtml);
   }
 
+  // Preencher campos de data com data atual
+  document.querySelectorAll('input[type="date"]').forEach(el=>{if(!el.value||el.value==='__HOJE_ISO__')el.value=hjISO()});
+
   window.prv=(id,m,va)=>{
     const nv=parseMeta(document.getElementById('v-'+id).value)||0;
     const el=document.getElementById('p-'+id);
@@ -1162,37 +1166,58 @@ async function gComunic(){
 }
 
 // ── GESTORA: RELATÓRIO ──
-async function gMais(){
+async function gMais(filtroFil){
+  // filtroFil: null = todas, ou id da filial
   const [fils,funcs,vendas,metas]=await Promise.all([
     gt('filiais','?select=*'+eid()),
     gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*'),
     gt('vendas','?select=func_id,valor,data_venda'+eid()),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
   ]);
+
+  // Filtrar por filial selecionada
+  const filSel = filtroFil ? parseInt(filtroFil) : null;
+  const vendsFiltro = filSel
+    ? funcs.filter(f=>(f.perfil==='vendedora'||f.perfil==='gerente')&&f.filial_id===filSel)
+    : funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente');
+
   const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
   const tot={};vendasMes.forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
   const mm={};metas.forEach(m=>mm[m.func_id]=parseFloat(m.valor));
-  const vends=funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente');
-  const tV=vends.reduce((s,f)=>s+(tot[f.id]||0),0);
-  const tM=vends.reduce((s,f)=>s+(mm[f.id]||0),0);
+
+  const tV=vendsFiltro.reduce((s,f)=>s+(tot[f.id]||0),0);
+  const tM=vendsFiltro.reduce((s,f)=>s+(mm[f.id]||0),0);
   const dr=dR(mS,aS),dp=dP(mS,aS),dt2=dT(mS,aS);
   const mediaDia=dp>0?tV/dp:0;
   const projecao=mediaDia*dt2;
   const pGeral=tM>0?tV/tM*100:0;
   const ritmoOk=projecao>=tM;
-  const rankVends=[...vends].sort((a,b)=>{
+
+  const rankVends=[...vendsFiltro].sort((a,b)=>{
     const pA=mm[a.id]>0?(tot[a.id]||0)/mm[a.id]*100:0;
     const pB=mm[b.id]>0?(tot[b.id]||0)/mm[b.id]*100:0;
     return pB-pA;
   });
 
-  let h='<div class="h1">Relatório</div>'+mSel('gMais()');
+  let h='<div class="h1">Relatório</div>'+mSel('gMais(document.getElementById(\'fil-sel\')?.value)');
 
-  // Card visão geral
+  // ── FILTRO DE FILIAL ──
+  h+='<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none;-webkit-overflow-scrolling:touch">'
+    +'<button class="mp'+(filSel===null?' active':'')+'" onclick="gMais(null)">🏢 Todas</button>';
+  fils.forEach(fl=>{
+    h+='<button class="mp'+(filSel===fl.id?' active':'')+'" onclick="gMais('+fl.id+')">'+fl.nome+'</button>';
+  });
+  h+='</div>';
+
+  const filNome=filSel?fils.find(f=>f.id===filSel)?.nome||'Filial':'Todas as filiais';
+
+  // ── CARD VISÃO GERAL ──
   h+='<div class="card" style="border-top:3px solid var(--td)">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
-    +'<div><div style="font-size:13px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Visão Geral — '+nM(mS,aS)+'</div>'
-    +'<div style="font-size:28px;font-weight:800;color:'+pC(pGeral)+'">'+pp(pGeral)+' <span style="font-size:14px;font-weight:400;color:var(--t2)">da meta</span></div></div>'
+    +'<div>'
+    +'<div style="font-size:12px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">'+filNome+' — '+nM(mS,aS)+'</div>'
+    +'<div style="font-size:28px;font-weight:800;color:'+pC(pGeral)+'">'+pp(pGeral)+' <span style="font-size:14px;font-weight:400;color:var(--t2)">da meta</span></div>'
+    +'</div>'
     +'<div style="text-align:center;background:'+(ritmoOk?'var(--tl)':'#FFEBEE')+';border-radius:12px;padding:10px 14px">'
     +'<div style="font-size:20px">'+(ritmoOk?'🚀':'⚠️')+'</div>'
     +'<div style="font-size:11px;font-weight:600;color:'+(ritmoOk?'var(--tdd)':'#C62828')+';margin-top:2px">'+(ritmoOk?'No ritmo!':'Atenção')+'</div>'
@@ -1205,57 +1230,38 @@ async function gMais(){
     +'<div class="pb" style="height:10px;margin-top:12px"><div class="pf" style="width:'+Math.min(pGeral,100)+'%;background:'+pC(pGeral)+'"></div></div>'
     +'</div>';
 
-  // Ritmo
+  // ── RITMO ──
   h+='<div class="card"><div class="ct2"><i class="ti ti-trending-up"></i>Ritmo atual vs necessário</div>'
     +'<div class="g3">'
     +'<div class="mx"><label>Vendendo/dia</label><div class="v" style="font-size:14px">'+fi(mediaDia)+'</div></div>'
     +'<div class="mx"><label>Precisa/dia</label><div class="v" style="font-size:14px;color:'+(mediaDia>=(tM-tV)/Math.max(dr,1)?'var(--td)':'#E24B4A')+'">'+fi(dr>0?(tM-tV)/dr:0)+'</div></div>'
-    +'<div class="mx"><label>Dias restantes</label><div class="v" style="font-size:14px">'+dr+'</div><div class="s">dias úteis</div></div>'
+    +'<div class="mx"><label>Dias restantes</label><div class="v" style="font-size:14px">'+dr+'</div><div class="s">Seg–Sáb</div></div>'
     +'</div></div>';
 
-  // Ranking
-  h+='<div class="card"><div class="ct2"><i class="ti ti-trophy"></i>Ranking por % da meta</div>';
-  rankVends.forEach((f,i)=>{
-    const v=tot[f.id]||0,meta=mm[f.id]||0,percMeta=meta>0?v/meta*100:0;
-    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
-    const alertaBaixa=percMeta<71&&dr>0;
-    h+='<div style="margin-bottom:14px;padding:10px;background:'+(alertaBaixa?'#FFF8F8':'var(--bg)')+';border-radius:10px;border:1px solid '+(alertaBaixa?'#F09595':'transparent')+'">'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-      +'<span style="font-size:18px;width:28px">'+medal+'</span>'
-      +'<span style="font-weight:700;font-size:14px;flex:1">'+f.nome+'</span>'
-      +'<span style="font-size:22px;font-weight:800;color:'+pC(percMeta)+'">'+pp(percMeta)+'</span>'
-      +'</div>'
-      +'<div class="pb" style="height:10px;margin-bottom:4px"><div class="pf" style="width:'+Math.min(percMeta,100)+'%;background:'+pC(percMeta)+'"></div></div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2)">'
-      +'<span>Vendido: <strong>'+fi(v)+'</strong> de '+fi(meta)+'</span>'
-      +'<span>Comissão: <strong style="color:var(--td)">'+fm(cC(meta,v))+'</strong></span>'
-      +'</div>'
-      +(alertaBaixa?'<div style="font-size:11px;color:#C62828;margin-top:4px;font-weight:600">⚠️ Abaixo de 71% — sem comissão</div>':'')
-      +'</div>';
-  });
-  h+='</div>';
+  // ── PARTICIPAÇÃO POR FILIAL (só quando mostrar todas) ──
+  if(!filSel){
+    h+='<div class="card"><div class="ct2"><i class="ti ti-building-store"></i>Participação por filial</div>';
+    fils.forEach((fl,i)=>{
+      const fs=funcs.filter(f=>(f.perfil==='vendedora'||f.perfil==='gerente')&&f.filial_id===fl.id);
+      const fV=fs.reduce((s,f)=>s+(tot[f.id]||0),0);
+      const fM=fs.reduce((s,f)=>s+(mm[f.id]||0),0);
+      const pct=tV>0?fV/tV*100:0,pMeta=fM>0?fV/fM*100:0;
+      const cores=['#00695C','#534AB7','#BA7517','#185FA5'];
+      h+='<div style="margin-bottom:12px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        +'<span style="font-weight:600;font-size:13px">'+fl.nome+'</span>'
+        +'<span style="font-size:12px"><strong>'+fi(fV)+'</strong> <span style="color:var(--t2)">('+pp(pct)+')</span></span>'
+        +'</div>'
+        +'<div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(pMeta,100)+'%;background:'+cores[i%4]+'"></div></div>'
+        +'<div style="font-size:10px;color:var(--t2);margin-top:2px">'+pp(pMeta)+' da meta · '+fs.length+' func.</div>'
+        +'</div>';
+    });
+    h+='</div>';
+  }
 
-  // Por filial
-  h+='<div class="card"><div class="ct2"><i class="ti ti-building-store"></i>Participação por filial</div>';
-  fils.forEach((fl,i)=>{
-    const fs=vends.filter(f=>f.filial_id===fl.id);
-    const fV=fs.reduce((s,f)=>s+(tot[f.id]||0),0);
-    const fM=fs.reduce((s,f)=>s+(mm[f.id]||0),0);
-    const pct=tV>0?fV/tV*100:0,pMeta=fM>0?fV/fM*100:0;
-    h+='<div style="margin-bottom:12px">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-      +'<span style="font-weight:600;font-size:13px">'+fl.nome+'</span>'
-      +'<span style="font-size:12px"><strong>'+fi(fV)+'</strong> <span style="color:var(--t2)">('+pp(pct)+')</span></span>'
-      +'</div>'
-      +'<div class="pb" style="height:10px"><div class="pf" style="width:'+Math.min(pMeta,100)+'%;background:'+['#00695C','#534AB7','#BA7517','#185FA5'][i%4]+'"></div></div>'
-      +'<div style="font-size:10px;color:var(--t2);margin-top:2px">'+pp(pMeta)+' da meta · '+fs.length+' func.</div>'
-      +'</div>';
-  });
-  h+='</div>';
-
-  // Melhor dia da semana
+  // ── MELHOR DIA DA SEMANA ──
   const porSem={1:0,2:0,3:0,4:0,5:0,6:0};
-  vendasMes.forEach(v=>{
+  vendasMes.filter(v=>vendsFiltro.find(f=>f.id===v.func_id)).forEach(v=>{
     const [dd,mm2,aa]=v.data_venda.split('/');
     const ds=new Date(+aa,+mm2-1,+dd).getDay();
     if(ds>=1&&ds<=6)porSem[ds]+=parseFloat(v.valor);
@@ -1267,14 +1273,14 @@ async function gMais(){
   [1,2,3,4,5,6].forEach(d=>{
     const val=porSem[d]||0,h2=maxSem>0?Math.max((val/maxSem)*75,2):2,melhor=val===maxSem&&val>0;
     h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-      +'<div style="font-size:9px;color:var(--t2)">'+fi(val).replace('R$','')+'</div>'
+      +'<div style="font-size:9px;color:var(--t2)">'+fi(val).replace('R$','').trim()+'</div>'
       +'<div style="width:100%;height:'+h2+'px;background:'+(melhor?'var(--td)':'var(--tl)')+';border-radius:4px 4px 0 0"></div>'
       +'<div style="font-size:10px;font-weight:'+(melhor?'700':'400')+';color:'+(melhor?'var(--td)':'var(--t2)')+'">'+DSEM[d]+'</div>'
       +'</div>';
   });
   h+='</div></div>';
 
-  // Quanto falta por funcionária
+  // ── QUANTO FALTA POR FUNCIONÁRIA ──
   h+='<div class="card"><div class="ct2"><i class="ti ti-target"></i>Quanto falta para cada uma</div>';
   rankVends.forEach(f=>{
     const v=tot[f.id]||0,meta=mm[f.id]||0,falta=Math.max(meta-v,0),p=meta>0?v/meta*100:0,nd=dr>0?falta/dr:0;
@@ -1289,6 +1295,31 @@ async function gMais(){
       +'<div style="font-size:12px;font-weight:700">'+fi(v)+'</div>'
       +'<div style="font-size:10px;color:var(--t2)">de '+fi(meta)+'</div>'
       +'</div></div>';
+  });
+  h+='</div>';
+
+  // ── RANKING POR % (por último conforme solicitado) ──
+  h+='<div class="card"><div class="ct2"><i class="ti ti-trophy"></i>Ranking por % da meta</div>';
+  rankVends.forEach((f,i)=>{
+    const v=tot[f.id]||0,meta=mm[f.id]||0,percMeta=meta>0?v/meta*100:0;
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+    const alertaBaixa=percMeta<71&&dr>0;
+    const filNomeF=fils.find(fl=>fl.id===f.filial_id)?.nome||'';
+    h+='<div style="margin-bottom:14px;padding:10px;background:'+(alertaBaixa?'#FFF8F8':'var(--bg)')+';border-radius:10px;border:1px solid '+(alertaBaixa?'#F09595':'transparent')+'">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      +'<span style="font-size:18px;width:28px">'+medal+'</span>'
+      +'<div style="flex:1"><span style="font-weight:700;font-size:14px">'+f.nome+'</span>'
+      +(filSel===null&&filNomeF?'<span style="font-size:10px;color:var(--t2);margin-left:6px">'+filNomeF+'</span>':'')
+      +'</div>'
+      +'<span style="font-size:22px;font-weight:800;color:'+pC(percMeta)+'">'+pp(percMeta)+'</span>'
+      +'</div>'
+      +'<div class="pb" style="height:10px;margin-bottom:4px"><div class="pf" style="width:'+Math.min(percMeta,100)+'%;background:'+pC(percMeta)+'"></div></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2)">'
+      +'<span>Vendido: <strong>'+fi(v)+'</strong> de '+fi(meta)+'</span>'
+      +'<span>Comissão: <strong style="color:var(--td)">'+fm(cC(meta,v))+'</strong></span>'
+      +'</div>'
+      +(alertaBaixa?'<div style="font-size:11px;color:#C62828;margin-top:4px;font-weight:600">⚠️ Abaixo de 71% — sem comissão</div>':'')
+      +'</div>';
   });
   h+='</div>';
 
@@ -1349,7 +1380,7 @@ async function fRelatorio(){
 
   // Meta do dia
   if(meta>0&&dr>0){
-    h+='<div class="card" style="background:#000;border:none;padding:16px">'
+    h+='<div class="card" style="background:#2d3748;border:none;padding:16px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
       +'<div><div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 Meta de hoje</div>'
       +'<div style="font-size:34px;font-weight:800;color:#1DE9B6;line-height:1">'+fi(nd)+'</div>'
@@ -1467,7 +1498,7 @@ async function renderAdmin(){
 // ── GERENTE: PAINEL DA FILIAL ──
 async function gGerente(){
   const f=S.func;
-  const HOJE=new Date(2026,4,19);
+  const HOJE=new Date();
   const HOJE_DS=HOJE.getDay();
   const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const hjStr=hj();
@@ -1537,7 +1568,7 @@ async function gGerente(){
   let h='<div class="h1"><i class="ti ti-building-store"></i> '+nomeFil+'</div>'+mSel('gGerente()');
 
   // ── PAINEL DO DIA ──
-  h+='<div class="card" style="background:#000;border:none;padding:16px;margin-bottom:12px">'
+  h+='<div class="card" style="background:#2d3748;border:none;padding:16px;margin-bottom:12px">'
     +'<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📅 '+DSEM[HOJE_DS]+' — O que a equipe precisa fazer hoje</div>'
     +'<div style="display:flex;gap:10px;margin-bottom:12px">'
     +'<div style="flex:1;background:rgba(255,255,255,.07);border-radius:10px;padding:10px;text-align:center">'
@@ -1618,7 +1649,7 @@ async function gGerente(){
 // ── VENDEDORA: METAS ──
 async function fMetas(){
   const f=S.func;
-  const HOJE=new Date(2026,4,19);
+  const HOJE=new Date();
   const HOJE_DS=HOJE.getDay(); // 0=Dom,1=Seg...6=Sab
   const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
@@ -1773,7 +1804,7 @@ async function fMetas(){
 
   // ── CARD META DO DIA (destaque) ──
   if(meta>0&&dr>0&&p<100){
-    h+='<div class="card" style="background:#000;border:none;padding:16px">'
+    h+='<div class="card" style="background:#2d3748;border:none;padding:16px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
       +'<div>'
       +'<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 Sua meta de hoje ('+DSEM[HOJE_DS]+')</div>'
