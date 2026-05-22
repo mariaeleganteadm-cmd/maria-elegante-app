@@ -860,6 +860,53 @@ function mSel(cb){
 }
 
 // ── GESTORA: LANÇAR ──
+
+// ── FUNÇÕES DE LANÇAMENTO (globais) ──
+function prv(id,m,va){
+  const nv=parseMeta(document.getElementById('v-'+id).value)||0;
+  const el=document.getElementById('p-'+id);
+  if(!nv){el.textContent='';return}
+  const no=va+nv,p=m>0?no/m*100:0;
+  el.textContent='→ '+pp(p)+' · Comissão: '+fm(cC(m,no))+' (faixa '+gF(p).pct+'%)';
+}
+
+async function lnc(id){
+  const valEl=document.getElementById('v-'+id);
+  const datEl=document.getElementById('d-'+id);
+  if(!valEl||!datEl){alert('Campos não encontrados.');return}
+  const val=parseMeta(valEl.value);
+  const dataISO=datEl.value;
+  if(!val||val<=0||!dataISO){alert('Preencha valor e data.');return}
+  const [ano,mes,dia]=dataISO.split('-');
+  const dataFmt=dia+'/'+mes+'/'+ano;
+  await pt('vendas',{func_id:id,valor:val,data_venda:dataFmt,empresa_id:EMP?EMP.id:null});
+  valEl.value='';
+  const el=document.getElementById('p-'+id);
+  if(el){el.textContent='✅ Lançado com sucesso!';el.style.color='#00695C';setTimeout(()=>{el.textContent='';el.style.color='var(--td)'},2500);}
+  gMetas();
+}
+
+async function editLanc(id){
+  const res=await gt('vendas','?id=eq.'+id+'&select=valor,data_venda');
+  if(!res.length)return;
+  editVenda(id,res[0].valor,res[0].data_venda);
+}
+
+async function saveLanc(id){
+  const val=parseMeta(document.getElementById('el-v-'+id).value);
+  const dataISO=document.getElementById('el-d-'+id).value;
+  if(!val||!dataISO){alert('Preencha valor e data.');return}
+  const [a,m,d]=dataISO.split('-');
+  await pk('vendas','?id=eq.'+id,{valor:val,data_venda:d+'/'+m+'/'+a});
+  gMetas();
+}
+
+async function delLanc(id){
+  if(!confirm('Excluir este lançamento?'))return;
+  await dl('vendas','?id=eq.'+id);
+  gMetas();
+}
+
 async function gMetas(){
   // Garantir EMP carregado
   if(!EMP){
