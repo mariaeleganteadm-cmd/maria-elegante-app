@@ -873,12 +873,13 @@ async function gMetas(){
     document.getElementById('ct').innerHTML='<div class="card" style="margin-top:20px;text-align:center;padding:30px"><i class="ti ti-alert-circle" style="font-size:36px;color:#E24B4A;display:block;margin-bottom:12px"></i><div style="font-weight:700">Empresa não encontrada</div><div style="font-size:13px;color:#666;margin-top:8px">Saia e use "Já tenho conta" com ID 1</div><button class="btn bp" style="margin-top:16px" onclick="sair()">Sair</button></div>';
     return;
   }
-  let funcs=[], vendas=[], metas=[];
+  let funcs=[], vendas=[], metas=[], fils=[];
   try {
-    [funcs,vendas,metas]=await Promise.all([
+    [funcs,vendas,metas,fils]=await Promise.all([
       gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'),
       gt('vendas','?select=func_id,valor,data_venda'+eid()),
-      gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
+      gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*'),
+      gt('filiais','?select=*'+eid())
     ]);
   } catch(e) {
     console.error('Erro nas queries gMetas:',e);
@@ -913,7 +914,7 @@ async function gMetas(){
     +'<div class="fi"><label>Funcionária</label>'
     +'<select id="hist-func2" style="font-size:14px;min-height:44px">'
     +'<option value="">Todas</option>'
-    +vends.map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
+    +vendedoras.map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
     +'</select></div>'
     +'<div class="fi"><label>Filial</label>'
     +'<select id="hist-fil2" style="font-size:14px;min-height:44px">'
