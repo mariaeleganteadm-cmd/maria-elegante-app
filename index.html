@@ -901,46 +901,102 @@ async function gMetas(){
       +'</div>'
       +'<div id="p-'+f.id+'" style="font-size:11px;color:var(--td);margin-top:5px;min-height:14px;font-weight:500"></div></div>';
   });
+  
+
+  // ── CARD HISTÓRICO DE LANÇAMENTOS COM FILTROS ──
+  h+='<div class="card" style="margin-top:4px">'
+    +'<div class="ct2"><i class="ti ti-history"></i>Buscar lançamentos</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+    +'<div class="fi" style="margin:0"><label>De</label><input type="date" id="hist-de" style="font-size:14px;min-height:44px"></div>'
+    +'<div class="fi" style="margin:0"><label>Até</label><input type="date" id="hist-ate" value="'+hjISO()+'" style="font-size:14px;min-height:44px"></div>'
+    +'</div>'
+    +'<div class="fi"><label>Funcionária</label>'
+    +'<select id="hist-func2" style="font-size:14px;min-height:44px">'
+    +'<option value="">Todas</option>'
+    +vends.map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
+    +'</select></div>'
+    +'<div class="fi"><label>Filial</label>'
+    +'<select id="hist-fil2" style="font-size:14px;min-height:44px">'
+    +'<option value="">Todas</option>'
+    +fils.map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
+    +'</select></div>'
+    +'<button class="btn bp" style="width:100%;justify-content:center" onclick="buscarLanc()"><i class="ti ti-search"></i> Buscar lançamentos</button>'
+    +'<div id="hist-result" style="margin-top:12px"></div>'
+    +'</div>';
+
   document.getElementById('ct').innerHTML=h;
-  // Alertas de datas especiais na aba de lançar
-  const alertasGestor=datasEspeciaisProximas(mS,aS).concat(datasEspeciaisProximas(mS+1>12?1:mS+1,aS));
-  if(alertasGestor.length){
-    let alertHtml='';
-    alertasGestor.forEach(a=>{
-      alertHtml+='<div style="background:#FFF3E0;border:1px solid #FFB300;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">'
-        +'<span style="font-size:22px">📅</span>'
-        +'<div><div style="font-weight:700;font-size:13px;color:#E65100">'+a.nome+' em '+a.diasRestantes+' dias!</div>'
-        +'<div style="font-size:12px;color:#BF360C">Semana '+a.semana+'ª do mês '+MESES[a.mes-1]+' — impacto de +'+Math.round((a.mult-1)*100)+'% nas vendas</div>'
+
+  // Setar data "de" como 1º dia do mês atual
+  const inpDe=document.getElementById('hist-de');
+  if(inpDe) inpDe.value=aS+'-'+String(mS).padStart(2,'0')+'-01';
+
+  // Função de busca global
+  window.buscarLanc=async()=>{
+    const de=document.getElementById('hist-de').value;
+    const ate=document.getElementById('hist-ate').value;
+    const funcId=document.getElementById('hist-func2').value;
+    const filId=document.getElementById('hist-fil2').value;
+    const res=document.getElementById('hist-result');
+    res.innerHTML='<div class="ld"><i class="ti ti-loader"></i>Buscando...</div>';
+
+    // Buscar todas as vendas do período
+    let q='?order=data_venda.desc&select=*,funcionarias(nome,filial_id,filiais(nome))'+eid();
+    if(funcId) q+='&func_id=eq.'+funcId;
+    let vendas2=await gt('vendas',q);
+
+    // Filtrar por data no JS (formato DD/MM/YYYY)
+    if(de){
+      const [ay,am,ad]=de.split('-');
+      const dtDe=new Date(+ay,+am-1,+ad);
+      vendas2=vendas2.filter(v=>{
+        const [d2,m2,a2]=v.data_venda.split('/');
+        return new Date(+a2,+m2-1,+d2)>=dtDe;
+      });
+    }
+    if(ate){
+      const [ay,am,ad]=ate.split('-');
+      const dtAte=new Date(+ay,+am-1,+ad);
+      vendas2=vendas2.filter(v=>{
+        const [d2,m2,a2]=v.data_venda.split('/');
+        return new Date(+a2,+m2-1,+d2)<=dtAte;
+      });
+    }
+    // Filtrar por filial
+    if(filId){
+      vendas2=vendas2.filter(v=>v.funcionarias&&v.funcionarias.filial_id===parseInt(filId));
+    }
+
+    if(!vendas2.length){
+      res.innerHTML='<div class="em" style="padding:20px">Nenhum lançamento encontrado.</div>';
+      return;
+    }
+
+    const total=vendas2.reduce((s,v)=>s+parseFloat(v.valor),0);
+    let html='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:2px solid var(--bd);margin-bottom:8px">'
+      +'<span style="font-size:13px;color:var(--t2)"><strong>'+vendas2.length+'</strong> lançamentos encontrados</span>'
+      +'<span style="font-size:15px;font-weight:700;color:var(--td)">Total: '+fi(total)+'</span>'
+      +'</div>';
+
+    vendas2.forEach(v=>{
+      const nomeFil=v.funcionarias?.filiais?.nome||'';
+      html+='<div class="ri" id="vl2-'+v.id+'">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:600;font-size:13px">'+(v.funcionarias?.nome||'—')+'</div>'
+        +'<div style="font-size:11px;color:var(--t2)">'+v.data_venda+(nomeFil?' · '+nomeFil:'')+'</div>'
+        +'</div>'
+        +'<span style="font-weight:700;font-size:15px;margin-right:8px">'+fm(parseFloat(v.valor))+'</span>'
+        +'<div style="display:flex;gap:6px;flex-shrink:0">'
+        +'<button class="btn bsm" onclick="editVendaH('+v.id+')" title="Editar"><i class="ti ti-edit"></i></button>'
+        +'<button class="btn bd2r" onclick="delVenda2('+v.id+')" title="Excluir"><i class="ti ti-trash"></i></button>'
         +'</div></div>';
     });
-    h=h.replace('<div class="h1">Lançar vendas</div>','<div class="h1">Lançar vendas</div>'+alertHtml);
-  }
+    res.innerHTML=html;
 
-  // Preencher campos de data com data atual
-  document.querySelectorAll('input[type="date"]').forEach(el=>{if(!el.value||el.value==='__HOJE_ISO__')el.value=hjISO()});
-
-  window.prv=(id,m,va)=>{
-    const nv=parseMeta(document.getElementById('v-'+id).value)||0;
-    const el=document.getElementById('p-'+id);
-    if(!nv){el.textContent='';return}
-    const no=va+nv,p=m>0?no/m*100:0;
-    el.textContent='→ '+pp(p)+' · Comissão: '+fm(cC(m,no))+' (faixa '+gF(p).pct+'%)'
-  };
-  window.lnc=async id=>{
-    const val=parseMeta(document.getElementById('v-'+id).value);
-    const dataISO=document.getElementById('d-'+id).value; // formato YYYY-MM-DD
-    if(!val||val<=0||!dataISO){alert('Preencha valor e data.');return}
-    // Converter YYYY-MM-DD → DD/MM/YYYY para salvar no banco
-    const [ano,mes,dia]=dataISO.split('-');
-    const dataFmt=dia+'/'+mes+'/'+ano;
-    await pt('vendas',{func_id:id,valor:val,data_venda:dataFmt,empresa_id:EMP?EMP.id:null});
-    // Limpar campo e mostrar confirmação
-    document.getElementById('v-'+id).value='';
-    const el=document.getElementById('p-'+id);
-    el.textContent='✅ Lançado com sucesso!';
-    el.style.color='#00695C';
-    setTimeout(()=>{el.textContent='';el.style.color='var(--td)'},2500);
-    gMetas();
+    window.delVenda2=async id=>{
+      if(!confirm('Excluir este lançamento?'))return;
+      await dl('vendas','?id=eq.'+id);
+      buscarLanc();
+    };
   };
 }
 
