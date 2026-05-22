@@ -864,7 +864,7 @@ function mSel(cb){
 // ── IMPORTAÇÃO COM IA ──
 function fecharImport(){const m=document.getElementById('modal-import');if(m)m.style.display='none';}
 
-function abrirImportIA(){
+function abrirImportCSV(){
   // Criar modal
   let m=document.getElementById('modal-import');
   if(!m){
@@ -892,123 +892,72 @@ function abrirImportIA(){
 }
 
 async function processarImport(input){
+  // Versão simples - sem IA, apenas CSV
   const file=input.files[0];
   if(!file)return;
   const status=document.getElementById('import-status');
+  status.innerHTML='<div class="ld"><i class="ti ti-loader"></i>Lendo arquivo...</div>';
+  document.getElementById('import-preview').innerHTML='';
+  const texto=await file.text().catch(()=>'');
+  const funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,perfil');
+  await processarCSVManual(texto,funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente'));
+}
+
+async function processarCSVManual(texto,funcs){
+  const status=document.getElementById('import-status');
   const preview=document.getElementById('import-preview');
-  status.innerHTML='<div class="ld"><i class="ti ti-loader"></i>Analisando com IA...</div>';
-  preview.innerHTML='';
+  if(!texto.trim()){status.innerHTML='<div class="ae aer">Arquivo vazio ou formato não suportado.</div>';return}
 
-  try{
-    // Ler arquivo como base64
-    const b64=await new Promise((res,rej)=>{
-      const r=new FileReader();
-      r.onload=e=>res(e.target.result.split(',')[1]);
-      r.onerror=rej;
-      r.readAsDataURL(file);
-    });
+  // Tentar parsear CSV simples: nome;data;valor ou nome,data,valor
+  const linhas=texto.split('\n').filter(l=>l.trim());
 
-    const isImg=file.type.startsWith('image/');
-    const isPdf=file.type==='application/pdf';
+  const lancs=[];
+  linhas.forEach((linha,i)=>{
+    if(i===0&&(linha.toLowerCase().includes('nome')||linha.toLowerCase().includes('data')))return; // header
+    const cols=linha.split(/[;,	]/).map(s=>s.trim().replace(/"/g,''));
+    if(cols.length<2)return;
+    // Tentar identificar nome, data e valor
+    const nome=cols[0]||'';
+    const dataRaw=cols.find(c=>/[0-9]{1,2}[\/\-][0-9]{1,2}/.test(c))||hj();
+    const valorRaw=cols.find(c=>/^[0-9]+[.,]?[0-9]*$/.test(c.replace(/[R$ ]/g,'')))||'0';
+    const valor=parseFloat(valorRaw.replace(/\./g,'').replace(',','.'))||0;
+    // Formatar data
+    let data=hj();
+    const dm=dataRaw.match(/([0-9]{1,2})[\/-]([0-9]{1,2})(?:[\/-]([0-9]{2,4}))?/);
+    if(dm){const a=dm[3]?dm[3].length===2?'20'+dm[3]:dm[3]:'2026';data=dm[1].padStart(2,'0')+'/'+dm[2].padStart(2,'0')+'/'+a;}
+    if(nome&&valor>0)lancs.push({funcionaria:nome,data,valor});
+  });
 
-    // Buscar funcionárias para contexto
-    const funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,perfil,filiais(nome)');
-    const nomesFunc=funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente')
-      .map(f=>f.nome+(f.filiais?' ('+f.filiais.nome+')':'')).join(', ');
-
-    const prompt='Você é um assistente de análise de dados para uma loja de roupas chamada Maria Elegante.'
-      +' Analise o arquivo enviado e extraia os lançamentos de vendas.'
-      +' As funcionárias cadastradas são: '+nomesFunc+'.'
-      +' Retorne SOMENTE um JSON válido no formato:'
-      +' {"lancamentos":[{"funcionaria":"nome exato da funcionária","data":"DD/MM/YYYY","valor":1234.56}]}'
-      +' Se não conseguir identificar uma funcionária com certeza, use null no campo funcionaria.'
-      +' Se a data não estiver clara, use a data de hoje: '+hj()+'.'
-      +' Não inclua texto fora do JSON.';
-
-    const body={
-      model:'claude-sonnet-4-20250514',
-      max_tokens:1000,
-      messages:[{
-        role:'user',
-        content:isImg?[
-          {type:'image',source:{type:'base64',media_type:file.type,data:b64}},
-          {type:'text',text:prompt}
-        ]:[
-          {type:'document',source:{type:'base64',media_type:file.type==='text/csv'?'text/plain':file.type||'application/octet-stream',data:b64}},
-          {type:'text',text:prompt}
-        ]
-      }]
-    };
-
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
-    const data=await resp.json();
-    const txt=(data.content||[]).map(x=>x.text||'').join('');
-
-    // Parsear JSON retornado pela IA
-    const jsonMatch=txt.match(/\{[\s\S]*\}/);
-    if(!jsonMatch){
-      status.innerHTML='<div class="ae aer">A IA não encontrou lançamentos no arquivo.</div>';
-      return;
-    }
-    const resultado=JSON.parse(jsonMatch[0]);
-    const lancs=resultado.lancamentos||[];
-
-    if(!lancs.length){
-      status.innerHTML='<div class="ae aer">Nenhum lançamento identificado.</div>';
-      return;
-    }
-
-    // Mapear nomes para IDs
-    const mapeados=lancs.map(l=>{
-      const funcEnc=funcs.find(f=>{
-        if(!l.funcionaria)return false;
-        const nomeLower=l.funcionaria.toLowerCase();
-        const fNomeLower=f.nome.toLowerCase();
-        return fNomeLower.includes(nomeLower)||nomeLower.includes(fNomeLower)||
-          fNomeLower.split(' ')[0]===nomeLower.split(' ')[0];
-      });
-      return{...l,func:funcEnc||null};
-    });
-
-    // Mostrar preview para confirmação
-    status.innerHTML='<div class="ae aok">'+lancs.length+' lançamento(s) identificado(s). Revise e confirme:</div>';
-    let prev='<div style="margin-bottom:12px">';
-    mapeados.forEach((l,i)=>{
-      const ok=!!l.func;
-      prev+='<div class="ri" id="imp-row-'+i+'">'
-        +'<div style="flex:1">'
-        +'<div style="font-weight:600;font-size:13px;color:'+(ok?'var(--tx)':'#E24B4A')+'">'
-        +(ok?l.func.nome:'⚠️ '+( l.funcionaria||'Não identificada'))+'</div>'
-        +'<div style="font-size:12px;color:var(--t2)">'+l.data+' · '+fi(l.valor)+'</div>'
-        +(ok?'':'<div style="font-size:11px;color:#E24B4A">Selecione a funcionária:</div>'
-          +'<select onchange="impSel('+i+',this.value)" style="font-size:13px;padding:6px;border-radius:6px;border:1px solid var(--bd);width:100%;margin-top:4px">'
-          +'<option value="">Selecione...</option>'
-          +funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente').map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
-          +'</select>')
-        +'</div>'
-        +'<strong>'+fi(l.valor)+'</strong></div>';
-    });
-    prev+='</div>';
-    prev+='<button class="btn bp" style="width:100%;justify-content:center" onclick="confirmarImport()"><i class="ti ti-check"></i> Confirmar e lançar tudo</button>';
-    preview.innerHTML=prev;
-
-    // Salvar dados mapeados globalmente para confirmação
-    window._impDados=mapeados;
-
-    window.impSel=(i,funcId)=>{
-      if(!window._impDados)return;
-      const func=funcs.find(f=>f.id===parseInt(funcId));
-      if(func) window._impDados[i].func=func;
-    };
-
-  }catch(e){
-    console.error('Erro IA import:',e);
-    status.innerHTML='<div class="ae aer">Erro ao processar. Tente novamente.</div>';
+  if(!lancs.length){
+    status.innerHTML='<div class="ae aer">Não foi possível identificar lançamentos. Use o formato: Nome;Data;Valor</div>';
+    return;
   }
+
+  // Mapear nomes
+  const mapeados=lancs.map(l=>{
+    const funcEnc=funcs.find(f=>{
+      const nL=l.funcionaria.toLowerCase(),nF=f.nome.toLowerCase();
+      return nF.includes(nL)||nL.includes(nF)||nF.split(' ')[0]===nL.split(' ')[0];
+    });
+    return{...l,func:funcEnc||null};
+  });
+
+  status.innerHTML='<div class="ae aok">'+lancs.length+' lançamento(s) identificado(s). Revise e confirme:</div>';
+  let prev='<div style="margin-bottom:12px">';
+  mapeados.forEach((l,i)=>{
+    const ok=!!l.func;
+    prev+='<div class="ri" id="imp-row-'+i+'">'
+      +'<div style="flex:1"><div style="font-weight:600;font-size:13px;color:'+(ok?'var(--tx)':'#E24B4A')+'">'
+      +(ok?l.func.nome:'⚠️ '+(l.funcionaria||'Não identificada'))+'</div>'
+      +'<div style="font-size:12px;color:var(--t2)">'+l.data+' · '+fi(l.valor)+'</div>'
+      +(ok?'':'<select onchange="impSel('+i+',this.value)" style="font-size:13px;padding:6px;border-radius:6px;border:1px solid var(--bd);width:100%;margin-top:4px"><option value="">Selecione...</option>'
+        +funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente').map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')+'</select>')
+      +'</div><strong>'+fi(l.valor)+'</strong></div>';
+  });
+  prev+='</div><button class="btn bp" style="width:100%;justify-content:center" onclick="confirmarImport()"><i class="ti ti-check"></i> Confirmar e lançar</button>';
+  preview.innerHTML=prev;
+  window._impDados=mapeados;
+  window.impSel=(i,funcId)=>{const func=funcs.find(f=>f.id===parseInt(funcId));if(func)window._impDados[i].func=func;};
 }
 
 async function confirmarImport(){
@@ -1036,12 +985,24 @@ async function confirmarImport(){
 }
 
 // ── FILTRO DE FUNCIONÁRIAS ──
+let _filFil=null;
 function filtrarFuncs(){
   const termo=(document.getElementById('busca-func')?.value||'').toLowerCase().trim();
   document.querySelectorAll('.fc-item').forEach(el=>{
     const nome=(el.dataset.nome||'').toLowerCase();
-    el.style.display=!termo||nome.includes(termo)?'block':'none';
+    const filId=parseInt(el.dataset.filial)||0;
+    const okNome=!termo||nome.includes(termo);
+    const okFil=!_filFil||filId===_filFil;
+    el.style.display=(okNome&&okFil)?'block':'none';
   });
+}
+function filtrarFuncsFil(filId){
+  _filFil=filId;
+  // Atualizar botões ativos
+  document.querySelectorAll('[id^="fil-btn-"]').forEach(b=>b.classList.remove('active'));
+  const ativo=document.getElementById(filId?'fil-btn-'+filId:'fil-btn-all');
+  if(ativo)ativo.classList.add('active');
+  filtrarFuncs();
 }
 
 // ── FUNÇÕES DE LANÇAMENTO (globais) ──
@@ -1059,14 +1020,20 @@ async function lnc(id){
   if(!valEl||!datEl){alert('Campos não encontrados.');return}
   const val=parseMeta(valEl.value);
   const dataISO=datEl.value;
-  if(!val||val<=0||!dataISO){alert('Preencha valor e data.');return}
+  if(!val||val<=0){alert('Digite um valor válido.');return}
+  if(!dataISO){alert('Selecione a data.');return}
+  const el=document.getElementById('p-'+id);
   const [ano,mes,dia]=dataISO.split('-');
   const dataFmt=dia+'/'+mes+'/'+ano;
-  await pt('vendas',{func_id:id,valor:val,data_venda:dataFmt,empresa_id:EMP?EMP.id:null});
-  valEl.value='';
-  const el=document.getElementById('p-'+id);
-  if(el){el.textContent='✅ Lançado com sucesso!';el.style.color='#00695C';setTimeout(()=>{el.textContent='';el.style.color='var(--td)'},2500);}
-  gMetas();
+  try{
+    await pt('vendas',{func_id:parseInt(id),valor:parseFloat(val),data_venda:dataFmt,empresa_id:EMP?parseInt(EMP.id):null});
+    valEl.value='';
+    if(el){el.textContent='✅ Lançado com sucesso!';el.style.color='#00695C';setTimeout(()=>{el.textContent='';el.style.color='var(--td)'},2500);}
+    gMetas();
+  }catch(e){
+    console.error('Erro ao lançar:',e);
+    if(el){el.textContent='❌ Erro ao salvar. Verifique a conexão.';el.style.color='#E24B4A';setTimeout(()=>{el.textContent='';},3000);}
+  }
 }
 
 async function editLanc(id){
@@ -1122,18 +1089,22 @@ async function gMetas(){
   const vendedoras=funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente');
   const tV=vendedoras.reduce((s,f)=>s+(tot[f.id]||0),0),tM=vendedoras.reduce((s,f)=>s+(mm[f.id]||0),0),tC=vendedoras.reduce((s,f)=>s+cC(mm[f.id]||0,tot[f.id]||0),0),pG=tM>0?tV/tM*100:0;
   let h='<div class="h1">Lançar Vendas</div>'+mSel('gMetas()')
-    +'<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">'
     +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--bd);border-radius:10px;padding:10px 14px">'
     +'<i class="ti ti-search" style="color:var(--t2);font-size:18px"></i>'
     +'<input type="text" id="busca-func" placeholder="Buscar funcionária..." oninput="filtrarFuncs()" '
     +'style="flex:1;border:none;outline:none;font-size:15px;background:transparent;color:var(--tx)"></div>'
-    +'<button onclick="abrirImportIA()" title="Importar planilha com IA" '
+    +'<button onclick="abrirImportCSV()" title="Importar planilha CSV" \''
     +'style="flex-shrink:0;width:50px;height:50px;border-radius:10px;border:1.5px solid var(--td);background:var(--tl);color:var(--tdd);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px">'
     +'<i class="ti ti-table-import"></i></button>'
+    +'</div>'
+    +'<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none;-webkit-overflow-scrolling:touch">'
+    +'<button class="mp active" id="fil-btn-all" onclick="filtrarFuncsFil(null)">🏢 Todas</button>'
+    +fils.map(fl=>'<button class="mp" id="fil-btn-'+fl.id+'" onclick="filtrarFuncsFil('+fl.id+')">'+fl.nome+'</button>').join('')
     +'</div>'+'<div class="card"><div class="g3"><div class="mx"><label>Total vendido</label><div class="v">'+fi(tV)+'</div><div class="s">'+pp(pG)+' da meta</div></div><div class="mx"><label>Meta geral</label><div class="v">'+fi(tM)+'</div><div class="s">'+vendedoras.length+' vendedoras</div></div><div class="mx"><label>Comissão est.</label><div class="v" style="color:var(--td)">'+fm(tC)+'</div></div></div></div>';
   vendedoras.forEach((f,i)=>{
     const v=tot[f.id]||0,m=mm[f.id]||0,p=m>0?v/m*100:0,co=cC(m,v),pc=pC(p),bi=bI(p),re=Math.max(m-v,0),nd=dr>0?re/dr:0,c=CORES[i%CORES.length];
-    h+='<div class="fc fc-item" data-nome="'+f.nome+'"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="av" style="width:38px;height:38px;font-size:13px;background:'+c.b+';color:'+c.c+'">'+in2(f.nome)+'</div><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-weight:700;font-size:14px">'+f.nome+'</span><span class="fp">'+(f.filiais?f.filiais.nome:'—')+'</span><span class="bx '+bi.c+'">'+bi.l+'</span></div><div style="font-size:11px;color:var(--t2);margin-top:2px">Meta: '+fi(m)+' · Vendido: '+fi(v)+' · Comis: '+fm(co)+' · Falta/dia: '+fi(nd)+'</div></div><span style="font-size:20px;font-weight:700;color:'+pc+'">'+pp(p)+'</span></div><div class="pb"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div>'
+    h+='<div class="fc fc-item" data-nome="'+f.nome+'" data-filial="'+(f.filial_id||0)+'"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="av" style="width:38px;height:38px;font-size:13px;background:'+c.b+';color:'+c.c+'">'+in2(f.nome)+'</div><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-weight:700;font-size:14px">'+f.nome+'</span><span class="fp">'+(f.filiais?f.filiais.nome:'—')+'</span><span class="bx '+bi.c+'">'+bi.l+'</span></div><div style="font-size:11px;color:var(--t2);margin-top:2px">Meta: '+fi(m)+' · Vendido: '+fi(v)+' · Comis: '+fm(co)+' · Falta/dia: '+fi(nd)+'</div></div><span style="font-size:20px;font-weight:700;color:'+pc+'">'+pp(p)+'</span></div><div class="pb"><div class="pf" style="width:'+Math.min(p,100)+'%;background:'+pc+'"></div></div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:10px">'
       +'<input type="text" inputmode="numeric" placeholder="R$ 0,00" id="v-'+f.id+'" onkeydown="return metaKey(event)" oninput="maskMeta(this);prv('+f.id+','+m+','+v+')" style="flex:1;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;background:#fff;color:var(--tx);outline:none;text-align:right">'
       +'<input type="date" id="d-'+f.id+'" class="inp-data-lanc" value="" style="width:140px;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-size:13px;background:#fff;color:var(--tx);outline:none;cursor:pointer">'
@@ -1924,7 +1895,7 @@ async function gGerente(){
     const v2=tot[func.id]||0,meta=mm[func.id]||0,p2=meta>0?v2/meta*100:0;
     const falta2=Math.max(meta-v2,0),nd=dr>0?falta2/dr:0;
     const mhoje=metaHoje(func.id);
-    h+='<div class="fc fc-item" data-nome="'+f.nome+'">'
+    h+='<div class="fc fc-item" data-nome="'+f.nome+'" data-filial="'+(f.filial_id||0)+'">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
       +'<div class="av" style="width:38px;height:38px;font-size:13px;background:'+['#E0F2F1','#EEEDFE','#FAEEDA','#FAECE7'][i%4]+';color:'+['#00695C','#534AB7','#BA7517','#D85A30'][i%4]+'">'+in2(func.nome)+'</div>'
       +'<div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
@@ -2338,18 +2309,9 @@ async function gConfig(){
     +'<div class="sep"></div><div class="fi"><label>Nova filial</label><input id="cfg-fil" placeholder="Ex: Filial Centro"></div>'
     +'<button class="btn bp bsm" onclick="cfgAddFilial()"><i class="ti ti-plus"></i> Adicionar filial</button></div>'
 
-    // Histórico de lançamentos
-    +'<div class="card"><div class="ct2"><i class="ti ti-history"></i>Histórico de lançamentos</div>'
-    +'<div class="fi"><label>Filtrar por funcionária</label>'
-    +'<select id="hist-func" onchange="carregarHistorico()">'
-    +'<option value="">Todas</option>'
-    +funcs.filter(f=>f.perfil==='vendedora'||f.perfil==='gerente').map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('')
-    +'</select></div>'
-    +'<div id="hist-lista"><div class="ld"><i class="ti ti-loader"></i>Carregando...</div></div>'
-    +'</div>';
+    ;
 
   document.getElementById('ct').innerHTML=h;
-  carregarHistorico();
 
   let cfgLogoB64=emp.logo_base64||null;
 
