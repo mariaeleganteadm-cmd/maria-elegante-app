@@ -2332,7 +2332,25 @@ async function gConfig(){
     ?'<img src="data:image/png;base64,'+emp.logo_base64+'" style="height:64px;border-radius:10px;background:#000;padding:6px">'
     :'<div style="width:72px;height:72px;border-radius:50%;background:var(--tl);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:28px">'+String.fromCodePoint(0x1F3EA)+'</div>';
 
-  let h='<div class="h1">Empresa</div>'
+  // Verificar códigos pendentes de recuperação
+  const codsPend=verCodigosRecuperacao();
+  let h='<div class="h1">Empresa</div>';
+  if(codsPend.length){
+    h+='<div class="card" style="border-top:3px solid #E24B4A">'
+      +'<div class="ct2" style="color:#C62828"><i class="ti ti-key"></i>Códigos de recuperação pendentes</div>'
+      +'<div class="hn" style="margin-bottom:10px">Passe o código para a funcionária pelo WhatsApp ou pessoalmente. Expira em 30 minutos.</div>';
+    codsPend.forEach(cod=>{
+      h+='<div style="background:#FFF8F8;border:1px solid #F09595;border-radius:10px;padding:14px;margin-bottom:8px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between">'
+        +'<div><div style="font-weight:700;font-size:15px">'+cod.nome+'</div>'
+        +'<div style="font-size:12px;color:var(--t2)">Tel: '+cod.tel+'</div></div>'
+        +'<div style="text-align:center;background:#fff;border:2px solid #E24B4A;border-radius:10px;padding:8px 16px">'
+        +'<div style="font-size:28px;font-weight:800;color:#E24B4A;letter-spacing:6px">'+cod.codigo+'</div>'
+        +'<div style="font-size:10px;color:var(--t2)">código de 6 dígitos</div>'
+        +'</div></div></div>';
+    });
+    h+='</div>';
+  }
     +'<div class="card" style="border-top:3px solid var(--td)">'
     +'<div class="ct2"><i class="ti ti-building"></i>Dados da empresa</div>'
     +'<div id="cfg-ok" class="ae aok" style="display:none"></div>'
@@ -2367,15 +2385,25 @@ async function gConfig(){
   const gestores=await gt('funcionarias','?login=eq.admin'+eid()+'&select=*').catch(()=>[]);
   h+='<div class="card"><div class="ct2"><i class="ti ti-shield-check"></i>Gestores da empresa</div>';
   h+='<div id="lista-gestores">';
-  // Gestores salvos no localStorage
   const gestoresExtra=JSON.parse(localStorage.getItem('me_gestores_'+(EMP?EMP.id:'0'))||'[]');
-  gestoresExtra.forEach((g,i)=>{
-    h+='<div class="ri"><div style="flex:1"><div class="rn">'+g.nome+'</div><div class="rs">Senha: ••••••</div></div>'
-      +'<button class="btn bd2r" onclick="removerGestor('+i+')"><i class="ti ti-trash"></i></button></div>';
-  });
-  if(!gestoresExtra.length) h+='<div class="em" style="padding:12px">Nenhum gestor adicional.</div>';
+  if(gestoresExtra.length){
+    gestoresExtra.forEach((g,i)=>{
+      h+='<div class="ri" id="gest-row-'+i+'">'
+        +'<div style="flex:1"><div class="rn">'+g.nome+'</div>'
+        +'<div class="rs">'+(g.telefone||'Sem telefone')+' · Senha: ••••••</div></div>'
+        +'<div style="display:flex;gap:6px">'
+        +'<button class="btn bsm" onclick="editarGestor('+i+')"><i class="ti ti-edit"></i></button>'
+        +'<button class="btn bd2r" onclick="removerGestor('+i+')"><i class="ti ti-trash"></i></button>'
+        +'</div></div>';
+    });
+  } else {
+    h+='<div class="em" style="padding:12px">Nenhum gestor adicional cadastrado.</div>';
+  }
   h+='</div><div class="sep"></div>'
-    +'<div class="fi"><label>Nome do gestor</label><input id="g-nome" placeholder="Ex: Carlos Silva"></div>'
+    +'<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px">Adicionar novo gestor</div>'
+    +'<div class="fi"><label>Nome</label><input id="g-nome" placeholder="Ex: Carlos Silva"></div>'
+    +'<div class="fi"><label>Telefone (para recuperação de senha)</label>'
+    +'<input id="g-tel" type="tel" inputmode="numeric" placeholder="35999990000"></div>'
     +'<div class="fi"><label>Senha de acesso</label><input id="g-senha" type="password" placeholder="Mínimo 4 caracteres"></div>'
     +'<button class="btn bp bsm" onclick="adicionarGestor()"><i class="ti ti-plus"></i> Adicionar gestor</button>'
     +'</div>';
@@ -2528,12 +2556,46 @@ document.getElementById('ct').innerHTML=h;
 // ── GESTORES DA EMPRESA (além da gestora principal) ──
 function adicionarGestor(){
   const nome=(document.getElementById('g-nome')?.value||'').trim();
+  const tel=(document.getElementById('g-tel')?.value||'').replace(/\D/g,'');
   const senha=(document.getElementById('g-senha')?.value||'').trim();
   if(!nome){alert('Digite o nome.');return}
+  if(!tel){alert('Digite o telefone.');return}
   if(senha.length<4){alert('Senha mínimo 4 caracteres.');return}
   const key='me_gestores_'+(EMP?EMP.id:'0');
   const lista=JSON.parse(localStorage.getItem(key)||'[]');
-  lista.push({nome,senha});
+  // Verificar telefone duplicado
+  if(lista.find(g=>g.telefone===tel)){alert('Este telefone já está cadastrado.');return}
+  lista.push({nome,telefone:tel,senha});
+  localStorage.setItem(key,JSON.stringify(lista));
+  gConfig();
+}
+
+function editarGestor(i){
+  const key='me_gestores_'+(EMP?EMP.id:'0');
+  const lista=JSON.parse(localStorage.getItem(key)||'[]');
+  const g=lista[i];if(!g)return;
+  const el=document.getElementById('gest-row-'+i);
+  if(!el)return;
+  el.innerHTML='<div style="flex:1;display:flex;flex-direction:column;gap:8px">'
+    +'<div class="fi" style="margin:0"><label>Nome</label><input id="ge-nome-'+i+'" value="'+g.nome+'" style="min-height:44px;font-size:15px"></div>'
+    +'<div class="fi" style="margin:0"><label>Telefone</label><input id="ge-tel-'+i+'" type="tel" inputmode="numeric" value="'+(g.telefone||'')+'" style="min-height:44px;font-size:15px"></div>'
+    +'<div class="fi" style="margin:0"><label>Nova senha (deixe em branco para manter)</label><input id="ge-sen-'+i+'" type="password" placeholder="••••••" style="min-height:44px;font-size:15px"></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bp bsm" style="flex:1" onclick="salvarGestor('+i+')"><i class="ti ti-check"></i> Salvar</button>'
+    +'<button class="btn bsm" onclick="gConfig()">Cancelar</button>'
+    +'</div></div>';
+}
+
+function salvarGestor(i){
+  const key='me_gestores_'+(EMP?EMP.id:'0');
+  const lista=JSON.parse(localStorage.getItem(key)||'[]');
+  const g=lista[i];if(!g)return;
+  const nome=(document.getElementById('ge-nome-'+i)?.value||'').trim();
+  const tel=(document.getElementById('ge-tel-'+i)?.value||'').replace(/\D/g,'');
+  const sen=(document.getElementById('ge-sen-'+i)?.value||'').trim();
+  if(!nome){alert('Digite o nome.');return}
+  if(!tel){alert('Digite o telefone.');return}
+  lista[i]={...g,nome,telefone:tel,senha:sen.length>=4?sen:g.senha};
   localStorage.setItem(key,JSON.stringify(lista));
   gConfig();
 }
@@ -2597,48 +2659,164 @@ function esqueciSenhaGestora(){
 function abrirModalRec(tipo, tel){
   const m=document.getElementById('modal-rec');
   m.style.display='flex';
-
+  const bodyEl=document.getElementById('modal-rec-body');
   if(tipo==='func'){
-    document.getElementById('modal-rec-body').innerHTML='\n      <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha</h3>\n      <p style="font-size:13px;color:#666;margin-bottom:16px">Confirme seu telefone e crie uma nova senha.</p>\n      <div class="fi"><label>Telefone</label>\n        <input id="rec-tel" type="tel" value="'+(tel)+'" placeholder="35999990001" inputmode="numeric">\n      </div>\n      <div class="fi"><label>Nova senha (mín. 4 caracteres)</label>\n        <input id="rec-s1" type="password" placeholder="••••••">\n      </div>\n      <div class="fi"><label>Confirmar nova senha</label>\n        <input id="rec-s2" type="password" placeholder="••••••">\n      </div>\n      <div id="rec-err" class="ae aer" style="display:none"></div>\n      <div id="rec-ok" class="ae aok" style="display:none"></div>\n      <div style="display:flex;gap:8px;margin-top:4px">\n        <button class="btn bp" style="flex:1" onclick="salvarNovaSenha()">\n          <i class="ti ti-key"></i> Salvar nova senha\n        </button>\n        <button class="btn" onclick="fecharModalRec()">Cancelar</button>\n      </div>';
+    bodyEl.innerHTML=''
+      +'<h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha</h3>'
+      +'<p style="font-size:13px;color:#666;margin-bottom:16px">A gestora vai gerar um código para você redefinir sua senha.</p>'
+      +'<div class="fi"><label>Seu telefone cadastrado</label>'
+      +'<input id="rec-tel" type="tel" value="'+tel+'" placeholder="35999990001" inputmode="numeric"></div>'
+      +'<div id="rec-err" class="ae aer" style="display:none"></div>'
+      +'<div id="rec-ok" class="ae aok" style="display:none"></div>'
+      +'<button id="btn-solicitar" class="btn bp" style="width:100%;justify-content:center;margin-bottom:10px" onclick="solicitarCodigoFunc()">'
+      +'<i class="ti ti-send"></i> Solicitar código</button>'
+      // Campos que aparecem após solicitar
+      +'<div id="rec-cod-block" style="display:none">'
+      +'<div class="ae" style="background:#FFF8E1;color:#7B5800;border:1px solid #F9A825;font-size:13px;margin-bottom:12px">'
+      +'📋 Peça o código de 6 dígitos para a sua gestora.</div>'
+      +'<div class="fi"><label>Código fornecido pela gestora</label>'
+      +'<input id="rec-cod" type="text" inputmode="numeric" placeholder="000000" maxlength="6" '
+      +'style="font-size:24px;letter-spacing:8px;text-align:center;font-weight:700"></div>'
+      +'</div>'
+      +'<div id="rec-senha-block" style="display:none">'
+      +'<div class="fi"><label>Nova senha (mín. 4 caracteres)</label>'
+      +'<input id="rec-s1" type="password" placeholder="••••••"></div>'
+      +'<div class="fi"><label>Confirmar nova senha</label>'
+      +'<input id="rec-s2" type="password" placeholder="••••••"></div>'
+      +'</div>'
+      +'<button id="btn-salvar-senha" class="btn bp" style="width:100%;justify-content:center;display:none" onclick="salvarNovaSenha()">'
+      +'<i class="ti ti-key"></i> Salvar nova senha</button>'
+      +'<button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="fecharModalRec()">Cancelar</button>';
   } else {
-    document.getElementById('modal-rec-body').innerHTML='\n      <h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha da gestora</h3>\n      <p style="font-size:13px;color:#666;margin-bottom:16px">Informe o ID da empresa e crie uma nova senha.</p>\n      <div class="ae" style="background:#FFF8E1;color:#7B5800;border:1px solid #F9A825;font-size:13px;margin-bottom:14px">\n        ⚠️ O ID da Maria Elegante é <strong>1</strong>. Apenas a senha de gestora será alterada.\n      </div>\n      <div class="fi"><label>ID da empresa</label>\n        <input id="rec-empid" type="number" placeholder="Ex: 1" inputmode="numeric">\n      </div>\n      <div class="fi"><label>Nova senha</label>\n        <input id="rec-gs1" type="password" placeholder="••••••">\n      </div>\n      <div class="fi"><label>Confirmar nova senha</label>\n        <input id="rec-gs2" type="password" placeholder="••••••">\n      </div>\n      <div id="rec-err" class="ae aer" style="display:none"></div>\n      <div id="rec-ok" class="ae aok" style="display:none"></div>\n      <div style="display:flex;gap:8px;margin-top:4px">\n        <button class="btn bp" style="flex:1" onclick="salvarNovaSenhaGestora()">\n          <i class="ti ti-key"></i> Salvar nova senha\n        </button>\n        <button class="btn" onclick="fecharModalRec()">Cancelar</button>\n      </div>';
+    bodyEl.innerHTML=''
+      +'<h3 style="font-size:17px;font-weight:700;margin-bottom:6px">Recuperar senha da gestora</h3>'
+      +'<p style="font-size:13px;color:#666;margin-bottom:16px">Digite o telefone cadastrado na conta para redefinir a senha.</p>'
+      +'<div class="ae" style="background:#FFF8E1;color:#7B5800;border:1px solid #F9A825;font-size:13px;margin-bottom:14px">'
+      +'💡 Use o telefone cadastrado nos dados da empresa ou no cadastro do gestor.</div>'
+      +'<div class="fi"><label>Telefone</label>'
+      +'<input id="rec-tel-g" type="tel" inputmode="numeric" placeholder="35999990000"></div>'
+      +'<div class="fi"><label>Nova senha (mín. 4 caracteres)</label>'
+      +'<input id="rec-gs1" type="password" placeholder="••••••"></div>'
+      +'<div class="fi"><label>Confirmar nova senha</label>'
+      +'<input id="rec-gs2" type="password" placeholder="••••••"></div>'
+      +'<div id="rec-err" class="ae aer" style="display:none"></div>'
+      +'<div id="rec-ok" class="ae aok" style="display:none"></div>'
+      +'<div style="display:flex;gap:8px;margin-top:4px">'
+      +'<button class="btn bp" style="flex:1" onclick="salvarNovaSenhaGestora()"><i class="ti ti-key"></i> Salvar senha</button>'
+      +'<button class="btn" onclick="fecharModalRec()">Cancelar</button></div>';
   }
 }
 
-async function salvarNovaSenha(){
-  const tel=(document.getElementById('rec-tel').value||'').replace(/\D/g,'');
-  const s1=(document.getElementById('rec-s1').value||'');
-  const s2=(document.getElementById('rec-s2').value||'');
+// Gerar código de 6 dígitos
+function gerarCodigo6(){
+  return String(Math.floor(100000+Math.random()*900000));
+}
+
+async function solicitarCodigoFunc(){
+  const tel=(document.getElementById('rec-tel')?.value||'').replace(/\D/g,'');
   const err=document.getElementById('rec-err');
   const ok=document.getElementById('rec-ok');
   err.style.display='none'; ok.style.display='none';
   if(!tel){err.textContent='Digite seu telefone.';err.style.display='block';return}
-  if(s1.length<4){err.textContent='Senha deve ter mínimo 4 caracteres.';err.style.display='block';return}
-  if(s1!==s2){err.textContent='As senhas não coincidem.';err.style.display='block';return}
   const res=await gt('funcionarias','?telefone=eq.'+tel+'&ativa=eq.true&login=neq.admin&select=id,nome');
   if(!res.length){err.textContent='Telefone não encontrado. Verifique com a gestora.';err.style.display='block';return}
-  await pk('funcionarias','?id=eq.'+res[0].id,{senha_hash:s1});
-  ok.textContent='✅ Senha de '+res[0].nome+' redefinida! Faça login normalmente.';
+  const codigo=gerarCodigo6();
+  const expira=Date.now()+(30*60*1000);
+  localStorage.setItem('me_rec_cod_'+tel,JSON.stringify({codigo,expira,funcId:res[0].id,nome:res[0].nome}));
+  ok.textContent='Código gerado para '+res[0].nome+'! Peça o código para a gestora.';
   ok.style.display='block';
-  setTimeout(()=>fecharModalRec(),2500);
+  const codBlock=document.getElementById('rec-cod-block');
+  const senBlock=document.getElementById('rec-senha-block');
+  const btnSol=document.getElementById('btn-solicitar');
+  const btnSalvar=document.getElementById('btn-salvar-senha');
+  if(codBlock)codBlock.style.display='block';
+  if(senBlock)senBlock.style.display='block';
+  if(btnSol)btnSol.style.display='none';
+  if(btnSalvar)btnSalvar.style.display='flex';
 }
 
-async function salvarNovaSenhaGestora(){
-  const empId=parseInt(document.getElementById('rec-empid').value)||0;
-  const s1=(document.getElementById('rec-gs1').value||'');
-  const s2=(document.getElementById('rec-gs2').value||'');
+async function salvarNovaSenha(){
+  const tel=(document.getElementById('rec-tel')?.value||'').replace(/\D/g,'');
+  const cod=(document.getElementById('rec-cod')?.value||'').trim();
+  const s1=(document.getElementById('rec-s1')?.value||'');
+  const s2=(document.getElementById('rec-s2')?.value||'');
   const err=document.getElementById('rec-err');
   const ok=document.getElementById('rec-ok');
   err.style.display='none'; ok.style.display='none';
-  if(!empId){err.textContent='Digite o ID da empresa.';err.style.display='block';return}
+  if(!cod){err.textContent='Digite o código fornecido pela gestora.';err.style.display='block';return}
   if(s1.length<4){err.textContent='Senha mínimo 4 caracteres.';err.style.display='block';return}
   if(s1!==s2){err.textContent='As senhas não coincidem.';err.style.display='block';return}
-  const emp=await gt('empresas','?id=eq.'+empId+'&select=id,nome');
-  if(!emp.length){err.textContent='Empresa não encontrada.';err.style.display='block';return}
-  localStorage.setItem('me_senha_gestora_'+empId, s1);
-  ok.textContent='✅ Nova senha salva para '+emp[0].nome+'! Faça login com a nova senha.';
-  ok.style.display='block';
+  const salvo=JSON.parse(localStorage.getItem('me_rec_cod_'+tel)||'null');
+  if(!salvo){err.textContent='Solicite um novo código primeiro.';err.style.display='block';return}
+  if(Date.now()>salvo.expira){
+    localStorage.removeItem('me_rec_cod_'+tel);
+    err.textContent='Código expirado (30 min). Solicite um novo.';err.style.display='block';return;
+  }
+  if(salvo.codigo!==cod){err.textContent='Código incorreto. Tente novamente.';err.style.display='block';return}
+  await pk('funcionarias','?id=eq.'+salvo.funcId,{senha_hash:s1});
+  localStorage.removeItem('me_rec_cod_'+tel);
+  ok.textContent='✅ Senha de '+salvo.nome+' redefinida com sucesso!';ok.style.display='block';
   setTimeout(()=>fecharModalRec(),2500);
+}
+
+// Ver códigos pendentes de recuperação (para a gestora mostrar às funcionárias)
+function verCodigosRecuperacao(){
+  const codigos=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key&&key.startsWith('me_rec_cod_')){
+      try{
+        const dados=JSON.parse(localStorage.getItem(key));
+        if(dados&&Date.now()<=dados.expira){
+          codigos.push({...dados,tel:key.replace('me_rec_cod_','')});
+        } else {
+          localStorage.removeItem(key); // limpar expirados
+        }
+      }catch(e){}
+    }
+  }
+  return codigos;
+}
+
+
+
+async function salvarNovaSenhaGestora(){
+  const tel=(document.getElementById('rec-tel-g')?.value||'').replace(/\D/g,'');
+  const s1=(document.getElementById('rec-gs1')?.value||'');
+  const s2=(document.getElementById('rec-gs2')?.value||'');
+  const err=document.getElementById('rec-err');
+  const ok=document.getElementById('rec-ok');
+  err.style.display='none'; ok.style.display='none';
+  if(!tel){err.textContent='Digite seu telefone.';err.style.display='block';return}
+  if(s1.length<4){err.textContent='Senha mínimo 4 caracteres.';err.style.display='block';return}
+  if(s1!==s2){err.textContent='As senhas não coincidem.';err.style.display='block';return}
+
+  // Verificar se é gestora principal (telefone da empresa)
+  const empId=localStorage.getItem('me_empresa_id')||'0';
+  const emp=await gt('empresas','?id=eq.'+empId+'&select=id,nome,telefone').catch(()=>[]);
+  if(emp.length&&emp[0].telefone&&emp[0].telefone.replace(/\D/g,'')===tel){
+    localStorage.setItem('me_senha_gestora_'+empId,s1);
+    ok.textContent='✅ Senha da gestora redefinida! Faça login com a nova senha.';
+    ok.style.display='block';
+    setTimeout(()=>fecharModalRec(),2500);
+    return;
+  }
+
+  // Verificar gestores extras
+  const keyG='me_gestores_'+empId;
+  const gestores=JSON.parse(localStorage.getItem(keyG)||'[]');
+  const idxG=gestores.findIndex(g=>(g.telefone||'').replace(/\D/g,'')===tel);
+  if(idxG>=0){
+    gestores[idxG].senha=s1;
+    localStorage.setItem(keyG,JSON.stringify(gestores));
+    ok.textContent='✅ Senha de '+gestores[idxG].nome+' redefinida!';
+    ok.style.display='block';
+    setTimeout(()=>fecharModalRec(),2500);
+    return;
+  }
+
+  err.textContent='Telefone não encontrado. Verifique com a gestora principal.';
+  err.style.display='block';
 }
 
 function fecharModalRec(){
