@@ -1323,6 +1323,16 @@ async function gEquipe(){
       +'<div style="font-size:12px;color:var(--t2)">'+( f.filiais?f.filiais.nome:'—')+' · <span style="padding:2px 7px;border-radius:999px;font-weight:600;font-size:10px;background:'+pBg+';color:'+pCl+'">'+f.perfil+'</span></div></div></div>'
       +'<button class="btn bsm" onclick="fecharEdit()"><i class="ti ti-x"></i></button>'
       +'</div>'
+      +'<div class="sep"></div>'
+      +'<div class="fi"><label>Nome</label><input id="ef-nome" value="'+f.nome+'" style="font-size:16px;min-height:46px"></div>'
+      +'<div class="fi"><label>Telefone</label><input id="ef-tel" type="tel" value="'+(f.telefone||f.login||'')+'" inputmode="numeric" style="font-size:16px;min-height:46px"></div>'
+      +'<div class="fi"><label>Perfil</label><select id="ef-perfil" style="font-size:16px;min-height:46px">'
+      +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
+      +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
+      +'</select></div>'
+      +'<button class="btn bp bsm" onclick="salvarDadosFunc('+id+')" style="margin-bottom:12px;width:100%;justify-content:center"><i class="ti ti-device-floppy"></i> Salvar dados</button>'
+      +'<div id="ef-ok" class="ae aok" style="display:none"></div>'
+      +'<div class="sep"></div>'
       +'<div id="edit-ok" class="ae aok" style="display:none"></div>'
       +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Metas mensais 2026</h3>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
@@ -2210,6 +2220,47 @@ async function fComunic(){
   window.cnfL=async id=>{await pt('comunicado_leituras',{comunicado_id:id,func_id:S.funcId}).catch(()=>{});fComunic()};
 }
 
+
+// ── SALVAR DADOS BÁSICOS DA FUNCIONÁRIA ──
+async function salvarDadosFunc(id){
+  const nome=(document.getElementById('ef-nome')?.value||'').trim();
+  const tel=(document.getElementById('ef-tel')?.value||'').replace(/\D/g,'');
+  const perfil=document.getElementById('ef-perfil')?.value||'vendedora';
+  const ok=document.getElementById('ef-ok');
+  if(!nome){alert('Digite o nome.');return}
+  if(!tel){alert('Digite o telefone.');return}
+  await pk('funcionarias','?id=eq.'+id,{nome,telefone:tel,login:tel,perfil});
+  if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(()=>ok.style.display='none',2500);}
+  gEquipe();
+}
+
+// ── CONFIGURAÇÕES DE COMISSÃO ──
+// Padrão do sistema (pode ser sobrescrito pela empresa)
+const COMISSAO_PADRAO=[
+  {de:0,   ate:70.99, pct:0,    label:'Abaixo de 71%'},
+  {de:71,  ate:84.99, pct:0.20, label:'71% a 84,99%'},
+  {de:85,  ate:99.99, pct:0.30, label:'85% a 99,99%'},
+  {de:100, ate:120,   pct:0.80, label:'100% a 120%'},
+  {de:120.01,ate:9999,pct:1.00, label:'Acima de 120%'},
+];
+
+function carregarFaixasEmpresa(){
+  const salvo=localStorage.getItem('me_faixas_'+( EMP?EMP.id:'0'));
+  return salvo?JSON.parse(salvo):COMISSAO_PADRAO;
+}
+
+function salvarFaixasEmpresa(faixas){
+  localStorage.setItem('me_faixas_'+(EMP?EMP.id:'0'),JSON.stringify(faixas));
+  // Atualizar FAIXAS globalmente
+  FAIXAS.splice(0,FAIXAS.length,...faixas);
+}
+
+// Recarregar FAIXAS ao iniciar
+(function(){
+  const f=carregarFaixasEmpresa();
+  FAIXAS.splice(0,FAIXAS.length,...f);
+})();
+
 // ── GESTORA: CONFIGURAÇÕES DA EMPRESA ──
 
 // ── HISTÓRICO DE LANÇAMENTOS (global para uso em gConfig) ──
@@ -2311,7 +2362,67 @@ async function gConfig(){
 
     ;
 
-  document.getElementById('ct').innerHTML=h;
+  
+  // ── CARD GESTORES ──
+  const gestores=await gt('funcionarias','?login=eq.admin'+eid()+'&select=*').catch(()=>[]);
+  h+='<div class="card"><div class="ct2"><i class="ti ti-shield-check"></i>Gestores da empresa</div>';
+  h+='<div id="lista-gestores">';
+  // Gestores salvos no localStorage
+  const gestoresExtra=JSON.parse(localStorage.getItem('me_gestores_'+(EMP?EMP.id:'0'))||'[]');
+  gestoresExtra.forEach((g,i)=>{
+    h+='<div class="ri"><div style="flex:1"><div class="rn">'+g.nome+'</div><div class="rs">Senha: ••••••</div></div>'
+      +'<button class="btn bd2r" onclick="removerGestor('+i+')"><i class="ti ti-trash"></i></button></div>';
+  });
+  if(!gestoresExtra.length) h+='<div class="em" style="padding:12px">Nenhum gestor adicional.</div>';
+  h+='</div><div class="sep"></div>'
+    +'<div class="fi"><label>Nome do gestor</label><input id="g-nome" placeholder="Ex: Carlos Silva"></div>'
+    +'<div class="fi"><label>Senha de acesso</label><input id="g-senha" type="password" placeholder="Mínimo 4 caracteres"></div>'
+    +'<button class="btn bp bsm" onclick="adicionarGestor()"><i class="ti ti-plus"></i> Adicionar gestor</button>'
+    +'</div>';
+
+  // ── CARD COMISSÕES VENDEDORAS ──
+  const faixasAtuais=carregarFaixasEmpresa();
+  h+='<div class="card"><div class="ct2"><i class="ti ti-percentage"></i>Regras de comissão — Vendedoras</div>'
+    +'<div class="hn">As comissões são calculadas sobre o total vendido pela funcionária no mês.</div>'
+    +'<div id="cfg-faixas">';
+  faixasAtuais.forEach((fx,i)=>{
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)">'
+      +'<div style="flex:1;font-size:13px;font-weight:600">'+fx.label+'</div>'
+      +'<div style="display:flex;align-items:center;gap:4px">'
+      +'<input type="number" id="fx-pct-'+i+'" value="'+fx.pct+'" min="0" max="100" step="0.01" '
+      +'style="width:70px;padding:6px 8px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px;text-align:right">'
+      +'<span style="font-size:13px;color:var(--t2)">%</span>'
+      +'</div></div>';
+  });
+  h+='</div>'
+    +'<button class="btn bp bsm" onclick="salvarFaixas()" style="margin-top:10px;width:100%;justify-content:center">'
+    +'<i class="ti ti-device-floppy"></i> Salvar regras de comissão</button>'
+    +'<div id="fx-ok" class="ae aok" style="display:none;margin-top:8px"></div>'
+    +'</div>';
+
+  // ── CARD COMISSÃO GERENTES ──
+  const comGer=JSON.parse(localStorage.getItem('me_comger_'+(EMP?EMP.id:'0'))||'{"pct100":0,"pct120":0}');
+  h+='<div class="card"><div class="ct2"><i class="ti ti-crown"></i>Comissão das gerentes</div>'
+    +'<div class="hn">A comissão da gerente é sobre o <strong>faturamento total da filial</strong> quando a loja bate a meta.</div>'
+    +'<div class="fi"><label>% quando a filial fecha 100% da meta</label>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<input type="number" id="ger-pct100" value="'+comGer.pct100+'" min="0" max="10" step="0.01" '
+    +'style="flex:1;padding:12px;border:1.5px solid var(--bd);border-radius:10px;font-size:16px;text-align:right">'
+    +'<span style="font-size:15px;color:var(--t2)">%</span>'
+    +'</div></div>'
+    +'<div class="fi"><label>% quando a filial fecha 120% ou mais</label>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<input type="number" id="ger-pct120" value="'+comGer.pct120+'" min="0" max="10" step="0.01" '
+    +'style="flex:1;padding:12px;border:1.5px solid var(--bd);border-radius:10px;font-size:16px;text-align:right">'
+    +'<span style="font-size:15px;color:var(--t2)">%</span>'
+    +'</div></div>'
+    +'<div class="hn" style="margin-top:4px">Exemplo: se a filial vendeu R$ 80.000 e a gerente tem 0,5%, ela recebe R$ 400,00</div>'
+    +'<button class="btn bp bsm" onclick="salvarComGer()" style="width:100%;justify-content:center">'
+    +'<i class="ti ti-device-floppy"></i> Salvar comissão das gerentes</button>'
+    +'<div id="ger-ok" class="ae aok" style="display:none;margin-top:8px"></div>'
+    +'</div>';
+
+document.getElementById('ct').innerHTML=h;
 
   let cfgLogoB64=emp.logo_base64||null;
 
@@ -2412,6 +2523,66 @@ async function gConfig(){
 }
 
 
+
+
+// ── GESTORES DA EMPRESA (além da gestora principal) ──
+function adicionarGestor(){
+  const nome=(document.getElementById('g-nome')?.value||'').trim();
+  const senha=(document.getElementById('g-senha')?.value||'').trim();
+  if(!nome){alert('Digite o nome.');return}
+  if(senha.length<4){alert('Senha mínimo 4 caracteres.');return}
+  const key='me_gestores_'+(EMP?EMP.id:'0');
+  const lista=JSON.parse(localStorage.getItem(key)||'[]');
+  lista.push({nome,senha});
+  localStorage.setItem(key,JSON.stringify(lista));
+  gConfig();
+}
+
+function removerGestor(i){
+  if(!confirm('Remover este gestor?'))return;
+  const key='me_gestores_'+(EMP?EMP.id:'0');
+  const lista=JSON.parse(localStorage.getItem(key)||'[]');
+  lista.splice(i,1);
+  localStorage.setItem(key,JSON.stringify(lista));
+  gConfig();
+}
+
+// Verificar se uma senha é de gestor adicional
+function isGestorExtra(senha){
+  const key='me_gestores_'+(EMP?EMP.id:'0');
+  const lista=JSON.parse(localStorage.getItem(key)||'[]');
+  return lista.find(g=>g.senha===senha)||null;
+}
+
+// ── SALVAR FAIXAS DE COMISSÃO ──
+function salvarFaixas(){
+  const faixasAtuais=carregarFaixasEmpresa();
+  const novas=faixasAtuais.map((fx,i)=>{
+    const el=document.getElementById('fx-pct-'+i);
+    const pct=el?parseFloat(el.value)||0:fx.pct;
+    return{...fx,pct};
+  });
+  salvarFaixasEmpresa(novas);
+  const ok=document.getElementById('fx-ok');
+  if(ok){ok.textContent='✅ Regras de comissão salvas!';ok.style.display='block';setTimeout(()=>ok.style.display='none',2500);}
+}
+
+// ── SALVAR COMISSÃO DAS GERENTES ──
+function salvarComGer(){
+  const pct100=parseFloat(document.getElementById('ger-pct100')?.value)||0;
+  const pct120=parseFloat(document.getElementById('ger-pct120')?.value)||0;
+  localStorage.setItem('me_comger_'+(EMP?EMP.id:'0'),JSON.stringify({pct100,pct120}));
+  const ok=document.getElementById('ger-ok');
+  if(ok){ok.textContent='✅ Comissão das gerentes salva!';ok.style.display='block';setTimeout(()=>ok.style.display='none',2500);}
+}
+
+// Calcular comissão da gerente baseada no faturamento da filial
+function calcComGer(faturamentoFilial, pctMeta){
+  const cfg=JSON.parse(localStorage.getItem('me_comger_'+(EMP?EMP.id:'0'))||'{"pct100":0,"pct120":0}');
+  if(pctMeta>=120) return faturamentoFilial*(cfg.pct120/100);
+  if(pctMeta>=100) return faturamentoFilial*(cfg.pct100/100);
+  return 0;
+}
 
 // ── RECUPERAÇÃO DE SENHA — FUNCIONÁRIA ──
 function esqueciSenha(){
@@ -2519,10 +2690,26 @@ async function loginG(){
     return;
   }
 
-  // Verificar senha da gestora (padrão 'admin' ou personalizada)
+  // Verificar senha da gestora (padrão 'admin', personalizada ou gestor extra)
   const empId=localStorage.getItem('me_empresa_id');
   const senhaPers=empId?localStorage.getItem('me_senha_gestora_'+empId):null;
   const senhaCorreta=senhaPers||'admin';
+
+  // Verificar gestores extras
+  const gestorExtra=isGestorExtra?isGestorExtra(s):null;
+  if(gestorExtra){
+    // Login como gestor extra - mesmo acesso da gestora principal
+    if(!EMP){
+      if(!empId){le.textContent='Empresa não configurada.';le.style.display='block';return}
+      const res=await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
+      if(!res.length){le.textContent='Empresa não encontrada.';le.style.display='block';return}
+      EMP=res[0];aplicarIdentidade(EMP);
+    }
+    if(EMP) localStorage.setItem('me_empresa_id',String(EMP.id));
+    S={tipo:'gestor'};
+    init();
+    return;
+  }
 
   if(s!==senhaCorreta){
     le.textContent='Senha incorreta.';
