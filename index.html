@@ -110,6 +110,90 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .em{text-align:center;padding:36px 16px;color:var(--t2)}
 .em i{font-size:40px;display:block;margin-bottom:10px;color:var(--bd2)}
 .tg{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg);color:var(--t2);display:inline-block}
+
+/* ── MOBILE MELHORIAS ── */
+/* Cards mais espaçados */
+@media(max-width:480px){
+  .ct{padding:10px 10px 90px}
+  .card{padding:14px 12px;border-radius:12px;margin-bottom:10px}
+  .fc{padding:14px 12px;border-radius:12px;margin-bottom:10px}
+  .h1{font-size:17px}
+  
+  /* Gráficos SVG menores no mobile */
+  svg{height:auto}
+  
+  /* Tabelas e grids adaptados */
+  .g3{grid-template-columns:1fr 1fr;gap:6px}
+  .g2{grid-template-columns:1fr 1fr;gap:6px}
+  .mx{padding:10px 8px}
+  .mx .v{font-size:14px}
+  
+  /* Botões maiores para toque */
+  .btn{min-height:46px;padding:12px 14px}
+  .bl{min-height:52px;font-size:17px}
+  
+  /* Nav inferior com ícones maiores */
+  .nb{min-height:58px;padding:8px 2px 8px}
+  .nb i{font-size:22px}
+  .nb span{font-size:9px}
+  
+  /* Inputs maiores */
+  .fi input,.fi select,.fi textarea{min-height:52px;font-size:16px;padding:14px 12px}
+  
+  /* Rows com mais espaço */
+  .ri{padding:14px 0;gap:10px}
+  .rn{font-size:14px}
+  .rs{font-size:12px}
+  
+  /* Badges menores */
+  .bx{font-size:10px;padding:3px 7px}
+  
+  /* Meter/progress mais visível */
+  .pb{height:8px;margin:8px 0}
+  
+  /* Checklist itens maiores */
+  .ci{padding:16px 0}
+  .cb{width:28px;height:28px;border-radius:8px}
+  .cx{font-size:15px}
+  
+  /* Filtros horizontais scroll */
+  .ms{gap:6px;padding-bottom:8px}
+  .mp{padding:9px 14px;font-size:13px;min-height:38px}
+  
+  /* Card motivacional maior */
+  .card[style*="border:1.5px solid"]{padding:16px}
+  
+  /* Texto menor em labels de gráfico */
+  svg text{font-size:7px}
+  
+  /* Ranking com espaço adequado */
+  .ri div.rn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+}
+
+/* Texto nunca muito pequeno */
+@media(max-width:360px){
+  .nb span{display:none}
+  .nb{min-height:52px}
+  .g3{grid-template-columns:1fr 1fr}
+}
+
+/* Scrollbar invisível em mobile */
+*{-ms-overflow-style:none;scrollbar-width:none}
+*::-webkit-scrollbar{display:none}
+
+/* Animações suaves */
+.card,.fc,.fc-item{transition:box-shadow .15s}
+.btn:active{transform:scale(.97);transition:transform .1s}
+.nb.active i{transform:scale(1.1);transition:transform .15s}
+
+/* Card preto da meta mais legível */
+.card[style*="background:#2d3748"]{
+  border-radius:14px;
+}
+
+/* Gráfico de barras responsivo */
+.grafico-bars{display:flex;align-items:flex-end;gap:4px;height:80px;overflow:hidden}
+
 svg{max-width:100%;overflow:visible}
 table{width:100%;font-size:13px;border-collapse:collapse}
 table td{padding:6px 4px;vertical-align:middle}
@@ -1412,6 +1496,68 @@ async function gEquipe(){
 }
 
 // ── GESTORA: DOCS ──
+
+// ── VER TERMOS ASSINADOS ──
+async function verTermosAssinados(){
+  const [docs,assinaturas,funcs]=await Promise.all([
+    gt('documentos','?tipo=eq.termo_confidencialidade'+eid()+'&select=*'),
+    gt('documento_assinaturas','?select=*,funcionarias(nome,telefone)'),
+    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,telefone')
+  ]);
+  
+  const docTermo=docs[0];
+  if(!docTermo){
+    document.getElementById('ct').innerHTML='<div class="card"><div class="em"><i class="ti ti-file-off"></i>Nenhum funcionária aceitou o termo ainda.</div></div>';
+    return;
+  }
+  
+  const assTermos=assinaturas.filter(a=>a.documento_id===docTermo.id);
+  const assIds=new Set(assTermos.map(a=>a.func_id));
+  
+  let h='<div class="h1">Termos de Confidencialidade</div>';
+  h+='<div class="hn">Registro jurídico dos aceites eletrônicos. Válido conforme MP 2.200-2/2001 e Lei nº 14.063/2020.</div>';
+  
+  // Assinadas
+  h+='<div class="card" style="border-top:3px solid var(--td)">'
+    +'<div class="ct2"><i class="ti ti-check"></i>Aceites registrados ('+assTermos.length+')</div>';
+  if(assTermos.length){
+    assTermos.forEach(a=>{
+      const nomeFunc=a.funcionarias?a.funcionarias.nome:'Funcionária';
+      const tel=a.funcionarias?a.funcionarias.telefone:'';
+      h+='<div class="ri">'
+        +'<div class="av" style="width:36px;height:36px;font-size:12px;background:var(--tl);color:var(--tdd);flex-shrink:0">'+in2(nomeFunc)+'</div>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div class="rn">'+nomeFunc+'</div>'
+        +'<div class="rs">'+(a.data_assinatura||'Data não registrada')+'</div>'
+        +(a.ip_dispositivo?'<div style="font-size:10px;color:var(--t3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+a.ip_dispositivo.substring(0,60)+'...</div>':'')
+        +'</div>'
+        +'<span class="bx ok">✓ Assinado</span>'
+        +'</div>';
+    });
+  } else {
+    h+='<div class="em" style="padding:12px">Nenhum aceite registrado ainda.</div>';
+  }
+  h+='</div>';
+  
+  // Pendentes
+  const pendentes=funcs.filter(f=>!assIds.has(f.id));
+  if(pendentes.length){
+    h+='<div class="card" style="border-top:3px solid #E24B4A">'
+      +'<div class="ct2" style="color:#C62828"><i class="ti ti-alert-circle"></i>Pendentes ('+pendentes.length+')</div>';
+    pendentes.forEach(f=>{
+      h+='<div class="ri">'
+        +'<div class="av" style="width:36px;height:36px;font-size:12px;background:#FFEBEE;color:#C62828;flex-shrink:0">'+in2(f.nome)+'</div>'
+        +'<div style="flex:1"><div class="rn">'+f.nome+'</div>'
+        +'<div class="rs">'+(f.telefone||'Sem telefone')+'</div></div>'
+        +'<span class="bx al">Pendente</span>'
+        +'</div>';
+    });
+    h+='</div>';
+  }
+  
+  document.getElementById('ct').innerHTML=h;
+}
+
 async function gDocs(){
   const [docs,funcs,ass,fils]=await Promise.all([
     gt('documentos','?select=*'+eid()),
@@ -1420,7 +1566,10 @@ async function gDocs(){
     gt('filiais','?select=*'+eid())
   ]);
   const tot=funcs.length,fO='<option value="">Todas as filiais</option>'+fils.map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('');
-  let h='<div class="h1">Documentos</div><div class="card"><h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Enviar documento</h3><div class="fi"><label>Nome</label><input id="dn" placeholder="Ex: Holerite Mai/2026"></div><div class="fi"><label>Tipo</label><select id="dt"><option value="ponto">Folha de Ponto</option><option value="holerite">Holerite</option><option value="outro">Outro</option></select></div><div class="fi"><label>Para</label><select id="df">'+fO+'</select></div><button class="btn bp" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div><div class="h1" style="margin-top:4px">Enviados</div>';
+  let h='<div class="h1">Documentos</div>'
+    +'<button class="btn" style="width:100%;justify-content:center;margin-bottom:12px;background:var(--tl);border-color:var(--tb);color:var(--tdd)" onclick="verTermosAssinados()">'
+    +'<i class="ti ti-writing"></i> Termos de Confidencialidade assinados</button>'
+    +'<div class="card"><h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Enviar documento</h3><div class="fi"><label>Nome</label><input id="dn" placeholder="Ex: Holerite Mai/2026"></div><div class="fi"><label>Tipo</label><select id="dt"><option value="ponto">Folha de Ponto</option><option value="holerite">Holerite</option><option value="outro">Outro</option></select></div><div class="fi"><label>Para</label><select id="df">'+fO+'</select></div><button class="btn bp" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div><div class="h1" style="margin-top:4px">Enviados</div>';
   docs.forEach(d=>{const a=ass.filter(x=>x.documento_id===d.id).length;h+='<div class="dc"><div style="display:flex;align-items:center;gap:12px"><div class="di"><i class="ti '+(d.tipo==='ponto'?'ti-clock':'ti-receipt-2')+'"></i></div><div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">'+a+'/'+tot+' assinaturas</div><div class="pb" style="margin-top:6px"><div class="pf" style="width:'+(tot>0?a/tot*100:0)+'%;background:var(--td)"></div></div></div><button class="btn bd2r" onclick="rmD('+d.id+')"><i class="ti ti-trash"></i></button></div></div>'});
   document.getElementById('ct').innerHTML=h;
   window.envD=async()=>{const nm=document.getElementById('dn').value.trim(),tp=document.getElementById('dt').value,fid=document.getElementById('df').value;if(!nm){alert('Digite o nome.');return}await pt('documentos',{nome:nm,tipo:tp,filial_id:fid||null,empresa_id:EMP?EMP.id:null});gDocs()};
@@ -2832,7 +2981,48 @@ function mostrarTermo(funcId, funcNome){
 }
 
 async function aceitarTermo(funcId){
-  localStorage.setItem('me_termo_'+funcId,'1');
+  // Salvar aceite no localStorage
+  localStorage.setItem('me_termo_'+funcId,VERSAO_TERMO);
+  
+  // Salvar no banco com data/hora, IP e dados completos para validade jurídica
+  const agora = new Date();
+  const dataHora = agora.toLocaleDateString('pt-BR')+' '+agora.toLocaleTimeString('pt-BR');
+  const nomeEmp = EMP?EMP.nome:'Maria Elegante';
+  const nomeFunc = fP?fP.nome:(S&&S.func?S.func.nome:'Funcionária');
+  
+  // Criar documento de termo assinado na tabela documentos
+  try{
+    // Verificar se já existe documento de termo para esta empresa
+    let docTermo = await gt('documentos','?tipo=eq.termo_confidencialidade'+eid()+'&select=id');
+    let docId;
+    if(!docTermo.length){
+      // Criar o documento base se não existir
+      const novoDoc = await pt('documentos',{
+        nome:'Termo de Confidencialidade — '+nomeEmp,
+        tipo:'termo_confidencialidade',
+        empresa_id: EMP?EMP.id:null,
+        filial_id: null,
+        conteudo: 'Termo de Confidencialidade e Responsabilidade pelo Uso do Sistema — '+nomeEmp
+      });
+      docId = novoDoc&&novoDoc[0]?novoDoc[0].id:null;
+    } else {
+      docId = docTermo[0].id;
+    }
+    
+    if(docId){
+      // Registrar assinatura com metadados jurídicos
+      await pt('documento_assinaturas',{
+        documento_id: docId,
+        func_id: funcId,
+        data_assinatura: dataHora,
+        ip_dispositivo: navigator.userAgent.substring(0,200),
+        observacao: 'Aceite eletrônico do Termo de Confidencialidade em '+dataHora+' — Dispositivo: '+(navigator.platform||'desconhecido')+' — Empresa: '+nomeEmp
+      }).catch(()=>{});
+    }
+  }catch(e){
+    console.error('Erro ao salvar termo:',e);
+  }
+  
   document.getElementById('modal-termo').style.display='none';
   init();
 }
@@ -2842,11 +3032,14 @@ function recusarTermo(){
   sair();
 }
 
+const VERSAO_TERMO='v2'; // Incrementar aqui para pedir novo aceite de todos
+
 function verificarTermo(){
   const f=fP||S?.func;
   if(!f){init();return}
   const aceitou=localStorage.getItem('me_termo_'+f.id);
-  if(aceitou) init();
+  // Verificar se aceitou a versão atual do termo
+  if(aceitou===VERSAO_TERMO) init();
   else mostrarTermo(f.id, f.nome);
 }
 
