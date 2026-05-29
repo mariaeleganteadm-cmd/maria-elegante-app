@@ -1121,18 +1121,23 @@ async function lnc(id){
 }
 
 async function editLanc(id){
-  const res=await gt('vendas','?id=eq.'+id+'&select=valor,data_venda');
-  if(!res.length)return;
-  editVenda(id,res[0].valor,res[0].data_venda);
+  try{
+    const res=await gt('vendas','?id=eq.'+id+'&select=valor,data_venda');
+    if(!res.length){alert('Lançamento não encontrado.');return}
+    editVenda(id,res[0].valor,res[0].data_venda);
+  }catch(e){console.error('Erro:',e);}
 }
 
 async function saveLanc(id){
-  const val=parseMeta(document.getElementById('el-v-'+id).value);
-  const dataISO=document.getElementById('el-d-'+id).value;
-  if(!val||!dataISO){alert('Preencha valor e data.');return}
+  const val=parseMeta(document.getElementById('el-v-'+id)?.value||'0');
+  const dataISO=(document.getElementById('el-d-'+id)?.value||'');
+  if(!val||val<=0){alert('Digite um valor válido.');return}
+  if(!dataISO){alert('Selecione a data.');return}
   const [a,m,d]=dataISO.split('-');
-  await pk('vendas','?id=eq.'+id,{valor:val,data_venda:d+'/'+m+'/'+a});
-  gMetas();
+  try{
+    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:d+'/'+m+'/'+a});
+    gMetas();
+  }catch(e){alert('Erro ao salvar. Tente novamente.');}
 }
 
 async function delLanc(id){
@@ -2436,14 +2441,17 @@ async function carregarHistorico(){
 }
 
 async function editVendaH(id){
-  // Buscar dados da venda para edição
-  const res=await gt('vendas','?id=eq.'+id+'&select=valor,data_venda');
-  if(!res.length)return;
-  editVenda(id,res[0].valor,res[0].data_venda);
+  try{
+    const res=await gt('vendas','?id=eq.'+id+'&select=valor,data_venda');
+    if(!res.length){alert('Lançamento não encontrado.');return}
+    editVenda(id,res[0].valor,res[0].data_venda);
+  }catch(e){console.error('Erro ao buscar venda:',e);}
 }
 
-async function editVenda(id,valor,data){
-  const el=document.getElementById('vl-'+id);if(!el)return;
+function editVenda(id,valor,data){
+  // Buscar elemento em qualquer lista (histórico usa vl- ou vl2-)
+  const el=document.getElementById('vl-'+id)||document.getElementById('vl2-'+id);
+  if(!el){alert('Atualize a busca e tente novamente.');return}
   const parts=data.split('/');
   const dataISO=parts[2]+'-'+parts[1]+'-'+parts[0];
   el.innerHTML='<div style="flex:1;display:flex;flex-direction:column;gap:8px">'
@@ -2458,12 +2466,18 @@ async function editVenda(id,valor,data){
 }
 
 async function saveVenda(id){
-  const val=parseMeta(document.getElementById('ev-v-'+id).value);
-  const dataISO=document.getElementById('ev-d-'+id).value;
-  if(!val||!dataISO){alert('Preencha valor e data.');return}
+  const val=parseMeta(document.getElementById('ev-v-'+id)?.value||'0');
+  const dataISO=(document.getElementById('ev-d-'+id)?.value||'');
+  if(!val||val<=0){alert('Digite um valor válido.');return}
+  if(!dataISO){alert('Selecione a data.');return}
   const p=dataISO.split('-');
-  await pk('vendas','?id=eq.'+id,{valor:val,data_venda:p[2]+'/'+p[1]+'/'+p[0]});
-  carregarHistorico();
+  try{
+    await pk('vendas','?id=eq.'+id,{valor:val,data_venda:p[2]+'/'+p[1]+'/'+p[0]});
+    // Atualizar a lista que estiver visível
+    if(document.getElementById('hist-result')) buscarLanc();
+    else if(document.getElementById('hist-lista')) carregarHistorico();
+    else gMetas();
+  }catch(e){alert('Erro ao salvar. Tente novamente.');}
 }
 
 async function delVenda(id){
