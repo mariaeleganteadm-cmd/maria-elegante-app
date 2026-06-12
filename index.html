@@ -2302,19 +2302,51 @@ async function fMetas(){
     +'<div class="mx"><label>Comissão est.</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(cC(meta,v))+'</div><div class="s">faixa '+faixa.pct+'%</div></div>'
     +'</div></div>';
 
-  // ── PRÓXIMA FAIXA ──
-  if(proxFx&&faltaProx>0&&p<120){
-    const ganhoExtra=cC(meta,meta*proxFx.de/100)-cC(meta,v);
-    h+='<div class="card" style="background:linear-gradient(135deg,#00695C11,#00897B08);border:1.5px solid var(--tb)">'
-      +'<div class="ct2"><i class="ti ti-star"></i>Próxima faixa de comissão</div>'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
-      +'<div><div style="font-size:22px;font-weight:800;color:var(--td)">'+proxFx.pct+'%</div>'
-      +'<div style="font-size:12px;color:var(--t2)">ao vender '+fi(meta*proxFx.de/100)+'</div></div>'
-      +'<div style="text-align:center;background:var(--tl);border-radius:10px;padding:10px 14px">'
-      +'<div style="font-size:11px;color:var(--t2);margin-bottom:2px">Falta vender</div>'
-      +'<div style="font-size:20px;font-weight:800;color:var(--tdd)">'+fi(faltaProx)+'</div>'
-      +'<div style="font-size:11px;color:var(--td);margin-top:2px">+'+fm(ganhoExtra)+' de comissão</div>'
-      +'</div></div></div>';
+  // ── CARD ESTÍMULO COMISSÃO (todas as faixas) ──
+  if(meta>0){
+    // Calcular comissão atual e potencial em cada faixa
+    const comAtual=cC(meta,v);
+    
+    h+='<div class="card" style="border-top:3px solid #BA7517">'
+      +'<div class="ct2" style="color:#7B5800"><i class="ti ti-coins"></i>Sua comissão estimada</div>'
+      // Comissão atual
+      +'<div style="background:linear-gradient(135deg,#FFF8E1,#FFFDE7);border-radius:12px;padding:14px;margin-bottom:12px;border:1.5px solid #F9A825">'
+      +'<div style="font-size:11px;color:#7B5800;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Sua comissão hoje</div>'
+      +'<div style="font-size:32px;font-weight:800;color:#E65100">'+fm(comAtual)+'</div>'
+      +'<div style="font-size:12px;color:#7B5800;margin-top:2px">Faixa atual: <strong>'+faixa.pct+'%</strong> sobre '+fi(v)+' vendidos</div>'
+      +'</div>';
+
+    // Mostrar todas as faixas acima como estímulo
+    const faixasAcima=FAIXAS.filter(fx=>fx.pct>0&&fx.de>p);
+    if(faixasAcima.length){
+      h+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Se você vender mais...</div>';
+      faixasAcima.forEach(fx=>{
+        const vendNec=meta*(fx.de/100);
+        const faltaSim=Math.max(vendNec-v,0);
+        const comNova=cC(meta,vendNec);
+        const ganho=comNova-comAtual;
+        const isProx=fx===faixasAcima[0];
+        h+='<div style="display:flex;align-items:center;gap:10px;padding:12px;background:'+(isProx?'var(--tl)':'var(--bg)')+';border-radius:10px;margin-bottom:6px;border:'+(isProx?'1.5px solid var(--tb)':'1px solid transparent')+'">'
+          +'<div style="width:44px;height:44px;border-radius:50%;background:'+(isProx?'var(--td)':'var(--bd2)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+          +'<span style="font-size:13px;font-weight:800;color:#fff">'+fx.pct+'%</span></div>'
+          +'<div style="flex:1;min-width:0">'
+          +(isProx?'<div style="font-size:11px;font-weight:700;color:var(--tdd);margin-bottom:2px">👆 PRÓXIMA FAIXA</div>':'')
+          +'<div style="font-size:13px;font-weight:600">Falta vender <strong>'+fi(faltaSim)+'</strong></div>'
+          +'<div style="font-size:11px;color:var(--t2)">Meta: '+fi(vendNec)+' ('+fx.de+'%)</div>'
+          +'</div>'
+          +'<div style="text-align:right;flex-shrink:0">'
+          +'<div style="font-size:16px;font-weight:800;color:var(--td)">'+fm(comNova)+'</div>'
+          +'<div style="font-size:11px;color:#00695C;font-weight:600">+'+fm(ganho)+' a mais</div>'
+          +'</div></div>';
+      });
+    } else {
+      h+='<div style="text-align:center;padding:10px;background:var(--tl);border-radius:10px">'
+        +'<div style="font-size:22px">🏆</div>'
+        +'<div style="font-weight:700;color:var(--tdd);margin-top:4px">Faixa máxima atingida!</div>'
+        +'<div style="font-size:12px;color:var(--td);margin-top:2px">Comissão de '+faixa.pct+'% sobre tudo que vender</div>'
+        +'</div>';
+    }
+    h+='</div>';
   }
 
   // ── LANÇAMENTOS DO DIA ──
@@ -2591,27 +2623,36 @@ async function gConfig(){
     +'<div id="fx-ok" class="ae aok" style="display:none;margin-top:8px"></div>'
     +'</div>';
 
-  // ── CARD COMISSÃO GERENTES ──
-  const comGer=JSON.parse(localStorage.getItem('me_comger_'+(EMP?EMP.id:'0'))||'{"pct100":0,"pct120":0}');
-  h+='<div class="card"><div class="ct2"><i class="ti ti-crown"></i>Comissão das gerentes</div>'
-    +'<div class="hn">A comissão da gerente é sobre o <strong>faturamento total da filial</strong> quando a loja bate a meta.</div>'
-    +'<div class="fi"><label>% quando a filial fecha 100% da meta</label>'
-    +'<div style="display:flex;align-items:center;gap:8px">'
-    +'<input type="number" id="ger-pct100" value="'+comGer.pct100+'" min="0" max="10" step="0.01" '
-    +'style="flex:1;padding:12px;border:1.5px solid var(--bd);border-radius:10px;font-size:16px;text-align:right">'
-    +'<span style="font-size:15px;color:var(--t2)">%</span>'
-    +'</div></div>'
-    +'<div class="fi"><label>% quando a filial fecha 120% ou mais</label>'
-    +'<div style="display:flex;align-items:center;gap:8px">'
-    +'<input type="number" id="ger-pct120" value="'+comGer.pct120+'" min="0" max="10" step="0.01" '
-    +'style="flex:1;padding:12px;border:1.5px solid var(--bd);border-radius:10px;font-size:16px;text-align:right">'
-    +'<span style="font-size:15px;color:var(--t2)">%</span>'
-    +'</div></div>'
-    +'<div class="hn" style="margin-top:4px">Exemplo: se a filial vendeu R$ 80.000 e a gerente tem 0,5%, ela recebe R$ 400,00</div>'
-    +'<button class="btn bp bsm" onclick="salvarComGer()" style="width:100%;justify-content:center">'
-    +'<i class="ti ti-device-floppy"></i> Salvar comissão das gerentes</button>'
-    +'<div id="ger-ok" class="ae aok" style="display:none;margin-top:8px"></div>'
-    +'</div>';
+  // ── CARD COMISSÃO GERENTES (por filial) ──
+  h+='<div class="card"><div class="ct2"><i class="ti ti-crown"></i>Comissão das gerentes — por filial</div>'
+    +'<div class="hn">Calculada sobre o <strong>faturamento total da filial</strong>. Cada filial pode ter % diferente.</div>';
+  fils.forEach(fl=>{
+    const keyFil='me_comger_'+( EMP?EMP.id:'0')+'_fil_'+fl.id;
+    const cFil=JSON.parse(localStorage.getItem(keyFil)||'{"pct100":0,"pct120":0}');
+    h+='<div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px">'
+      +'<div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--tdd)">'+fl.nome+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      +'<div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-bottom:4px">Ao fechar 100%</div>'
+      +'<div style="display:flex;align-items:center;gap:4px">'
+      +'<input type="number" id="ger-100-'+fl.id+'" value="'+cFil.pct100+'" min="0" max="10" step="0.01" '
+      +'style="flex:1;padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:15px;text-align:right;min-height:44px">'
+      +'<span style="color:var(--t2)">%</span>'
+      +'</div></div>'
+      +'<div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-bottom:4px">Ao fechar 120%</div>'
+      +'<div style="display:flex;align-items:center;gap:4px">'
+      +'<input type="number" id="ger-120-'+fl.id+'" value="'+cFil.pct120+'" min="0" max="10" step="0.01" '
+      +'style="flex:1;padding:10px;border:1.5px solid var(--bd);border-radius:8px;font-size:15px;text-align:right;min-height:44px">'
+      +'<span style="color:var(--t2)">%</span>'
+      +'</div></div>'
+      +'</div>'
+      +'<button class="btn bp bsm" onclick="salvarComGerFil('+fl.id+')" style="width:100%;justify-content:center;margin-top:8px">'
+      +'<i class="ti ti-device-floppy"></i> Salvar '+fl.nome+'</button>'
+      +'<div id="ger-ok-'+fl.id+'" class="ae aok" style="display:none;margin-top:6px"></div>'
+      +'</div>';
+  });
+  h+='</div>';
 
 document.getElementById('ct').innerHTML=h;
 
@@ -2793,17 +2834,22 @@ function salvarFaixas(){
 }
 
 // ── SALVAR COMISSÃO DAS GERENTES ──
-function salvarComGer(){
-  const pct100=parseFloat(document.getElementById('ger-pct100')?.value)||0;
-  const pct120=parseFloat(document.getElementById('ger-pct120')?.value)||0;
-  localStorage.setItem('me_comger_'+(EMP?EMP.id:'0'),JSON.stringify({pct100,pct120}));
-  const ok=document.getElementById('ger-ok');
-  if(ok){ok.textContent='✅ Comissão das gerentes salva!';ok.style.display='block';setTimeout(()=>ok.style.display='none',2500);}
+function salvarComGerFil(filId){
+  const p100=parseFloat(document.getElementById('ger-100-'+filId)?.value)||0;
+  const p120=parseFloat(document.getElementById('ger-120-'+filId)?.value)||0;
+  const key='me_comger_'+(EMP?EMP.id:'0')+'_fil_'+filId;
+  localStorage.setItem(key,JSON.stringify({pct100:p100,pct120:p120}));
+  const ok=document.getElementById('ger-ok-'+filId);
+  if(ok){ok.textContent='✅ Salvo!';ok.style.display='block';setTimeout(()=>ok.style.display='none',2000);}
 }
 
-// Calcular comissão da gerente baseada no faturamento da filial
-function calcComGer(faturamentoFilial, pctMeta){
-  const cfg=JSON.parse(localStorage.getItem('me_comger_'+(EMP?EMP.id:'0'))||'{"pct100":0,"pct120":0}');
+// Manter compatibilidade com salvarComGer (legado)
+function salvarComGer(){ salvarComGerFil && Object.keys(localStorage).filter(k=>k.includes('_fil_')).forEach(()=>{}); }
+
+// Calcular comissão da gerente por filial
+function calcComGer(faturamentoFilial, pctMeta, filId){
+  const key='me_comger_'+(EMP?EMP.id:'0')+(filId?'_fil_'+filId:'');
+  const cfg=JSON.parse(localStorage.getItem(key)||'{"pct100":0,"pct120":0}');
   if(pctMeta>=120) return faturamentoFilial*(cfg.pct120/100);
   if(pctMeta>=100) return faturamentoFilial*(cfg.pct100/100);
   return 0;
