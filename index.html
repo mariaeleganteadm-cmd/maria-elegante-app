@@ -3275,6 +3275,493 @@ if('serviceWorker' in navigator){
       .then(reg => console.log('SW registrado:', reg.scope))
       .catch(err => console.log('SW erro:', err));
   });
+}// ============================================================
+// MÓDULO DE ESTOQUE — MARIA ELEGANTE
+// Cole este bloco inteiro logo antes do </script> final do index.html
+// Depois faça as 2 alterações em buildNav() e navTo() conforme abaixo
+// ============================================================
+
+// buildNav() — no array gestor, adicione antes de g-config:
+//   {id:'g-estoque',i:'ti-box',l:'Estoque'},
+//
+// navTo() — no objeto fns, adicione:
+//   g_estoque:gEstoque,
+
+const FILIAIS_EST = ['Elói Mendes','Três Corações','Lavras','Campo Belo'];
+const PRECOS_EST  = [25, 40, 50, 80, 100];
+
+const fiEst = v => 'R$\u00A0' + Number(v).toLocaleString('pt-BR');
+
+function estTabela(dados, minimos){
+  var minMap = {};
+  (minimos||[]).forEach(function(m){ minMap[m.preco+'|'+m.filial] = m.quantidade; });
+
+  var h = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:360px">'
+    + '<thead><tr>'
+    + '<th style="text-align:left;padding:8px 6px;border-bottom:2px solid var(--bd);font-size:11px;color:var(--t2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">Pre\u00e7o</th>';
+  FILIAIS_EST.forEach(function(f){
+    h += '<th style="text-align:center;padding:8px 4px;border-bottom:2px solid var(--bd);font-size:11px;color:var(--t2);font-weight:700;white-space:nowrap">'
+       + f.split(' ')[0] + '</th>';
+  });
+  h += '</tr></thead><tbody>';
+
+  PRECOS_EST.forEach(function(preco){
+    var linha = (dados||[]).find(function(d){ return Number(d.preco) === preco; }) || {};
+    h += '<tr>';
+    h += '<td style="padding:9px 6px;border-bottom:.5px solid var(--bd);font-weight:700">'
+       + '<span style="display:inline-block;background:#F4C0D1;color:#72243E;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700">R$\u00A0'+preco+'</span>'
+       + '</td>';
+    FILIAIS_EST.forEach(function(f){
+      var qtd = Number(linha[f] != null ? linha[f] : 0);
+      var min = minMap[preco+'|'+f] != null ? minMap[preco+'|'+f] : 0;
+      var baixo = min > 0 && qtd < min;
+      var cor = baixo ? '#A32D2D' : qtd === 0 ? 'var(--t3)' : 'var(--tx)';
+      var bg  = baixo ? '#FCEBEB' : 'transparent';
+      h += '<td style="text-align:center;padding:9px 4px;border-bottom:.5px solid var(--bd);background:'+bg+'">'
+         + '<strong style="color:'+cor+';font-size:14px">'+qtd+'</strong>'
+         + (baixo ? '<div style="font-size:9px;color:#E24B4A;margin-top:1px">m\u00edn '+min+'</div>' : '')
+         + '</td>';
+    });
+    h += '</tr>';
+  });
+
+  h += '</tbody></table></div>';
+  return h;
+}
+
+async function gEstoque(subaba){
+  var aba = subaba || 'grade';
+  document.getElementById('ct').innerHTML = '<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>';
+
+  var subnavItems = [
+    {id:'grade',   icon:'ti-table',          label:'Estoque'},
+    {id:'lancar',  icon:'ti-plus',           label:'Novo lote'},
+    {id:'lotes',   icon:'ti-clipboard-list', label:'Lotes'},
+    {id:'alertas', icon:'ti-bell',           label:'Alertas'},
+  ];
+
+  var h = '<div style="margin-bottom:14px;margin-top:4px">'
+    + '<div style="font-size:18px;font-weight:700;margin-bottom:10px">Controle de Estoque</div>'
+    + '<div class="ms">';
+  subnavItems.forEach(function(s){
+    h += '<button class="mp'+(aba===s.id?' active':'')+'" onclick="gEstoque(\''+s.id+'\')">'
+       + '<i class="ti '+s.icon+'" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>'+s.label+'</button>';
+  });
+  h += '</div></div>';
+
+  document.getElementById('ct').innerHTML = h + '<div class="ld"><i class="ti ti-loader"></i></div>';
+
+  var conteudo = '';
+  if(aba === 'grade')        conteudo = await gEstoqueGrade();
+  else if(aba === 'lancar')  conteudo = await gEstoqueLancar();
+  else if(aba === 'lotes')   conteudo = await gEstoqueLotes();
+  else if(aba === 'alertas') conteudo = await gEstoqueAlertas();
+  else                       conteudo = await gEstoqueGrade();
+
+  document.getElementById('ct').innerHTML = h + conteudo;
+}
+
+async function gEstoqueGrade(){
+  var grade, minimos;
+  try {
+    var r = await Promise.all([
+      gt('vw_estoque_grade','?select=*'),
+      gt('estoque_minimo','?select=*'),
+    ]);
+    grade = r[0]; minimos = r[1];
+  } catch(e){ grade=[]; minimos=[]; }
+
+  var h = '<div class="card">'
+    + '<div class="ct2"><i class="ti ti-table"></i>Estoque por filial</div>'
+    + estTabela(grade, minimos)
+    + '</div>';
+
+  h += '<div class="card"><div class="ct2"><i class="ti ti-calculator"></i>Total geral</div>'
+    + '<div class="g2">';
+  var totalGeral = 0;
+  PRECOS_EST.forEach(function(preco){
+    var linha = (grade||[]).find(function(d){ return Number(d.preco) === preco; }) || {};
+    var total = FILIAIS_EST.reduce(function(s,f){ return s + Number(linha[f]||0); }, 0);
+    totalGeral += total * preco;
+    h += '<div class="mx"><label>R$ '+preco+' \u2014 total</label>'
+       + '<div class="v" style="font-size:15px">'+total+' pe\u00e7as</div>'
+       + '<div class="s">'+fiEst(total*preco)+'</div>'
+       + '</div>';
+  });
+  h += '</div>'
+    + '<div style="margin-top:10px;padding:10px;background:var(--tl);border-radius:10px;display:flex;justify-content:space-between;align-items:center">'
+    + '<span style="font-size:13px;font-weight:600;color:var(--tdd)">Valor total em estoque</span>'
+    + '<span style="font-size:20px;font-weight:800;color:var(--tdd)">'+fiEst(totalGeral)+'</span>'
+    + '</div></div>';
+
+  return h;
+}
+
+function _lotItemRow(idx){
+  var precoOpts = PRECOS_EST.map(function(p){ return '<option value="'+p+'">R$ '+p+'</option>'; }).join('');
+  return '<tr id="lot-row-'+idx+'">'
+    + '<td style="padding:6px 4px"><input data-lot-nome placeholder="Nome da pe\u00e7a" '
+    + 'style="width:100%;padding:8px 10px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px;background:#fff;color:var(--tx);outline:none;min-height:42px"></td>'
+    + '<td style="padding:6px 4px"><input type="number" data-lot-qty value="1" min="1" '
+    + 'oninput="if(window.lotAtualizarResumo)lotAtualizarResumo()" '
+    + 'style="width:100%;padding:8px 6px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px;text-align:center;background:#fff;color:var(--tx);outline:none;min-height:42px"></td>'
+    + '<td style="padding:6px 4px"><select data-lot-preco '
+    + 'oninput="if(window.lotAtualizarResumo)lotAtualizarResumo()" '
+    + 'style="width:100%;padding:8px 6px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;color:var(--tx);outline:none;min-height:42px">'
+    + precoOpts
+    + '</select></td>'
+    + '<td style="padding:6px 2px;text-align:center">'
+    + (idx > 0
+      ? '<button class="btn" style="padding:6px 9px;font-size:13px" onclick="lotRemoveRow('+idx+')">'
+        + '<i class="ti ti-trash"></i></button>'
+      : '<span style="width:36px;display:inline-block"></span>')
+    + '</td></tr>';
+}
+
+async function gEstoqueLancar(){
+  var hoje = new Date();
+  var hjISO2 = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+
+  var h = '<div class="card">'
+    + '<div class="ct2"><i class="ti ti-calendar"></i>Informa\u00e7\u00f5es do lote</div>'
+    + '<div class="fi"><label>Data de entrada</label>'
+    + '<input type="date" id="lot-data" value="'+hjISO2+'" style="min-height:50px;font-size:16px"></div>'
+    + '<div class="fi"><label>Loja destino</label>'
+    + '<select id="lot-filial" style="min-height:50px;font-size:16px">'
+    + FILIAIS_EST.map(function(f){ return '<option>'+f+'</option>'; }).join('')
+    + '</select></div>'
+    + '</div>';
+
+  h += '<div class="card">'
+    + '<div class="ct2"><i class="ti ti-shirt"></i>Pe\u00e7as do lote</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + '<thead><tr>'
+    + '<th style="text-align:left;padding:6px 4px;border-bottom:1.5px solid var(--bd);font-size:11px;color:var(--t2);text-transform:uppercase">Nome da pe\u00e7a</th>'
+    + '<th style="text-align:center;padding:6px 4px;border-bottom:1.5px solid var(--bd);font-size:11px;color:var(--t2);text-transform:uppercase;width:70px">Qtd</th>'
+    + '<th style="text-align:center;padding:6px 4px;border-bottom:1.5px solid var(--bd);font-size:11px;color:var(--t2);text-transform:uppercase;width:90px">Pre\u00e7o</th>'
+    + '<th style="width:36px"></th>'
+    + '</tr></thead>'
+    + '<tbody id="lot-itens">'
+    + _lotItemRow(0)
+    + '</tbody></table>'
+    + '<button class="btn" style="width:100%;justify-content:center;border-style:dashed;color:var(--t2);margin-top:8px" onclick="lotAddRow()">'
+    + '<i class="ti ti-plus"></i> Adicionar pe\u00e7a</button>'
+    + '</div>';
+
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:14px">'
+    + '<span id="lot-resumo" style="font-size:13px;color:var(--t2)">\u2014</span>'
+    + '<button class="btn bp" onclick="lotSalvar()">'
+    + '<i class="ti ti-send"></i> Salvar e aguardar confer\u00eancia</button>'
+    + '</div>';
+
+  window._lotRowCount = 1;
+
+  window.lotAddRow = function(){
+    var idx = window._lotRowCount++;
+    var tb = document.getElementById('lot-itens');
+    if(!tb) return;
+    var tr = document.createElement('tr');
+    tr.id = 'lot-row-'+idx;
+    tr.innerHTML = _lotItemRow(idx);
+    tb.appendChild(tr);
+    lotAtualizarResumo();
+  };
+
+  window.lotRemoveRow = function(idx){
+    var row = document.getElementById('lot-row-'+idx);
+    if(row) row.remove();
+    lotAtualizarResumo();
+  };
+
+  window.lotAtualizarResumo = function(){
+    var total = 0, pecas = 0;
+    document.querySelectorAll('[data-lot-qty]').forEach(function(el){
+      var qty = parseInt(el.value)||0;
+      var preco = parseFloat(el.closest('tr') && el.closest('tr').querySelector('[data-lot-preco]') ? el.closest('tr').querySelector('[data-lot-preco]').value : 0);
+      total += qty * preco;
+      pecas += qty;
+    });
+    var el = document.getElementById('lot-resumo');
+    if(el) el.textContent = pecas + ' pe\u00e7as \u00b7 ' + fiEst(total);
+  };
+
+  window.lotSalvar = async function(){
+    var dataISO = document.getElementById('lot-data') ? document.getElementById('lot-data').value : '';
+    var filial  = document.getElementById('lot-filial') ? document.getElementById('lot-filial').value : '';
+    if(!dataISO || !filial){ alert('Preencha data e filial.'); return; }
+
+    var itens = [];
+    document.querySelectorAll('#lot-itens tr').forEach(function(tr){
+      var nomeEl  = tr.querySelector('[data-lot-nome]');
+      var qtyEl   = tr.querySelector('[data-lot-qty]');
+      var precoEl = tr.querySelector('[data-lot-preco]');
+      var nome  = nomeEl ? nomeEl.value.trim() : '';
+      var qty   = parseInt(qtyEl ? qtyEl.value : 0)||0;
+      var preco = parseFloat(precoEl ? precoEl.value : 0)||0;
+      if(nome && qty > 0 && preco > 0) itens.push({nome_peca:nome, qtd_esperada:qty, preco:preco});
+    });
+
+    if(!itens.length){ alert('Adicione pelo menos uma pe\u00e7a.'); return; }
+
+    var parts = dataISO.split('-');
+    var dataFmt = parts[2]+'/'+parts[1]+'/'+parts[0];
+
+    var loteRes = await pt('lotes',{
+      filial: filial,
+      data_entrada: dataFmt,
+      criado_por: S && S.funcId ? S.funcId : null,
+      status: 'aguardando',
+    });
+    var loteId = loteRes && loteRes[0] ? loteRes[0].id : null;
+    if(!loteId){ alert('Erro ao salvar lote. Tente novamente.'); return; }
+
+    for(var i=0; i<itens.length; i++){
+      await pt('lote_itens',Object.assign({lote_id:loteId}, itens[i]));
+    }
+
+    alert('Lote salvo! Aguardando confer\u00eancia da loja '+filial+'.');
+    gEstoque('lotes');
+  };
+
+  return h;
+}
+
+async function gEstoqueLotes(){
+  var lotes;
+  try { lotes = await gt('lotes','?select=*,lote_itens(id,qtd_esperada,preco),funcionarias(nome)&order=criado_em.desc'); }
+  catch(e){ lotes = []; }
+
+  if(!lotes || !lotes.length){
+    return '<div class="card"><div class="em"><i class="ti ti-clipboard-x"></i>Nenhum lote cadastrado ainda.</div></div>';
+  }
+
+  var statusCfg = {
+    aguardando:  {cls:'wn', icon:'ti-clock',          label:'Aguardando'},
+    conferido:   {cls:'ok', icon:'ti-check',          label:'Conferido'},
+    divergencia: {cls:'al', icon:'ti-alert-triangle', label:'Diverg\u00eancia'},
+  };
+
+  var h = '';
+  lotes.forEach(function(lot){
+    var st = statusCfg[lot.status] || statusCfg.aguardando;
+    var totalPecas = (lot.lote_itens||[]).reduce(function(s,i){ return s+i.qtd_esperada; }, 0);
+    var totalVal   = (lot.lote_itens||[]).reduce(function(s,i){ return s+i.qtd_esperada*i.preco; }, 0);
+    var criador    = lot.funcionarias ? lot.funcionarias.nome : 'Admin';
+
+    h += '<div class="fc" onclick="gEstoqueConferir(\''+lot.id+'\',\''+lot.status+'\')" style="cursor:pointer">'
+       + '<div style="display:flex;align-items:flex-start;gap:10px">'
+       + '<div style="flex:1">'
+       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+       + '<span style="font-weight:700;font-size:14px">'+lot.filial+'</span>'
+       + '<span class="bx '+st.cls+'"><i class="ti '+st.icon+'" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>'+st.label+'</span>'
+       + '</div>'
+       + '<div style="font-size:12px;color:var(--t2)">'+lot.data_entrada+' \u00b7 '+(lot.lote_itens?lot.lote_itens.length:0)+' itens \u00b7 '+totalPecas+' pe\u00e7as \u00b7 '+fiEst(totalVal)+'</div>'
+       + '<div style="font-size:11px;color:var(--t3);margin-top:2px">Lan\u00e7ado por '+criador+'</div>'
+       + '</div>'
+       + '<i class="ti ti-chevron-right" style="color:var(--t3);font-size:18px;flex-shrink:0;margin-top:2px"></i>'
+       + '</div></div>';
+  });
+
+  return h;
+}
+
+async function gEstoqueConferir(loteId, status){
+  var loteArr, itens, confsRaw;
+  try {
+    var r = await Promise.all([
+      gt('lotes','?id=eq.'+loteId+'&select=*'),
+      gt('lote_itens','?lote_id=eq.'+loteId+'&select=*&order=nome_peca'),
+      gt('conferencias','?lote_item_id=in.(select id from lote_itens where lote_id=eq.'+loteId+')&select=*'),
+    ]);
+    loteArr = r[0]; itens = r[1]; confsRaw = r[2];
+  } catch(e){ loteArr=[]; itens=[]; confsRaw=[]; }
+
+  var lot = loteArr && loteArr[0] ? loteArr[0] : null;
+  if(!lot){ gEstoque('lotes'); return; }
+
+  var confMap = {};
+  (confsRaw||[]).forEach(function(c){ confMap[c.lote_item_id] = c; });
+
+  var statusCfg = {
+    aguardando:  {cls:'wn', label:'Aguardando confer\u00eancia'},
+    conferido:   {cls:'ok', label:'Conferido'},
+    divergencia: {cls:'al', label:'Com diverg\u00eancia'},
+  };
+  var st = statusCfg[lot.status] || statusCfg.aguardando;
+
+  var ok   = (itens||[]).filter(function(i){ return confMap[i.id] && confMap[i.id].qtd_recebida === i.qtd_esperada; }).length;
+  var div2 = (itens||[]).filter(function(i){ return confMap[i.id] && confMap[i.id].qtd_recebida !== i.qtd_esperada; }).length;
+  var pend = (itens||[]).filter(function(i){ return !confMap[i.id]; }).length;
+
+  var h = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+    + '<button class="btn bsm" onclick="gEstoque(\'lotes\')"><i class="ti ti-arrow-left"></i> Voltar</button>'
+    + '<div style="flex:1"><div style="font-size:15px;font-weight:700">'+lot.filial+'</div>'
+    + '<div style="font-size:12px;color:var(--t2)">'+lot.data_entrada+'</div></div>'
+    + '<span class="bx '+st.cls+'">'+st.label+'</span>'
+    + '</div>';
+
+  h += '<div class="g3" style="margin-bottom:12px">'
+    + '<div class="mx" style="background:var(--gl)"><label>Conferidas</label><div class="v" style="color:var(--gd)">'+ok+'</div></div>'
+    + '<div class="mx" style="background:var(--rl)"><label>Diverg\u00eancias</label><div class="v" style="color:var(--rdd)">'+div2+'</div></div>'
+    + '<div class="mx"><label>Pendentes</label><div class="v">'+pend+'</div></div>'
+    + '</div>';
+
+  h += '<div class="card"><div class="ct2"><i class="ti ti-clipboard-check"></i>Itens do lote</div>';
+
+  (itens||[]).forEach(function(item){
+    var conf = confMap[item.id];
+    var conferido = !!conf;
+    var correto   = conf && conf.qtd_recebida === item.qtd_esperada;
+    var dotColor  = conferido ? (correto ? '#639922' : '#E24B4A') : '#D3D1C7';
+
+    h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid var(--bd)">'
+       + '<div style="width:10px;height:10px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></div>'
+       + '<div style="flex:1">'
+       + '<div style="font-size:13px;font-weight:600;color:var(--tx)">'+item.nome_peca+'</div>'
+       + '<div style="font-size:11px;color:var(--t2)">Esperado: <strong>'+item.qtd_esperada+'</strong> un \u00b7 R$ '+item.preco+'</div>'
+       + (conferido && !correto ? '<div style="font-size:11px;color:#E24B4A;font-weight:600;margin-top:2px">Recebido: '+conf.qtd_recebida+' un (diverg\u00eancia: '+(conf.qtd_recebida-item.qtd_esperada)+')</div>' : '')
+       + (conferido &&  correto ? '<div style="font-size:11px;color:#3B6D11;font-weight:600;margin-top:2px">\u2705 Conferido \u2014 '+conf.qtd_recebida+' un</div>' : '')
+       + (conf && conf.observacao ? '<div style="font-size:11px;color:var(--t2);margin-top:2px">Obs: '+conf.observacao+'</div>' : '')
+       + '</div>';
+
+    if(!conferido && lot.status === 'aguardando'){
+      h += '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">'
+         + '<input type="number" id="conf-qty-'+item.id+'" placeholder="Qtd" min="0" '
+         + 'style="width:70px;padding:6px 8px;border:1.5px solid var(--bd);border-radius:8px;font-size:14px;text-align:center">'
+         + '<button class="btn bp bsm" onclick="confItem(\''+item.id+'\','+item.qtd_esperada+',\''+loteId+'\')">'
+         + '<i class="ti ti-check"></i> OK</button>'
+         + '</div>';
+    }
+    h += '</div>';
+  });
+
+  h += '</div>';
+
+  if(lot.status === 'aguardando' && itens && itens.length > 0){
+    h += '<div style="display:flex;gap:8px;margin-top:4px;padding-bottom:14px">'
+       + '<button class="btn bd2r" style="flex:1;justify-content:center" onclick="confPedirCorrecao(\''+loteId+'\')">'
+       + '<i class="ti ti-alert-triangle"></i> Pedir corre\u00e7\u00e3o</button>'
+       + '<button class="btn bp" style="flex:1;justify-content:center" onclick="confFinalizar(\''+loteId+'\')">'
+       + '<i class="ti ti-check"></i> Finalizar confer\u00eancia</button>'
+       + '</div>';
+  }
+
+  document.getElementById('ct').innerHTML = h;
+
+  window.confItem = async function(itemId, esperado, loteId2){
+    var el = document.getElementById('conf-qty-'+itemId);
+    var qty = el ? parseInt(el.value) : NaN;
+    if(isNaN(qty) || qty < 0){ alert('Digite a quantidade recebida.'); return; }
+    await pt('conferencias',{
+      lote_item_id: itemId,
+      conferido_por: S && S.funcId ? S.funcId : null,
+      qtd_recebida: qty,
+      observacao: qty !== esperado ? 'Diverg\u00eancia: esperado '+esperado+', recebido '+qty : null,
+    }).catch(function(){});
+    gEstoqueConferir(loteId2, 'aguardando');
+  };
+
+  window.confFinalizar = async function(loteId2){
+    var itens2  = await gt('lote_itens','?lote_id=eq.'+loteId2+'&select=id,qtd_esperada');
+    var confs2  = await gt('conferencias','?select=lote_item_id,qtd_recebida&lote_item_id=in.('+((itens2||[]).map(function(i){return i.id;}).join(','))+')');
+    var pendentes = (itens2||[]).filter(function(i){ return !(confs2||[]).find(function(c){ return c.lote_item_id === i.id; }); });
+    if(pendentes.length){
+      if(!confirm(pendentes.length+' item(s) ainda n\u00e3o conferido(s). Finalizar mesmo assim?')) return;
+    }
+    var temDiv = (itens2||[]).some(function(i){
+      var c = (confs2||[]).find(function(c){ return c.lote_item_id === i.id; });
+      return c && c.qtd_recebida !== i.qtd_esperada;
+    });
+    var novoStatus = temDiv ? 'divergencia' : 'conferido';
+    await pk('lotes','?id=eq.'+loteId2,{status:novoStatus});
+    alert(novoStatus === 'conferido' ? 'Confer\u00eancia concu\u00edda! Estoque atualizado.' : 'Confer\u00eancia finalizada com diverg\u00eancias.');
+    gEstoque('lotes');
+  };
+
+  window.confPedirCorrecao = async function(loteId2){
+    await pk('lotes','?id=eq.'+loteId2,{status:'divergencia'});
+    alert('Diverg\u00eancia registrada. O admin foi notificado.');
+    gEstoque('lotes');
+  };
+}
+
+async function gEstoqueAlertas(){
+  var alertas, minimos;
+  try {
+    var r = await Promise.all([
+      gt('vw_alertas_estoque','?select=*&order=faltam.desc'),
+      gt('estoque_minimo','?select=*'),
+    ]);
+    alertas = r[0]; minimos = r[1];
+  } catch(e){ alertas=[]; minimos=[]; }
+
+  var h = '';
+
+  if(!alertas || !alertas.length){
+    h += '<div class="card" style="border-top:3px solid var(--gn)">'
+       + '<div class="em" style="padding:20px">'
+       + '<i class="ti ti-mood-smile" style="font-size:36px;color:var(--gn);display:block;margin-bottom:8px"></i>'
+       + 'Nenhum alerta! Todas as filiais est\u00e3o acima do estoque m\u00ednimo.</div></div>';
+  } else {
+    h += '<div class="card" style="border-top:3px solid #E24B4A">'
+       + '<div class="ct2" style="color:#C62828"><i class="ti ti-alert-circle"></i>Estoque abaixo do m\u00ednimo ('+alertas.length+')</div>';
+    alertas.forEach(function(a){
+      var urgente = a.faltam >= 20;
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;margin-bottom:7px;background:'+(urgente?'#FCEBEB':'#FAEEDA')+';border:.5px solid '+(urgente?'#F09595':'#FAC775')+'">'
+         + '<div>'
+         + '<div style="font-size:13px;font-weight:600;color:'+(urgente?'#A32D2D':'#854F0B')+'">'
+         + '<span style="display:inline-block;background:'+(urgente?'#F09595':'#FAC775')+';padding:1px 7px;border-radius:20px;font-size:11px;font-weight:700;margin-right:6px">R$ '+a.preco+'</span>'
+         + a.filial+'</div>'
+         + '<div style="font-size:11px;color:'+(urgente?'#E24B4A':'#BA7517')+';margin-top:2px">'+a.estoque_atual+' em estoque \u00b7 m\u00ednimo: '+a.minimo+' \u00b7 faltam '+a.faltam+'</div>'
+         + '</div>'
+         + '<button class="btn bsm" onclick="gEstoque(\'lancar\')" style="flex-shrink:0"><i class="ti ti-plus"></i> Repor</button>'
+         + '</div>';
+    });
+    h += '</div>';
+  }
+
+  h += '<div class="card"><div class="ct2"><i class="ti ti-settings"></i>Configurar estoque m\u00ednimo</div>'
+     + '<div class="fi"><label>Filial</label>'
+     + '<select id="min-filial" style="min-height:50px;font-size:16px">'
+     + FILIAIS_EST.map(function(f){ return '<option>'+f+'</option>'; }).join('')
+     + '</select></div>'
+     + '<div class="fi"><label>Pre\u00e7o</label>'
+     + '<select id="min-preco" style="min-height:50px;font-size:16px">'
+     + PRECOS_EST.map(function(p){ return '<option value="'+p+'">R$ '+p+'</option>'; }).join('')
+     + '</select></div>'
+     + '<div class="fi"><label>Quantidade m\u00ednima</label>'
+     + '<input type="number" id="min-qty" value="10" min="0" style="min-height:50px;font-size:16px"></div>'
+     + '<button class="btn bp" style="width:100%;justify-content:center" onclick="salvarMinimoEstoque()">'
+     + '<i class="ti ti-device-floppy"></i> Salvar m\u00ednimo</button>'
+     + '<div id="min-ok" class="ae aok" style="display:none;margin-top:8px"></div>'
+     + '</div>';
+
+  if(minimos && minimos.length){
+    var dadosMin = PRECOS_EST.map(function(preco){
+      var linha = {preco:preco};
+      FILIAIS_EST.forEach(function(f){
+        var m = minimos.find(function(x){ return Number(x.preco)===preco && x.filial===f; });
+        linha[f] = m ? m.quantidade : 0;
+      });
+      return linha;
+    });
+    h += '<div class="card"><div class="ct2"><i class="ti ti-table"></i>M\u00ednimos configurados</div>'
+       + estTabela(dadosMin, [])
+       + '</div>';
+  }
+
+  window.salvarMinimoEstoque = async function(){
+    var filial = document.getElementById('min-filial') ? document.getElementById('min-filial').value : '';
+    var preco  = parseFloat(document.getElementById('min-preco') ? document.getElementById('min-preco').value : 0);
+    var qty    = parseInt(document.getElementById('min-qty') ? document.getElementById('min-qty').value : 0)||0;
+    var ok     = document.getElementById('min-ok');
+    await pk('estoque_minimo','?filial=eq.'+encodeURIComponent(filial)+'&preco=eq.'+preco,{quantidade:qty});
+    if(ok){ ok.textContent='Salvo para '+filial+' \u2014 R$ '+preco+'!'; ok.style.display='block'; setTimeout(function(){ ok.style.display='none'; },2500); }
+    gEstoque('alertas');
+  };
+
+  return h;
 }
 </script>
 </body>
