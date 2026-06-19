@@ -952,7 +952,7 @@ async function navTo(id){
       }catch(e){console.error(e);}
     }
   }
-  const fns={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic};
+  const fns={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_estoque:gEstoque,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic};
   const fn=fns[id.replace(/-/g,'_')];
   if(fn){
     try{await fn();}
