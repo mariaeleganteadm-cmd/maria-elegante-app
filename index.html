@@ -12,6 +12,17 @@
   <meta name="theme-color" content="#00897B">
   <meta name="msapplication-TileColor" content="#00897B">
   <link rel="manifest" href="manifest.json">
+
+  <!-- iOS / Safari PWA -->
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="apple-touch-icon-120.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Maria Elegante">
+
+  <!-- Splash screen iOS (tela preta com logo enquanto carrega) -->
+  <meta name="msapplication-TileImage" content="icon-192.png">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
@@ -3178,9 +3189,10 @@ async function loginG(){
 
 </script>
 
+<!-- Banner Android -->
 <div id="pwa-banner" style="display:none;position:fixed;bottom:80px;left:12px;right:12px;z-index:999;background:#1e2530;border-radius:16px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)">
   <div style="display:flex;align-items:center;gap:12px">
-    <div style="width:48px;height:48px;border-radius:12px;background:var(--td,#00897B);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px">👗</div>
+    <img src="apple-touch-icon.png" style="width:48px;height:48px;border-radius:12px;flex-shrink:0">
     <div style="flex:1">
       <div style="font-weight:700;font-size:14px;color:#fff">Instalar Maria Elegante</div>
       <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">Adicione à tela inicial como um app</div>
@@ -3190,15 +3202,43 @@ async function loginG(){
   </div>
 </div>
 
+<!-- Banner iOS (Safari não tem beforeinstallprompt) -->
+<div id="ios-banner" style="display:none;position:fixed;bottom:80px;left:12px;right:12px;z-index:999;background:#1e2530;border-radius:16px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <img src="apple-touch-icon.png" style="width:48px;height:48px;border-radius:12px;flex-shrink:0">
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:14px;color:#fff;margin-bottom:8px">Instalar no iPhone</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.8);line-height:1.6">
+        1. Toque em <strong style="color:#00C9A7">⎙ Compartilhar</strong> (botão na barra do Safari)<br>
+        2. Role para baixo e toque em <strong style="color:#00C9A7">"Adicionar à Tela de Início"</strong><br>
+        3. Toque em <strong style="color:#00C9A7">Adicionar</strong> no canto superior direito
+      </div>
+    </div>
+    <button onclick="document.getElementById('ios-banner').style.display='none';localStorage.setItem('ios_banner_fechado','1')" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:22px;cursor:pointer;padding:4px;line-height:1;flex-shrink:0">×</button>
+  </div>
+</div>
+
 <script>
 // ── PWA — Service Worker e Banner de Instalação ──
 let _pwaPrompt = null;
 
-// Capturar evento de instalação do Chrome
+// Detectar iOS/Safari
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone === true;
+
+// iOS — mostrar instrução manual após 4s (Safari não suporta beforeinstallprompt)
+if(isIOS && isSafari && !isStandalone && !localStorage.getItem('ios_banner_fechado') && !localStorage.getItem('pwa_instalado')){
+  setTimeout(()=>{
+    const b = document.getElementById('ios-banner');
+    if(b) b.style.display='block';
+  }, 4000);
+}
+
+// Android/Chrome — capturar evento automático de instalação
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _pwaPrompt = e;
-  // Mostrar banner após 3 segundos se não instalou ainda
   if(!localStorage.getItem('pwa_instalado')){
     setTimeout(()=>{
       const banner = document.getElementById('pwa-banner');
