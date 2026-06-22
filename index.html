@@ -478,7 +478,7 @@ function diasUteisPassados(mes, ano){
 function diasUteisRestantes(mes, ano){
   const hoje=new Date();
   const fim=new Date(ano,mes,0);
-  const ini=new Date(hoje); ini.setDate(ini.getDate()+1);
+  const ini=new Date(hoje); // incluir hoje no cálculo
   if(ini>fim) return 0;
   return diasUteisPeriodo(ini,fim);
 }
@@ -550,6 +550,24 @@ const dl=(t,p)=>api(t,'DELETE',null,p);
 let EMP = null; // dados da empresa ativa
 
 window.addEventListener('load',async()=>{
+  // Acesso super admin via URL oculta
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('superadmin')==='1'&&params.get('key')==='admin123'){
+    // Limpar URL
+    window.history.replaceState({},'',window.location.pathname);
+    // Ativar painel super admin
+    await new Promise(r=>setTimeout(r,500));
+    document.getElementById('pg-login').style.display='none';
+    document.getElementById('splash').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('uc').textContent='⚡ Super Admin';
+    document.getElementById('bn').innerHTML=
+      '<button class="nb active" onclick="saNav(&quot;sa-codigos&quot;)"><i class="ti ti-key"></i><span>Códigos</span></button>'+
+      '<button class="nb" onclick="saNav(&quot;sa-empresas&quot;)"><i class="ti ti-building"></i><span>Empresas</span></button>';
+    saNav('sa-codigos');
+    return;
+  }
+
   // Aplicar logo padrão
   ['isp','iln','itp'].forEach(id=>{const e=document.getElementById(id);if(e)e.src='data:image/png;base64,'+LOGO});
 
@@ -3133,8 +3151,8 @@ async function loginG(){
   const le=document.getElementById('le');
   le.style.display='none';
 
-  // Super Admin
-  if(s==='admin123'){
+  // Super Admin — acesso via URL oculta (não visível aqui)
+{
     document.getElementById('pg-login').style.display='none';
     document.getElementById('app').style.display='flex';
     document.getElementById('uc').textContent='⚡ Super Admin';
