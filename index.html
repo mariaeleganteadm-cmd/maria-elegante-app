@@ -597,10 +597,9 @@ window.addEventListener('load',async()=>{
       // Ir direto para login
       document.getElementById('pg-login').style.display='block';
     } else {
-      // Sem empresa — ir para onboarding
-      console.log('Nenhuma empresa — onboarding');
-      document.getElementById('pg-onboard').style.display='block';
-      renderOB();
+      // Sem empresa — mostrar login mesmo assim
+      console.log('Nenhuma empresa ativa encontrada');
+      document.getElementById('pg-login').style.display='block';
     }
   }catch(e){
     console.error('Erro no boot:',e);
@@ -925,12 +924,65 @@ async function init(){
   const nomeChip=EMP?EMP.nome:'Sistema';
   const lbs={
     gestor:String.fromCodePoint(0x1F451)+' Gestora — '+nomeChip,
-    gerente:String.fromCodePoint(0x1F3EA)+' '+(S.func?.nome.split(' ')[0]||'Gerente'),
-    vendedora:S.func?.nome.split(' ')[0]||''
+    gerente:String.fromCodePoint(0x1F3EA)+' '+(S.func&&S.func.nome?S.func.nome.split(' ')[0]:'Gerente'),
+    vendedora:S.func&&S.func.nome?S.func.nome.split(' ')[0]:''
   };
   document.getElementById('uc').textContent=lbs[S.tipo]||'';
-  buildNav(S.tipo);
-  navTo(S.tipo==='gestor'?'g-metas':S.tipo==='gerente'?'r-painel':'f-metas');
+  // Ir para tela home (seleção de subsistema)
+  renderHome();
+}
+
+function renderHome(){
+  document.getElementById('bn').innerHTML='';
+  var func = S.func || {};
+  var tipo = S.tipo || '';
+  // Subsistemas disponíveis para este usuário
+  var subs = [];
+  // Metas — sempre disponível para todos
+  subs.push({id:'metas', icon:'ti-bolt', nome:'Metas', desc:'Lançar e acompanhar vendas', cor:'#00897B', bg:'#E0F2F1'});
+  // Estoque — gestor vê sempre; funcionária só se tiver acesso
+  if(tipo==='gestor' || tipo==='gerente' || func.acesso_estoque){
+    subs.push({id:'estoque', icon:'ti-package', nome:'Estoque', desc:'Conferência e inventário', cor:'#5C6BC0', bg:'#E8EAF6'});
+  }
+  // DRE — apenas gestor ou quem tiver acesso
+  if(tipo==='gestor' || func.acesso_dre){
+    subs.push({id:'dre', icon:'ti-chart-bar', nome:'DRE', desc:'Resultado financeiro', cor:'#EF6C00', bg:'#FFF3E0'});
+  }
+  var cards = subs.map(function(s){
+    return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
+      '<div style="width:56px;height:56px;border-radius:14px;background:'+s.cor+';display:flex;align-items:center;justify-content:center">'+
+      '<i class="ti '+s.icon+'" style="font-size:26px;color:#fff"></i></div>'+
+      '<div style="font-size:16px;font-weight:700;color:'+s.cor+'">'+s.nome+'</div>'+
+      '<div style="font-size:12px;color:#666;text-align:center">'+s.desc+'</div>'+
+      '</div>';
+  }).join('');
+  // Se apenas 1 subsistema, entrar direto
+  if(subs.length===1){
+    entrarSubsistema(subs[0].id);
+    return;
+  }
+  document.getElementById('ct').innerHTML=
+    '<div style="padding:20px 16px;max-width:480px;margin:0 auto">'+
+    '<div style="margin-bottom:24px">'+
+    '<div style="font-size:22px;font-weight:800;color:#1a1a1a">Bem-vinda'+
+    (S.func&&S.func.nome?' '+S.func.nome.split(' ')[0]:'')+' !</div>'+
+    '<div style="font-size:14px;color:#888;margin-top:4px">Selecione o módulo que deseja acessar</div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+cards+'</div>'+
+    '</div>';
+}
+
+async function entrarSubsistema(sub){
+  if(sub==='metas'){
+    buildNav(S.tipo);
+    navTo(S.tipo==='gestor'?'g-metas':S.tipo==='gerente'?'r-painel':'f-metas');
+  } else if(sub==='estoque'){
+    buildNav(S.tipo);
+    navTo('e-estoque');
+  } else if(sub==='dre'){
+    buildNav(S.tipo);
+    navTo('d-dre');
+  }
 }
 
 function sair(){
@@ -949,7 +1001,8 @@ function buildNav(tipo){
     gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}],
     vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}]
   };
-  document.getElementById('bn').innerHTML=(ns[tipo]||ns.vendedora).map(x=>{
+  var botaoHome='<button class="nb" onclick="renderHome()" style="min-width:44px"><i class="ti ti-home"></i><span>Início</span></button>';
+  document.getElementById('bn').innerHTML=botaoHome+(ns[tipo]||ns.vendedora).map(function(x){
     return '<button class="nb" id="n-'+x.id+'" onclick="navTo(this.dataset.id)" data-id="'+x.id+'"><i class="ti '+x.i+'"></i><span>'+x.l+'</span></button>';
   }).join('');
 }
@@ -1464,6 +1517,25 @@ async function gEquipe(){
       +'<button class="btn bp bsm" onclick="salvarDadosFunc('+id+')" style="margin-bottom:12px;width:100%;justify-content:center"><i class="ti ti-device-floppy"></i> Salvar dados</button>'
       +'<div id="ef-ok" class="ae aok" style="display:none"></div>'
       +'<div class="sep"></div>'
+      +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="ti ti-lock-open" style="vertical-align:middle"></i> Acesso aos subsistemas</h3>'
+      +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">'
+      +'<label style="display:flex;align-items:center;justify-content:space-between;background:#F5F5F5;border-radius:10px;padding:12px 14px;cursor:pointer">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<div style="width:36px;height:36px;border-radius:10px;background:#5C6BC020;display:flex;align-items:center;justify-content:center"><i class="ti ti-package" style="color:#5C6BC0;font-size:18px"></i></div>'
+      +'<div><div style="font-size:14px;font-weight:600;color:#333">Estoque</div><div style="font-size:11px;color:#888">Conferência e inventário</div></div>'
+      +'</div>'
+      +'<input type="checkbox" id="ef-estoque"'+(f.acesso_estoque?' checked':'')+' onchange="toggleAcesso('+id+',\'acesso_estoque\',this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:#5C6BC0">'
+      +'</label>'
+      +'<label style="display:flex;align-items:center;justify-content:space-between;background:#F5F5F5;border-radius:10px;padding:12px 14px;cursor:pointer">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<div style="width:36px;height:36px;border-radius:10px;background:#EF6C0020;display:flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:#EF6C00;font-size:18px"></i></div>'
+      +'<div><div style="font-size:14px;font-weight:600;color:#333">DRE</div><div style="font-size:11px;color:#888">Resultado financeiro</div></div>'
+      +'</div>'
+      +'<input type="checkbox" id="ef-dre"'+(f.acesso_dre?' checked':'')+' onchange="toggleAcesso('+id+',\'acesso_dre\',this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:#EF6C00">'
+      +'</label>'
+      +'</div>'
+      +'<div id="acesso-ok" class="ae aok" style="display:none"></div>'
+      +'<div class="sep"></div>'
       +'<div id="edit-ok" class="ae aok" style="display:none"></div>'
       +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Metas mensais 2026</h3>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
@@ -1518,6 +1590,18 @@ async function gEquipe(){
   window.fecharEdit=()=>{
     document.getElementById('form-edit').style.display='none';
     document.getElementById('form-edit').innerHTML='';
+  };
+
+  window.toggleAcesso=async function(funcId, campo, valor){
+    var body={};
+    body[campo]=valor;
+    await pk('funcionarias','?id=eq.'+funcId,body);
+    var ok=document.getElementById('acesso-ok');
+    if(ok){
+      ok.textContent='✅ Acesso '+(valor?'liberado':'removido')+' com sucesso!';
+      ok.style.display='block';
+      setTimeout(function(){ok.style.display='none';},2200);
+    }
   };
 
   // cadastrar
