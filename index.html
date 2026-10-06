@@ -555,16 +555,11 @@ window.addEventListener('load',async()=>{
   if(params.get('superadmin')==='1'&&params.get('key')==='admin123'){
     // Limpar URL
     window.history.replaceState({},'',window.location.pathname);
-    // Ativar painel super admin
+    // Ir direto para login como gestor
     await new Promise(r=>setTimeout(r,500));
-    document.getElementById('pg-login').style.display='none';
-    document.getElementById('splash').style.display='none';
-    document.getElementById('app').style.display='flex';
-    document.getElementById('uc').textContent='⚡ Super Admin';
-    document.getElementById('bn').innerHTML=
-      '<button class="nb active" onclick="saNav(&quot;sa-codigos&quot;)"><i class="ti ti-key"></i><span>Códigos</span></button>'+
-      '<button class="nb" onclick="saNav(&quot;sa-empresas&quot;)"><i class="ti ti-building"></i><span>Empresas</span></button>';
-    saNav('sa-codigos');
+    const sp=document.getElementById('splash');
+    if(sp){sp.style.opacity='0';setTimeout(()=>sp.style.display='none',400);}
+    document.getElementById('pg-login').style.display='block';
     return;
   }
 
@@ -3235,17 +3230,6 @@ async function loginG(){
   const le=document.getElementById('le');
   le.style.display='none';
 
-  // Super Admin — acesso via URL oculta (não visível aqui)
-{
-    document.getElementById('pg-login').style.display='none';
-    document.getElementById('app').style.display='flex';
-    document.getElementById('uc').textContent='⚡ Super Admin';
-    document.getElementById('bn').innerHTML=
-      '<button class="nb active" onclick="saNav(\'sa-codigos\')"><i class="ti ti-key"></i><span>Códigos</span></button>'+
-      '<button class="nb" onclick="saNav(\'sa-empresas\')"><i class="ti ti-building"></i><span>Empresas</span></button>';
-    saNav('sa-codigos');
-    return;
-  }
 
   // Verificar senha da gestora (padrão 'admin', personalizada ou gestor extra)
   const empId=localStorage.getItem('me_empresa_id');
@@ -3274,10 +3258,10 @@ async function loginG(){
     return;
   }
 
-  // Carregar empresa se necessário
+  // Carregar empresa se necessário (fallback para empresa ID 1)
   if(!EMP){
-    if(!empId){le.textContent='Empresa não configurada. Use "Já tenho conta" primeiro.';le.style.display='block';return}
-    const res=await gt('empresas','?id=eq.'+empId+'&ativa=eq.true&select=*');
+    const idParaCarregar=empId||'1';
+    const res=await gt('empresas','?id=eq.'+idParaCarregar+'&ativa=eq.true&select=*');
     if(!res.length){le.textContent='Empresa não encontrada.';le.style.display='block';return}
     EMP=res[0];
     aplicarIdentidade(EMP);
