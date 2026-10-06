@@ -1,5 +1,5 @@
 // ── Service Worker — Maria Elegante ──
-const CACHE_NAME = 'maria-elegante-v1';
+const CACHE_NAME = 'maria-elegante-v2';
 
 // Arquivos essenciais para funcionar offline
 const CACHE_URLS = [
