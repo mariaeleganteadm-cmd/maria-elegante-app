@@ -1,0 +1,7 @@
+{
+  "name": "maria-elegante-functions",
+  "version": "1.0.0",
+  "dependencies": {
+    "node-forge": "^1.3.1"
+  }
+}
