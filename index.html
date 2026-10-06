@@ -1515,6 +1515,7 @@ async function gEquipe(){
       +'<div class="sep"></div>'
       +'<div class="fi"><label>Nome</label><input id="ef-nome" value="'+f.nome+'" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Telefone</label><input id="ef-tel" type="tel" value="'+(f.telefone||f.login||'')+'" inputmode="numeric" style="font-size:16px;min-height:46px"></div>'
+      +'<div class="fi"><label>E-mail <span style="font-size:10px;color:var(--t2)">(para assinatura digital)</span></label><input id="ef-email" type="email" value="'+(f.email||'')+'" placeholder="exemplo@email.com" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Perfil</label><select id="ef-perfil" style="font-size:16px;min-height:46px">'
       +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
       +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
@@ -1694,23 +1695,276 @@ async function verTermosAssinados(){
   document.getElementById('ct').innerHTML=h;
 }
 
-async function gDocs(){
-  const [docs,funcs,ass,fils]=await Promise.all([
-    gt('documentos','?select=*'+eid()),
-    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id'),
-    gt('documento_assinaturas','?select=documento_id,func_id'),
-    gt('filiais','?select=*'+eid())
-  ]);
-  const tot=funcs.length,fO='<option value="">Todas as filiais</option>'+fils.map(f=>'<option value="'+f.id+'">'+f.nome+'</option>').join('');
-  let h='<div class="h1">Documentos</div>'
-    +'<button class="btn" style="width:100%;justify-content:center;margin-bottom:12px;background:var(--tl);border-color:var(--tb);color:var(--tdd)" onclick="verTermosAssinados()">'
-    +'<i class="ti ti-writing"></i> Termos de Confidencialidade assinados</button>'
-    +'<div class="card"><h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Enviar documento</h3><div class="fi"><label>Nome</label><input id="dn" placeholder="Ex: Holerite Mai/2026"></div><div class="fi"><label>Tipo</label><select id="dt"><option value="ponto">Folha de Ponto</option><option value="holerite">Holerite</option><option value="outro">Outro</option></select></div><div class="fi"><label>Para</label><select id="df">'+fO+'</select></div><button class="btn bp" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div><div class="h1" style="margin-top:4px">Enviados</div>';
-  docs.forEach(d=>{const a=ass.filter(x=>x.documento_id===d.id).length;h+='<div class="dc"><div style="display:flex;align-items:center;gap:12px"><div class="di"><i class="ti '+(d.tipo==='ponto'?'ti-clock':'ti-receipt-2')+'"></i></div><div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome+'</div><div style="font-size:11px;color:var(--t2);margin-top:2px">'+a+'/'+tot+' assinaturas</div><div class="pb" style="margin-top:6px"><div class="pf" style="width:'+(tot>0?a/tot*100:0)+'%;background:var(--td)"></div></div></div><button class="btn bd2r" onclick="rmD('+d.id+')"><i class="ti ti-trash"></i></button></div></div>'});
-  document.getElementById('ct').innerHTML=h;
-  window.envD=async()=>{const nm=document.getElementById('dn').value.trim(),tp=document.getElementById('dt').value,fid=document.getElementById('df').value;if(!nm){alert('Digite o nome.');return}await pt('documentos',{nome:nm,tipo:tp,filial_id:fid||null,empresa_id:EMP?EMP.id:null});gDocs()};
-  window.rmD=async id=>{if(!confirm('Remover?'))return;await dl('documentos','?id=eq.'+id);gDocs()};
+// ── HOLERITES: helpers de PDF (PDF.js via CDN) ──
+var _pdfJsLoaded=false;
+async function carregarPdfJs(){
+  if(_pdfJsLoaded||window.pdfjsLib)return;
+  await new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+    s.type='module';
+    s.onload=function(){
+      if(window.pdfjsLib)window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+      _pdfJsLoaded=true;res();
+    };
+    s.onerror=rej;
+    document.head.appendChild(s);
+  });
 }
+
+// Extrai texto de todas as páginas do PDF
+async function extrairTextoPdf(arrayBuffer){
+  // Usa pdfjsLib se disponível, senão retorna texto vazio para fallback manual
+  if(!window.pdfjsLib){
+    try{await carregarPdfJs();}catch(e){}
+  }
+  if(!window.pdfjsLib)return '';
+  var pdf=await window.pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  var texto='';
+  for(var i=1;i<=pdf.numPages;i++){
+    var page=await pdf.getPage(i);
+    var tc=await page.getTextContent();
+    texto+='=== PAGINA '+i+' ===\n';
+    texto+=tc.items.map(function(it){return it.str;}).join(' ')+'\n\n';
+  }
+  return texto;
+}
+
+// Divide texto do PDF por funcionária comparando com lista do banco
+function dividirPorFuncionaria(textoPdf,funcionarias){
+  var partes=[];
+  // Normaliza nome para comparação
+  function norm(s){return (s||'').toUpperCase().replace(/\s+/g,' ').trim();}
+
+  var linhas=textoPdf.split('\n');
+  var paginasPorFunc={};
+  var paginaAtual=0;
+  var funcPaginaAtual=null;
+
+  for(var i=0;i<linhas.length;i++){
+    var l=linhas[i];
+    if(l.indexOf('=== PAGINA ')==0){
+      paginaAtual=parseInt(l.replace('=== PAGINA ','').replace(' ===',''));
+      continue;
+    }
+    // Verifica se alguma funcionária aparece nesta linha
+    for(var j=0;j<funcionarias.length;j++){
+      var f=funcionarias[j];
+      var nomeNorm=norm(f.nome);
+      if(nomeNorm.length>3&&l.toUpperCase().indexOf(nomeNorm)>=0){
+        if(!paginasPorFunc[f.id])paginasPorFunc[f.id]={func:f,paginas:[]};
+        if(paginasPorFunc[f.id].paginas.indexOf(paginaAtual)<0){
+          paginasPorFunc[f.id].paginas.push(paginaAtual);
+        }
+        break;
+      }
+    }
+  }
+
+  // Monta lista de resultados
+  Object.keys(paginasPorFunc).forEach(function(fid){
+    var item=paginasPorFunc[fid];
+    partes.push({func_id:parseInt(fid),func_nome:item.func.nome,paginas:item.paginas.sort(function(a,b){return a-b;})});
+  });
+
+  return partes;
+}
+
+// ── GESTORA: DOCUMENTOS / HOLERITES ──
+async function gDocs(){
+  var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,telefone&order=nome.asc');
+  var holerites=await gt('holerites','?select=*'+eid()+'&order=created_at.desc');
+  var lotes=await gt('holerite_lotes','?select=*'+eid()+'&order=created_at.desc&limit=5');
+
+  // Agrupa holerites por mês/ano mais recente
+  var mesAtual=holerites.length>0?holerites[0].mes:mS;
+  var anoAtual=holerites.length>0?holerites[0].ano:aS;
+  var holMes=holerites.filter(function(h){return h.mes===mesAtual&&h.ano===anoAtual;});
+
+  var nomesMes=MESES[mesAtual-1]+'/'+anoAtual;
+  var tot=funcs.length;
+  var assinados=holMes.filter(function(h){return h.status==='assinado';}).length;
+  var enviados=holMes.filter(function(h){return h.status==='enviado';}).length;
+  var pendentes=holMes.filter(function(h){return h.status==='pendente';}).length;
+
+  var h='<div class="h1">Holerites</div>';
+
+  // Card de upload do PDF único
+  h+='<div class="card" style="border:2px dashed var(--tb);background:var(--tl)">'
+    +'<div style="text-align:center;padding:8px 0 4px">'
+    +'<i class="ti ti-file-upload" style="font-size:32px;color:var(--td)"></i>'
+    +'<div style="font-weight:700;font-size:15px;margin-top:6px;color:var(--tdd)">Subir PDF de Holerites</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:4px">O contador envia 1 PDF com todos os holerites.<br>A IA separa automaticamente por funcionária.</div>'
+    +'</div>'
+    +'<div class="fi" style="margin-top:12px"><label>Mês de referência</label>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +'<select id="hl-mes">'+MESES.map(function(m,i){return '<option value="'+(i+1)+'"'+(i+1===mS?' selected':'')+'>'+m+'</option>';}).join('')+'</select>'
+    +'<input type="number" id="hl-ano" value="'+aS+'" min="2024" max="2030">'
+    +'</div></div>'
+    +'<label style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--td);color:#fff;border-radius:10px;padding:13px;font-weight:600;cursor:pointer;font-size:15px;margin-top:4px">'
+    +'<i class="ti ti-upload"></i> Selecionar PDF'
+    +'<input type="file" id="hl-file" accept=".pdf" style="display:none" onchange="processarHoleritePdf(this)">'
+    +'</label>'
+    +'<div id="hl-progresso" style="display:none;margin-top:10px;text-align:center;font-size:13px;color:var(--td)"></div>'
+    +'</div>';
+
+  // Resumo do mês atual
+  if(holMes.length>0){
+    h+='<div class="card">'
+      +'<div style="font-weight:700;font-size:15px;margin-bottom:10px">📋 Holerites '+nomesMes+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+      +'<div style="text-align:center;background:var(--gl);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--gd)">'+assinados+'</div><div style="font-size:11px;color:var(--gd)">Assinados</div></div>'
+      +'<div style="text-align:center;background:var(--wl);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--wn)">'+enviados+'</div><div style="font-size:11px;color:var(--wn)">Aguardando</div></div>'
+      +'<div style="text-align:center;background:var(--bg);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--t2)">'+pendentes+'</div><div style="font-size:11px;color:var(--t2)">Pendentes</div></div>'
+      +'</div>';
+
+    // Botão enviar todos pendentes
+    var temPendente=holMes.some(function(h2){return h2.status==='pendente';});
+    if(temPendente){
+      h+='<button class="btn bp" style="width:100%;justify-content:center;margin-bottom:10px" onclick="enviarTodosHolerites('+mesAtual+','+anoAtual+')">'
+        +'<i class="ti ti-send"></i> Enviar todos para assinatura</button>';
+    }
+
+    // Lista por funcionária
+    holMes.forEach(function(hl){
+      var func=funcs.find(function(f){return f.id===hl.func_id;})||{nome:'Funcionária '+hl.func_id};
+      var icone=hl.status==='assinado'?'✅':hl.status==='enviado'?'⏳':hl.status==='rejeitado'?'❌':'📄';
+      var cor=hl.status==='assinado'?'var(--gd)':hl.status==='enviado'?'var(--wn)':hl.status==='rejeitado'?'var(--rdd)':'var(--t2)';
+      var badge=hl.status==='assinado'?'Assinado':hl.status==='enviado'?'Aguardando assinatura':hl.status==='rejeitado'?'Rejeitado':'Pronto para enviar';
+      h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">'
+        +'<div style="font-size:20px">'+icone+'</div>'
+        +'<div style="flex:1"><div style="font-weight:600;font-size:14px">'+func.nome+'</div>'
+        +'<div style="font-size:11px;color:'+cor+';margin-top:2px">'+badge+'</div>'
+        +(hl.assinado_em?'<div style="font-size:10px;color:var(--t3)">Assinado em: '+new Date(hl.assinado_em).toLocaleDateString('pt-BR')+'</div>':'')
+        +'</div>'
+        +(hl.status==='pendente'?'<button class="btn bp" style="font-size:12px;padding:8px 12px" onclick="enviarHolerite('+hl.id+')"><i class="ti ti-send"></i></button>':'')
+        +(hl.autentique_sign_url?'<a href="'+hl.autentique_sign_url+'" target="_blank" class="btn" style="font-size:12px;padding:8px 12px"><i class="ti ti-external-link"></i></a>':'')
+        +'</div>';
+    });
+
+    h+='</div>';
+  }
+
+  // Histórico de lotes
+  if(lotes.length>1){
+    h+='<div class="ct2"><i class="ti ti-history"></i> Lotes anteriores</div>';
+    lotes.slice(1).forEach(function(lt){
+      h+='<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<div><div style="font-weight:600;font-size:13px">'+MESES[lt.mes-1]+'/'+lt.ano+'</div>'
+        +'<div style="font-size:11px;color:var(--t2)">'+lt.total_encontrados+' funcionárias • '+lt.pdf_nome+'</div></div>'
+        +'<span class="bx '+(lt.status==='enviado'?'ok':'tl')+'">'+lt.status+'</span>'
+        +'</div></div>';
+    });
+  }
+
+  document.getElementById('ct').innerHTML=h;
+}
+
+// ── Processar PDF de holerites ──
+window.processarHoleritePdf=async function(input){
+  var file=input.files[0];
+  if(!file)return;
+  var prog=document.getElementById('hl-progresso');
+  var mes=parseInt(document.getElementById('hl-mes').value);
+  var ano=parseInt(document.getElementById('hl-ano').value);
+
+  prog.style.display='block';
+  prog.innerHTML='<i class="ti ti-loader ti-spin"></i> Lendo PDF...';
+
+  try{
+    var buf=await file.arrayBuffer();
+    prog.innerHTML='<i class="ti ti-loader ti-spin"></i> Extraindo texto das páginas...';
+    var texto=await extrairTextoPdf(buf);
+
+    if(!texto||texto.trim().length<50){
+      prog.innerHTML='⚠️ Não foi possível extrair texto do PDF. Verifique se é um PDF digital (não escaneado).';
+      return;
+    }
+
+    // Busca funcionárias para fazer o match
+    var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome');
+    prog.innerHTML='<i class="ti ti-loader ti-spin"></i> Identificando funcionárias no PDF...';
+
+    var partes=dividirPorFuncionaria(texto,funcs);
+
+    if(partes.length===0){
+      prog.innerHTML='⚠️ Nenhuma funcionária encontrada no PDF. Verifique se os nomes no PDF correspondem ao cadastro.';
+      return;
+    }
+
+    prog.innerHTML='<i class="ti ti-loader ti-spin"></i> Salvando ('+partes.length+' holerites encontrados)...';
+
+    // Cria lote
+    var loteRes=await pt('holerite_lotes',{empresa_id:EMP?EMP.id:null,mes:mes,ano:ano,pdf_nome:file.name,total_encontrados:partes.length,status:'pronto'});
+    var loteId=Array.isArray(loteRes)?loteRes[0].id:loteRes.id;
+
+    // Cria registro para cada funcionária encontrada
+    for(var i=0;i<partes.length;i++){
+      var parte=partes[i];
+      // Verifica se já existe holerite para essa func no mês/ano
+      var exist=await gt('holerites','?func_id=eq.'+parte.func_id+'&mes=eq.'+mes+'&ano=eq.'+ano+eid());
+      if(exist&&exist.length>0){
+        // Atualiza lote_id
+        await pk('holerites','?id=eq.'+exist[0].id,{lote_id:loteId,status:'pendente'});
+      } else {
+        await pt('holerites',{empresa_id:EMP?EMP.id:null,func_id:parte.func_id,mes:mes,ano:ano,status:'pendente',lote_id:loteId});
+      }
+    }
+
+    prog.innerHTML='✅ '+partes.length+' holerites identificados para '+MESES[mes-1]+'/'+ano+'! Clique "Enviar todos" para mandar para assinatura.';
+    setTimeout(function(){gDocs();},2000);
+
+  }catch(e){
+    prog.innerHTML='❌ Erro ao processar PDF: '+(e.message||e);
+    console.error(e);
+  }
+};
+
+// ── Enviar holerite individual para assinatura (Autentique) ──
+window.enviarHolerite=async function(holId){
+  var btn=event.target.closest('button');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader ti-spin"></i>';}
+  try{
+    var res=await fetch('/.netlify/functions/enviar-holerite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holerite_id:holId})});
+    var data=await res.json();
+    if(data.ok){
+      gDocs();
+    } else {
+      alert('Erro ao enviar: '+(data.erro||'Tente novamente.'));
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i>';}
+    }
+  }catch(e){
+    alert('Erro de conexão. Verifique sua internet.');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i>';}
+  }
+};
+
+// ── Enviar todos os holerites pendentes de um mês ──
+window.enviarTodosHolerites=async function(mes,ano){
+  if(!confirm('Enviar todos os holerites de '+MESES[mes-1]+'/'+ano+' para assinatura?'))return;
+  var pendentes=await gt('holerites','?status=eq.pendente&mes=eq.'+mes+'&ano=eq.'+ano+eid());
+  if(!pendentes||!pendentes.length){alert('Nenhum holerite pendente.');return;}
+
+  var ct=document.getElementById('ct');
+  var divProg=document.createElement('div');
+  divProg.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999';
+  divProg.innerHTML='<div class="card" style="text-align:center;padding:24px;min-width:260px"><i class="ti ti-loader ti-spin" style="font-size:32px;color:var(--td)"></i><div style="margin-top:12px;font-weight:600" id="prog-txt">Enviando 0/'+pendentes.length+'...</div></div>';
+  document.body.appendChild(divProg);
+
+  var ok=0,err=0;
+  for(var i=0;i<pendentes.length;i++){
+    document.getElementById('prog-txt').textContent='Enviando '+(i+1)+'/'+pendentes.length+'...';
+    try{
+      var res=await fetch('/.netlify/functions/enviar-holerite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holerite_id:pendentes[i].id})});
+      var data=await res.json();
+      if(data.ok)ok++;else err++;
+    }catch(e){err++;}
+  }
+
+  document.body.removeChild(divProg);
+  alert(ok+' holerite(s) enviados com sucesso!'+(err>0?'\n'+err+' erro(s).':''));
+  gDocs();
+};
 
 // ── GESTORA: COMUNICADOS ──
 async function gComunic(){
@@ -2543,11 +2797,14 @@ async function salvarDadosFunc(id){
   const nome=(document.getElementById('ef-nome')?.value||'').trim();
   const tel=(document.getElementById('ef-tel')?.value||'').replace(/\D/g,'');
   const perfil=document.getElementById('ef-perfil')?.value||'vendedora';
+  const email=(document.getElementById('ef-email')?.value||'').trim().toLowerCase();
   const ok=document.getElementById('ef-ok');
   if(!nome){alert('Digite o nome.');return}
   if(!tel){alert('Digite o telefone.');return}
-  await pk('funcionarias','?id=eq.'+id,{nome,telefone:tel,login:tel,perfil});
-  if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(()=>ok.style.display='none',2500);}
+  var dadosSalvar={nome:nome,telefone:tel,login:tel,perfil:perfil};
+  if(email)dadosSalvar.email=email;
+  await pk('funcionarias','?id=eq.'+id,dadosSalvar);
+  if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(function(){ok.style.display='none';},2500);}
   gEquipe();
 }
 
