@@ -943,6 +943,10 @@ function renderHome(){
   if(tipo==='gestor' || func.acesso_dre){
     subs.push({id:'dre', icon:'ti-chart-bar', nome:'DRE', desc:'Resultado financeiro', cor:'#EF6C00', bg:'#FFF3E0'});
   }
+  // Docs — sempre disponível
+  subs.push({id:'docs', icon:'ti-file-text', nome:'Documentos', desc:'Termos e comunicados', cor:'#6D4C41', bg:'#EFEBE9'});
+  // Avisos — sempre disponível
+  subs.push({id:'avisos', icon:'ti-speakerphone', nome:'Avisos', desc:'Comunicados da empresa', cor:'#AD1457', bg:'#FCE4EC'});
   var cards = subs.map(function(s){
     return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
       '<div style="width:56px;height:56px;border-radius:14px;background:'+s.cor+';display:flex;align-items:center;justify-content:center">'+
@@ -977,6 +981,12 @@ async function entrarSubsistema(sub){
   } else if(sub==='dre'){
     buildNav(S.tipo);
     navTo('d-dre');
+  } else if(sub==='docs'){
+    buildNav(S.tipo);
+    navTo(S.tipo==='gestor'?'g-docs':'f-docs');
+  } else if(sub==='avisos'){
+    buildNav(S.tipo);
+    navTo(S.tipo==='gestor'?'g-comunic':'f-comunic');
   }
 }
 
@@ -992,9 +1002,9 @@ function sair(){
 
 function buildNav(tipo){
   const ns={
-    gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-equipe',i:'ti-users',l:'Equipe'},{id:'g-docs',i:'ti-file-text',l:'Docs'},{id:'g-comunic',i:'ti-speakerphone',l:'Avisos'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'},{id:'g-config',i:'ti-settings',l:'Empresa'}],
-    gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}],
-    vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'},{id:'f-docs',i:'ti-file-text',l:'Docs'},{id:'f-comunic',i:'ti-speakerphone',l:'Avisos'}]
+    gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-equipe',i:'ti-users',l:'Equipe'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'},{id:'g-config',i:'ti-settings',l:'Empresa'}],
+    gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'}],
+    vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'}]
   };
   var botaoHome='<button class="nb" onclick="renderHome()" style="min-width:44px"><i class="ti ti-home"></i><span>Início</span></button>';
   document.getElementById('bn').innerHTML=botaoHome+(ns[tipo]||ns.vendedora).map(function(x){
