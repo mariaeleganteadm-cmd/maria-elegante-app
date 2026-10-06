@@ -2809,18 +2809,85 @@ async function fCheck(){
 }
 
 // ── DOCUMENTOS ──
+if(typeof window._fDocsAba==='undefined')window._fDocsAba='documentos';
+
 async function fDocs(){
-  const f=S.func;
-  const [docs,ass]=await Promise.all([
-    gt('documentos','?or=(filial_id.is.null,filial_id.eq.'+(f.filial_id||0)+')&select=*'+eid()),
-    gt('documento_assinaturas','?func_id=eq.'+f.id+'&select=documento_id')
-  ]);
-  const aS2=new Set(ass.map(a=>a.documento_id));
-  let h='<div class="h1">Documentos</div><div class="h2">Assine para confirmar o recebimento.</div>';
-  docs.forEach(d=>{const sg=aS2.has(d.id);h+='<div class="dc"><div style="display:flex;align-items:center;gap:12px"><div class="di"><i class="ti '+(d.tipo==='ponto'?'ti-clock':'ti-receipt-2')+'"></i></div><div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome+'</div><div style="font-size:12px;color:var(--t2);margin-top:2px">'+(sg?'✅ Assinado':'Aguardando assinatura')+'</div></div>'+(sg?'<span class="bx ok">Assinado</span>':'')+'</div>'+(sg?'':'<div class="sp" onclick="asnD('+d.id+')"><i class="ti ti-signature" style="font-size:30px;color:var(--tdd)"></i><div style="margin-top:8px;font-size:13px;color:var(--tdd);font-weight:600">Toque aqui para assinar</div><div style="font-size:11px;color:var(--td);margin-top:4px">Confirma que leu e recebeu este documento</div></div>')+'</div>'});
-  if(!docs.length)h+='<div class="em"><i class="ti ti-file-off"></i>Nenhum documento.</div>';
-  document.getElementById('ct').innerHTML=h;
-  window.asnD=async id=>{if(!confirm('Confirma que leu e recebeu este documento?'))return;await pt('documento_assinaturas',{documento_id:id,func_id:S.funcId}).catch(()=>{});fDocs()};
+  var f=S.func;
+
+  // ── tab bar ──
+  var tabBar='<div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--bd)">'
+    +'<button onclick="window._fDocsAba=\'documentos\';fDocs()" style="flex:1;padding:11px 0;border:none;background:none;font-weight:700;font-size:14px;cursor:pointer;'
+    +(window._fDocsAba==='documentos'?'color:var(--td);border-bottom:2px solid var(--td);margin-bottom:-2px':'color:var(--t2)')
+    +'"><i class="ti ti-file-text"></i> Documentos</button>'
+    +'<button onclick="window._fDocsAba=\'holerites\';fDocs()" style="flex:1;padding:11px 0;border:none;background:none;font-weight:700;font-size:14px;cursor:pointer;'
+    +(window._fDocsAba==='holerites'?'color:var(--td);border-bottom:2px solid var(--td);margin-bottom:-2px':'color:var(--t2)')
+    +'"><i class="ti ti-receipt"></i> Holerites</button>'
+    +'</div>';
+
+  if(window._fDocsAba==='documentos'){
+    var res2=await Promise.all([
+      gt('documentos','?or=(filial_id.is.null,filial_id.eq.'+(f.filial_id||0)+')&select=*'+eid()),
+      gt('documento_assinaturas','?func_id=eq.'+f.id+'&select=documento_id')
+    ]);
+    var docs2=res2[0],ass2=res2[1];
+    var aS2=new Set(ass2.map(function(a){return a.documento_id;}));
+    var h=tabBar+'<div class="h2">Assine para confirmar o recebimento.</div>';
+    docs2.forEach(function(d){
+      var sg=aS2.has(d.id);
+      h+='<div class="dc"><div style="display:flex;align-items:center;gap:12px">'
+        +'<div class="di"><i class="ti '+(d.tipo==='ponto'?'ti-clock':'ti-receipt-2')+'"></i></div>'
+        +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome+'</div>'
+        +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+(sg?'✅ Assinado':'Aguardando assinatura')+'</div></div>'
+        +(sg?'<span class="bx ok">Assinado</span>':'')+'</div>'
+        +(sg?'':'<div class="sp" onclick="asnD('+d.id+')">'
+        +'<i class="ti ti-signature" style="font-size:30px;color:var(--tdd)"></i>'
+        +'<div style="margin-top:8px;font-size:13px;color:var(--tdd);font-weight:600">Toque aqui para assinar</div>'
+        +'<div style="font-size:11px;color:var(--td);margin-top:4px">Confirma que leu e recebeu este documento</div></div>')
+        +'</div>';
+    });
+    if(!docs2.length)h+='<div class="em"><i class="ti ti-file-off"></i>Nenhum documento.</div>';
+    document.getElementById('ct').innerHTML=h;
+    window.asnD=async function(id){
+      if(!confirm('Confirma que leu e recebeu este documento?'))return;
+      await pt('documento_assinaturas',{documento_id:id,func_id:S.funcId}).catch(function(){});
+      fDocs();
+    };
+
+  } else {
+    // ── aba holerites da funcionária ──
+    var meuHols=await gt('holerites','?func_id=eq.'+f.id+'&select=*&order=ano.desc,mes.desc');
+    var h=tabBar;
+    if(!meuHols||!meuHols.length){
+      h+='<div class="em"><i class="ti ti-receipt-off"></i>Nenhum holerite disponível ainda.</div>';
+    } else {
+      h+='<div class="h2">Seus holerites. Assine pelo app Gov.br.</div>';
+      meuHols.forEach(function(hl){
+        var icone=hl.status==='assinado'?'✅':'📄';
+        var cor=hl.status==='assinado'?'var(--gd)':'var(--t2)';
+        var badge=hl.status==='assinado'?'Assinado (Gov.br)':'Disponível para assinar';
+        h+='<div class="card" style="padding:14px">'
+          +'<div style="display:flex;align-items:center;gap:12px">'
+          +'<div style="font-size:28px">'+icone+'</div>'
+          +'<div style="flex:1">'
+          +'<div style="font-weight:700;font-size:15px">'+MESES[hl.mes-1]+'/'+hl.ano+'</div>'
+          +'<div style="font-size:12px;color:'+cor+';margin-top:3px">'+badge+'</div>'
+          +(hl.assinado_em?'<div style="font-size:11px;color:var(--t3)">Assinado em '+new Date(hl.assinado_em).toLocaleDateString('pt-BR')+'</div>':'')
+          +'</div>'
+          +(hl.status!=='assinado'
+            ?'<button class="btn bp" style="font-size:12px;padding:10px 14px" onclick="funcAssinarHolerite('+hl.id+')">'
+             +'<i class="ti ti-check"></i> Confirmar assinatura</button>'
+            :'')
+          +'</div>'
+          +'</div>';
+      });
+    }
+    document.getElementById('ct').innerHTML=h;
+    window.funcAssinarHolerite=async function(holId){
+      if(!confirm('Você já assinou este holerite pelo app Gov.br?\n\nClique OK para confirmar.'))return;
+      await pk('holerites','?id=eq.'+holId,{status:'assinado',assinado_em:new Date().toISOString()});
+      fDocs();
+    };
+  }
 }
 
 // ── COMUNICADOS ──
