@@ -1771,93 +1771,159 @@ function dividirPorFuncionaria(textoPdf,funcionarias){
 }
 
 // ── GESTORA: DOCUMENTOS / HOLERITES ──
+if(typeof window._docsAba==='undefined')window._docsAba='documentos';
+
 async function gDocs(){
-  var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,telefone&order=nome.asc');
-  var holerites=await gt('holerites','?select=*'+eid()+'&order=created_at.desc');
-  var lotes=await gt('holerite_lotes','?select=*'+eid()+'&order=created_at.desc&limit=5');
-
-  // Agrupa holerites por mês/ano mais recente
-  var mesAtual=holerites.length>0?holerites[0].mes:mS;
-  var anoAtual=holerites.length>0?holerites[0].ano:aS;
-  var holMes=holerites.filter(function(h){return h.mes===mesAtual&&h.ano===anoAtual;});
-
-  var nomesMes=MESES[mesAtual-1]+'/'+anoAtual;
-  var tot=funcs.length;
-  var assinados=holMes.filter(function(h){return h.status==='assinado';}).length;
-  var enviados=holMes.filter(function(h){return h.status==='enviado';}).length;
-  var pendentes=holMes.filter(function(h){return h.status==='pendente';}).length;
-
-  var h='<div class="h1">Holerites</div>';
-
-  // Card de upload do PDF único
-  h+='<div class="card" style="border:2px dashed var(--tb);background:var(--tl)">'
-    +'<div style="text-align:center;padding:8px 0 4px">'
-    +'<i class="ti ti-file-upload" style="font-size:32px;color:var(--td)"></i>'
-    +'<div style="font-weight:700;font-size:15px;margin-top:6px;color:var(--tdd)">Subir PDF de Holerites</div>'
-    +'<div style="font-size:12px;color:var(--t2);margin-top:4px">O contador envia 1 PDF com todos os holerites.<br>A IA separa automaticamente por funcionária.</div>'
-    +'</div>'
-    +'<div class="fi" style="margin-top:12px"><label>Mês de referência</label>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-    +'<select id="hl-mes">'+MESES.map(function(m,i){return '<option value="'+(i+1)+'"'+(i+1===mS?' selected':'')+'>'+m+'</option>';}).join('')+'</select>'
-    +'<input type="number" id="hl-ano" value="'+aS+'" min="2024" max="2030">'
-    +'</div></div>'
-    +'<label style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--td);color:#fff;border-radius:10px;padding:13px;font-weight:600;cursor:pointer;font-size:15px;margin-top:4px">'
-    +'<i class="ti ti-upload"></i> Selecionar PDF'
-    +'<input type="file" id="hl-file" accept=".pdf" style="display:none" onchange="processarHoleritePdf(this)">'
-    +'</label>'
-    +'<div id="hl-progresso" style="display:none;margin-top:10px;text-align:center;font-size:13px;color:var(--td)"></div>'
+  // ── tabs header ──
+  var tabBar='<div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--bd)">'
+    +'<button onclick="window._docsAba=\'documentos\';gDocs()" style="flex:1;padding:11px 0;border:none;background:none;font-weight:700;font-size:14px;cursor:pointer;'
+    +(window._docsAba==='documentos'?'color:var(--td);border-bottom:2px solid var(--td);margin-bottom:-2px':'color:var(--t2)')
+    +'"><i class="ti ti-file-text"></i> Documentos</button>'
+    +'<button onclick="window._docsAba=\'holerites\';gDocs()" style="flex:1;padding:11px 0;border:none;background:none;font-weight:700;font-size:14px;cursor:pointer;'
+    +(window._docsAba==='holerites'?'color:var(--td);border-bottom:2px solid var(--td);margin-bottom:-2px':'color:var(--t2)')
+    +'"><i class="ti ti-receipt"></i> Holerites</button>'
     +'</div>';
 
-  // Resumo do mês atual
-  if(holMes.length>0){
-    h+='<div class="card">'
-      +'<div style="font-weight:700;font-size:15px;margin-bottom:10px">📋 Holerites '+nomesMes+'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
-      +'<div style="text-align:center;background:var(--gl);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--gd)">'+assinados+'</div><div style="font-size:11px;color:var(--gd)">Assinados</div></div>'
-      +'<div style="text-align:center;background:var(--wl);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--wn)">'+enviados+'</div><div style="font-size:11px;color:var(--wn)">Aguardando</div></div>'
-      +'<div style="text-align:center;background:var(--bg);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--t2)">'+pendentes+'</div><div style="font-size:11px;color:var(--t2)">Pendentes</div></div>'
-      +'</div>';
+  if(window._docsAba==='documentos'){
+    // ── aba documentos (sistema antigo) ──
+    var res=await Promise.all([
+      gt('documentos','?select=*'+eid()),
+      gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id'),
+      gt('documento_assinaturas','?select=documento_id,func_id'),
+      gt('filiais','?select=*'+eid())
+    ]);
+    var docs=res[0],funcsTot=res[1],ass=res[2],fils=res[3];
+    var tot=funcsTot.length;
+    var fO='<option value="">Todas as filiais</option>'+fils.map(function(f){return '<option value="'+f.id+'">'+f.nome+'</option>';}).join('');
 
-    // Botão enviar todos pendentes
-    var temPendente=holMes.some(function(h2){return h2.status==='pendente';});
-    if(temPendente){
-      h+='<button class="btn bp" style="width:100%;justify-content:center;margin-bottom:10px" onclick="enviarTodosHolerites('+mesAtual+','+anoAtual+')">'
-        +'<i class="ti ti-send"></i> Enviar todos para assinatura</button>';
-    }
+    var h=tabBar
+      +'<button class="btn" style="width:100%;justify-content:center;margin-bottom:12px;background:var(--tl);border-color:var(--tb);color:var(--tdd)" onclick="verTermosAssinados()">'
+      +'<i class="ti ti-writing"></i> Termos de Confidencialidade assinados</button>'
+      +'<div class="card"><h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Enviar documento</h3>'
+      +'<div class="fi"><label>Nome</label><input id="dn" placeholder="Ex: Holerite Mai/2026"></div>'
+      +'<div class="fi"><label>Tipo</label><select id="dt"><option value="ponto">Folha de Ponto</option><option value="holerite">Holerite</option><option value="outro">Outro</option></select></div>'
+      +'<div class="fi"><label>Para</label><select id="df">'+fO+'</select></div>'
+      +'<button class="btn bp" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div>'
+      +'<div class="h1" style="margin-top:4px">Enviados</div>';
 
-    // Lista por funcionária
-    holMes.forEach(function(hl){
-      var func=funcs.find(function(f){return f.id===hl.func_id;})||{nome:'Funcionária '+hl.func_id};
-      var icone=hl.status==='assinado'?'✅':hl.status==='enviado'?'⏳':hl.status==='rejeitado'?'❌':'📄';
-      var cor=hl.status==='assinado'?'var(--gd)':hl.status==='enviado'?'var(--wn)':hl.status==='rejeitado'?'var(--rdd)':'var(--t2)';
-      var badge=hl.status==='assinado'?'Assinado':hl.status==='enviado'?'Aguardando assinatura':hl.status==='rejeitado'?'Rejeitado':'Pronto para enviar';
-      h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">'
-        +'<div style="font-size:20px">'+icone+'</div>'
-        +'<div style="flex:1"><div style="font-weight:600;font-size:14px">'+func.nome+'</div>'
-        +'<div style="font-size:11px;color:'+cor+';margin-top:2px">'+badge+'</div>'
-        +(hl.assinado_em?'<div style="font-size:10px;color:var(--t3)">Assinado em: '+new Date(hl.assinado_em).toLocaleDateString('pt-BR')+'</div>':'')
+    docs.forEach(function(d){
+      var qtdAss=ass.filter(function(x){return x.documento_id===d.id;}).length;
+      var pct=tot>0?Math.round(qtdAss/tot*100):0;
+      h+='<div class="dc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<div style="font-weight:600;font-size:14px">'+d.nome+'</div>'
+        +'<button onclick="rmD('+d.id+')" style="background:none;border:none;color:var(--t2);cursor:pointer;padding:4px"><i class="ti ti-trash" style="font-size:14px"></i></button>'
         +'</div>'
-        +(hl.status==='pendente'?'<button class="btn bp" style="font-size:12px;padding:8px 12px" onclick="enviarHolerite('+hl.id+')"><i class="ti ti-send"></i></button>':'')
-        +(hl.autentique_sign_url?'<a href="'+hl.autentique_sign_url+'" target="_blank" class="btn" style="font-size:12px;padding:8px 12px"><i class="ti ti-external-link"></i></a>':'')
+        +'<div style="font-size:12px;color:var(--t2);margin-bottom:6px">'+d.tipo+(d.filial_id?'':' • Todas as filiais')+'</div>'
+        +'<div style="background:var(--bd);border-radius:6px;height:6px;margin-bottom:4px"><div style="background:var(--gd);border-radius:6px;height:6px;width:'+pct+'%"></div></div>'
+        +'<div style="font-size:11px;color:var(--t2)">'+qtdAss+'/'+tot+' assinaram ('+pct+'%)</div>'
         +'</div>';
     });
 
-    h+='</div>';
-  }
+    document.getElementById('ct').innerHTML=h;
 
-  // Histórico de lotes
-  if(lotes.length>1){
-    h+='<div class="ct2"><i class="ti ti-history"></i> Lotes anteriores</div>';
-    lotes.slice(1).forEach(function(lt){
-      h+='<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between;align-items:center">'
-        +'<div><div style="font-weight:600;font-size:13px">'+MESES[lt.mes-1]+'/'+lt.ano+'</div>'
-        +'<div style="font-size:11px;color:var(--t2)">'+lt.total_encontrados+' funcionárias • '+lt.pdf_nome+'</div></div>'
-        +'<span class="bx '+(lt.status==='enviado'?'ok':'tl')+'">'+lt.status+'</span>'
-        +'</div></div>';
-    });
-  }
+    window.envD=async function(){
+      var nm=document.getElementById('dn').value.trim();
+      var tp=document.getElementById('dt').value;
+      var fid=document.getElementById('df').value;
+      if(!nm){alert('Digite o nome.');return;}
+      await pt('documentos',{nome:nm,tipo:tp,filial_id:fid||null,empresa_id:EMP?EMP.id:null});
+      gDocs();
+    };
+    window.rmD=async function(id){
+      if(!confirm('Remover?'))return;
+      await dl('documentos','?id=eq.'+id);
+      gDocs();
+    };
 
-  document.getElementById('ct').innerHTML=h;
+  } else {
+    // ── aba holerites ──
+    var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,telefone&order=nome.asc');
+    var holerites=await gt('holerites','?select=*'+eid()+'&order=created_at.desc');
+    var lotes=await gt('holerite_lotes','?select=*'+eid()+'&order=created_at.desc&limit=5');
+
+    var mesAtual=holerites.length>0?holerites[0].mes:mS;
+    var anoAtual=holerites.length>0?holerites[0].ano:aS;
+    var holMes=holerites.filter(function(hx){return hx.mes===mesAtual&&hx.ano===anoAtual;});
+
+    var nomesMes=MESES[mesAtual-1]+'/'+anoAtual;
+    var assinados=holMes.filter(function(hx){return hx.status==='assinado';}).length;
+    var compartilhados=holMes.filter(function(hx){return hx.status==='enviado';}).length;
+    var pendentes=holMes.filter(function(hx){return hx.status==='pendente';}).length;
+
+    var h=tabBar;
+
+    // Card de upload
+    h+='<div class="card" style="border:2px dashed var(--tb);background:var(--tl)">'
+      +'<div style="text-align:center;padding:8px 0 4px">'
+      +'<i class="ti ti-file-upload" style="font-size:32px;color:var(--td)"></i>'
+      +'<div style="font-weight:700;font-size:15px;margin-top:6px;color:var(--tdd)">Subir PDF de Holerites</div>'
+      +'<div style="font-size:12px;color:var(--t2);margin-top:4px">O contador envia 1 PDF com todos os holerites.<br>O sistema separa automaticamente por funcionária.</div>'
+      +'</div>'
+      +'<div class="fi" style="margin-top:12px"><label>Mês de referência</label>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      +'<select id="hl-mes">'+MESES.map(function(m,i){return '<option value="'+(i+1)+'"'+(i+1===mS?' selected':'')+'>'+m+'</option>';}).join('')+'</select>'
+      +'<input type="number" id="hl-ano" value="'+aS+'" min="2024" max="2030">'
+      +'</div></div>'
+      +'<label style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--td);color:#fff;border-radius:10px;padding:13px;font-weight:600;cursor:pointer;font-size:15px;margin-top:4px">'
+      +'<i class="ti ti-upload"></i> Selecionar PDF'
+      +'<input type="file" id="hl-file" accept=".pdf" style="display:none" onchange="processarHoleritePdf(this)">'
+      +'</label>'
+      +'<div id="hl-progresso" style="display:none;margin-top:10px;text-align:center;font-size:13px;color:var(--td)"></div>'
+      +'</div>';
+
+    // Resumo do mês
+    if(holMes.length>0){
+      h+='<div class="card">'
+        +'<div style="font-weight:700;font-size:15px;margin-bottom:10px">📋 Holerites '+nomesMes+'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+        +'<div style="text-align:center;background:var(--gl);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--gd)">'+assinados+'</div><div style="font-size:11px;color:var(--gd)">Assinados</div></div>'
+        +'<div style="text-align:center;background:var(--wl);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--wn)">'+compartilhados+'</div><div style="font-size:11px;color:var(--wn)">Compartilhados</div></div>'
+        +'<div style="text-align:center;background:var(--bg);border-radius:10px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--t2)">'+pendentes+'</div><div style="font-size:11px;color:var(--t2)">Pendentes</div></div>'
+        +'</div>';
+
+      // Botão marcar todos como compartilhado
+      var temPendente=holMes.some(function(hx){return hx.status==='pendente';});
+      if(temPendente){
+        h+='<button class="btn bp" style="width:100%;justify-content:center;margin-bottom:10px" onclick="marcarTodosCompartilhado('+mesAtual+','+anoAtual+')">'
+          +'<i class="ti ti-share"></i> Marcar todos como compartilhado</button>';
+      }
+
+      // Lista por funcionária
+      holMes.forEach(function(hl){
+        var func=funcs.find(function(f){return f.id===hl.func_id;})||{nome:'Funcionária '+hl.func_id};
+        var icone=hl.status==='assinado'?'✅':hl.status==='enviado'?'📤':'📄';
+        var cor=hl.status==='assinado'?'var(--gd)':hl.status==='enviado'?'var(--wn)':'var(--t2)';
+        var badge=hl.status==='assinado'?'Assinado (Gov.br)':hl.status==='enviado'?'Compartilhado':'Pendente';
+        h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">'
+          +'<div style="font-size:20px">'+icone+'</div>'
+          +'<div style="flex:1"><div style="font-weight:600;font-size:14px">'+func.nome+'</div>'
+          +'<div style="font-size:11px;color:'+cor+';margin-top:2px">'+badge+'</div>'
+          +(hl.assinado_em?'<div style="font-size:10px;color:var(--t3)">Assinado em: '+new Date(hl.assinado_em).toLocaleDateString('pt-BR')+'</div>':'')
+          +'</div>'
+          +'<div style="display:flex;gap:6px">'
+          +(hl.status==='pendente'?'<button class="btn bp" style="font-size:12px;padding:8px 12px" title="Marcar como compartilhado" onclick="marcarCompartilhado('+hl.id+')"><i class="ti ti-share"></i></button>':'')
+          +(hl.status==='enviado'?'<button class="btn" style="font-size:12px;padding:8px 12px;background:var(--gl);border-color:var(--gd);color:var(--gd)" title="Marcar como assinado" onclick="marcarAssinado('+hl.id+')"><i class="ti ti-check"></i></button>':'')
+          +'</div>'
+          +'</div>';
+      });
+
+      h+='</div>';
+    }
+
+    // Histórico de lotes
+    if(lotes.length>1){
+      h+='<div class="ct2"><i class="ti ti-history"></i> Lotes anteriores</div>';
+      lotes.slice(1).forEach(function(lt){
+        h+='<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between;align-items:center">'
+          +'<div><div style="font-weight:600;font-size:13px">'+MESES[lt.mes-1]+'/'+lt.ano+'</div>'
+          +'<div style="font-size:11px;color:var(--t2)">'+lt.total_encontrados+' funcionárias • '+lt.pdf_nome+'</div></div>'
+          +'<span class="bx '+(lt.status==='pronto'?'tl':'ok')+'">'+lt.status+'</span>'
+          +'</div></div>';
+      });
+    }
+
+    document.getElementById('ct').innerHTML=h;
+  }
 }
 
 // ── Processar PDF de holerites ──
@@ -1920,49 +1986,27 @@ window.processarHoleritePdf=async function(input){
   }
 };
 
-// ── Enviar holerite individual para assinatura (Autentique) ──
-window.enviarHolerite=async function(holId){
-  var btn=event.target.closest('button');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader ti-spin"></i>';}
-  try{
-    var res=await fetch('/.netlify/functions/enviar-holerite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holerite_id:holId})});
-    var data=await res.json();
-    if(data.ok){
-      gDocs();
-    } else {
-      alert('Erro ao enviar: '+(data.erro||'Tente novamente.'));
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i>';}
-    }
-  }catch(e){
-    alert('Erro de conexão. Verifique sua internet.');
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i>';}
-  }
+// ── Marcar holerite individual como compartilhado (Gov.br manual) ──
+window.marcarCompartilhado=async function(holId){
+  await pk('holerites','?id=eq.'+holId,{status:'enviado',enviado_em:new Date().toISOString()});
+  gDocs();
 };
 
-// ── Enviar todos os holerites pendentes de um mês ──
-window.enviarTodosHolerites=async function(mes,ano){
-  if(!confirm('Enviar todos os holerites de '+MESES[mes-1]+'/'+ano+' para assinatura?'))return;
+// ── Marcar holerite como assinado manualmente ──
+window.marcarAssinado=async function(holId){
+  if(!confirm('Confirmar que esta funcionária assinou o holerite pelo Gov.br?'))return;
+  await pk('holerites','?id=eq.'+holId,{status:'assinado',assinado_em:new Date().toISOString()});
+  gDocs();
+};
+
+// ── Marcar todos os pendentes como compartilhado ──
+window.marcarTodosCompartilhado=async function(mes,ano){
+  if(!confirm('Marcar todos os holerites de '+MESES[mes-1]+'/'+ano+' como compartilhados?'))return;
   var pendentes=await gt('holerites','?status=eq.pendente&mes=eq.'+mes+'&ano=eq.'+ano+eid());
   if(!pendentes||!pendentes.length){alert('Nenhum holerite pendente.');return;}
-
-  var ct=document.getElementById('ct');
-  var divProg=document.createElement('div');
-  divProg.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999';
-  divProg.innerHTML='<div class="card" style="text-align:center;padding:24px;min-width:260px"><i class="ti ti-loader ti-spin" style="font-size:32px;color:var(--td)"></i><div style="margin-top:12px;font-weight:600" id="prog-txt">Enviando 0/'+pendentes.length+'...</div></div>';
-  document.body.appendChild(divProg);
-
-  var ok=0,err=0;
   for(var i=0;i<pendentes.length;i++){
-    document.getElementById('prog-txt').textContent='Enviando '+(i+1)+'/'+pendentes.length+'...';
-    try{
-      var res=await fetch('/.netlify/functions/enviar-holerite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holerite_id:pendentes[i].id})});
-      var data=await res.json();
-      if(data.ok)ok++;else err++;
-    }catch(e){err++;}
+    await pk('holerites','?id=eq.'+pendentes[i].id,{status:'enviado',enviado_em:new Date().toISOString()});
   }
-
-  document.body.removeChild(divProg);
-  alert(ok+' holerite(s) enviados com sucesso!'+(err>0?'\n'+err+' erro(s).':''));
   gDocs();
 };
 
