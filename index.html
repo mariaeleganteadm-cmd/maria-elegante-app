@@ -487,7 +487,7 @@ function diasUteisTotais(mes, ano){
   return diasUteisPeriodo(new Date(ano,mes-1,1), new Date(ano,mes,0));
 }
 
-let S=null, mS=5, aS=2026, fP=null;
+let S=null, mS=Math.max(new Date().getMonth()+1,1), aS=2026, fP=null;
 
 const fm=v=>'R$'+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fi=v=>'R$'+Math.round(v).toLocaleString('pt-BR');
@@ -959,6 +959,7 @@ function renderHome(){
   if(temModulo('docs')) subs.push({id:'docs', icon:'ti-file-text', nome:'Documentos', desc:'Termos e comunicados', cor:'#6D4C41', bg:'#EFEBE9'});
   if(temModulo('avisos')) subs.push({id:'avisos', icon:'ti-speakerphone', nome:'Avisos', desc:'Comunicados da empresa', cor:'#AD1457', bg:'#FCE4EC'});
   // Equipe — cadastro e permissões, somente gestor
+  if(tipo==='gestor') subs.push({id:'financeiro', icon:'ti-chart-line', nome:'Financeiro', desc:'Vendas por loja e total', cor:'#0277BD', bg:'#E1F5FE'});
   if(tipo==='gestor') subs.push({id:'equipe', icon:'ti-users', nome:'Equipe', desc:'Cadastro e permissões', cor:'#2E7D32', bg:'#E8F5E9'});
   var cards = subs.map(function(s){
     return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
@@ -1000,6 +1001,9 @@ async function entrarSubsistema(sub){
   } else if(sub==='avisos'){
     buildNav(S.tipo);
     navTo(S.tipo==='gestor'?'g-comunic':'f-comunic');
+  } else if(sub==='financeiro'){
+    buildNav(S.tipo,'financeiro');
+    navTo('g-fin');
   } else if(sub==='equipe'){
     buildNav(S.tipo,'equipe');
     navTo('g-equipe');
@@ -1007,7 +1011,7 @@ async function entrarSubsistema(sub){
 }
 
 function sair(){
-  S=null;fP=null;
+  S=null;fP=null;azulSair();
   document.getElementById('app').style.display='none';
   document.getElementById('pg-login').style.display='block';
   rst();
@@ -1022,6 +1026,7 @@ function buildNav(tipo,modulo){
     gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'}],
     vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'}]
   };
+  if(modulo==='financeiro'){ns.gestor=[{id:'g-fin',i:'ti-chart-line',l:'Vendas'}];}
   if(modulo==='equipe'){ns.gestor=[{id:'g-equipe',i:'ti-users',l:'Equipe'}];}
   var botaoHome='<button class="nb" onclick="renderHome()" style="min-width:44px"><i class="ti ti-home"></i><span>Início</span></button>';
   document.getElementById('bn').innerHTML=botaoHome+(ns[tipo]||ns.vendedora).map(function(x){
@@ -1030,6 +1035,7 @@ function buildNav(tipo,modulo){
 }
 
 async function navTo(id){
+  window.NAV_ATUAL=id;
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   const b=document.getElementById('n-'+id);if(b)b.classList.add('active');
   document.getElementById('ct').innerHTML='<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>';
@@ -1045,7 +1051,7 @@ async function navTo(id){
       }catch(e){console.error(e);}
     }
   }
-  const fns={g_metas:gMetas,g_equipe:gEquipe,g_metames:gMetaMes,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic};
+  const fns={g_metas:gMetas,g_equipe:gEquipe,g_metames:gMetaMes,g_fin:gFinVendas,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic};
   const fn=fns[id.replace(/-/g,'_')];
   if(fn){
     try{await fn();}
@@ -1058,6 +1064,368 @@ async function navTo(id){
 
 function mSel(cb){
   return'<div class="ms">'+MESES.map((nm,i)=>'<button class="mp'+(i+1===mS&&aS===2026?' active':'')+'" onclick="mS='+(i+1)+';aS=2026;'+cb+'">'+nm+'/2026</button>').join('')+'</div>';
+}
+
+// ═══ INTEGRAÇÃO AZUL ═══
+// Tudo passa pela função do Netlify (azul-proxy). A chave da Azul nunca chega ao navegador.
+// Gestora: pede a senha do Financeiro. Gerente/vendedora: usa as credenciais da própria sessão
+// (transição até o novo login com e-mail).
+var AZUL={tok:null,exp:0,cache:{},aviso:'',naoMapeado:null,atualizado:null,pausado:false};
+
+function azulTokLer(){
+  try{
+    var t=sessionStorage.getItem('me_azul_tok'),e=+sessionStorage.getItem('me_azul_exp');
+    if(t&&e>Date.now()){AZUL.tok=t;AZUL.exp=e;}
+  }catch(x){}
+}
+function azulTokSalvar(t){
+  AZUL.tok=t;AZUL.exp=Date.now()+7*3600*1000;
+  try{sessionStorage.setItem('me_azul_tok',t);sessionStorage.setItem('me_azul_exp',String(AZUL.exp));}catch(x){}
+}
+function azulTokLimpar(){
+  AZUL.tok=null;AZUL.exp=0;
+  try{sessionStorage.removeItem('me_azul_tok');sessionStorage.removeItem('me_azul_exp');}catch(x){}
+}
+function azulSair(){azulTokLimpar();AZUL.cache={};AZUL.aviso='';AZUL.naoMapeado=null;AZUL.pausado=false;}
+
+async function azulLogin(corpo){
+  var r=await fetch('/.netlify/functions/azul-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo),cache:'no-store'});
+  var j={};
+  try{j=await r.json();}catch(x){}
+  if(!r.ok||!j.token){
+    var e=new Error(j.mensagem||'Falha no acesso à Azul.');
+    e.codigo=j.codigo||('HTTP_'+r.status);
+    throw e;
+  }
+  azulTokSalvar(j.token);
+}
+
+function azulPedirSenha(msgErro){
+  return new Promise(function(resolve){
+    var antigo=document.getElementById('modal-azul');
+    if(antigo)antigo.remove();
+    var m=document.createElement('div');
+    m.id='modal-azul';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px';
+    m.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px;width:100%;max-width:360px">'
+      +'<div style="font-size:17px;font-weight:700;margin-bottom:6px">Acesso aos dados da Azul</div>'
+      +'<div style="font-size:13px;color:#666;margin-bottom:14px">Digite a senha do Financeiro para carregar as vendas.</div>'
+      +'<input id="azul-senha" type="password" autocomplete="current-password" placeholder="Senha do Financeiro" style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;margin-bottom:8px;box-sizing:border-box">'
+      +'<div style="color:#c0392b;font-size:12px;min-height:16px;margin-bottom:8px">'+(msgErro||'')+'</div>'
+      +'<div style="display:flex;gap:8px"><button class="btn bp" id="azul-ok" style="flex:1;justify-content:center">Entrar</button><button class="btn" id="azul-cancel">Agora não</button></div>'
+      +'</div>';
+    document.body.appendChild(m);
+    var inp=document.getElementById('azul-senha');
+    function fechar(v){m.remove();resolve(v);}
+    document.getElementById('azul-ok').onclick=function(){fechar(inp.value||'');};
+    document.getElementById('azul-cancel').onclick=function(){fechar(null);};
+    inp.onkeydown=function(ev){if(ev.key==='Enter')fechar(inp.value||'');};
+    setTimeout(function(){inp.focus();},50);
+  });
+}
+
+function azulToken(){
+  azulTokLer();
+  if(AZUL.tok&&AZUL.exp>Date.now())return Promise.resolve(AZUL.tok);
+  if(!AZUL.pend){AZUL.pend=azulTokenNovo().then(function(t){AZUL.pend=null;return t;},function(e){AZUL.pend=null;throw e;});}
+  return AZUL.pend;
+}
+async function azulTokenNovo(){
+  if(!S){var e0=new Error('Sessão não iniciada.');e0.codigo='SEM_SESSAO';throw e0;}
+  if(S.tipo==='gestor'){
+    if(AZUL.pausado){var ec=new Error('Senha do Financeiro não informada.');ec.codigo='CANCELADO';throw ec;}
+    var erro='';
+    for(var i=0;i<3;i++){
+      var senha=await azulPedirSenha(erro);
+      if(senha===null){AZUL.pausado=true;var ec2=new Error('Senha do Financeiro não informada.');ec2.codigo='CANCELADO';throw ec2;}
+      try{await azulLogin({modo:'gestor',senha:senha});return AZUL.tok;}
+      catch(e){
+        if(e.codigo!=='CREDENCIAIS_INVALIDAS')throw e;
+        erro='Senha incorreta.';
+      }
+    }
+    AZUL.pausado=true;
+    var e3=new Error('Senha incorreta.');e3.codigo='CREDENCIAIS_INVALIDAS';throw e3;
+  }
+  var f=S.func||{};
+  await azulLogin({modo:'func',telefone:f.telefone||f.login,senha:f.senha_hash});
+  return AZUL.tok;
+}
+
+async function azulGet(path,params,opt){
+  var qs=new URLSearchParams(params||{}).toString();
+  var url='/.netlify/functions/azul-proxy?path='+encodeURIComponent(path)+(qs?'&'+qs:'');
+  var c=AZUL.cache[url];
+  if(c&&!(opt&&opt.fresh)&&Date.now()-c.t<180000)return c.d;
+  for(var tent=0;tent<2;tent++){
+    var tok=await azulToken();
+    var r=await fetch(url,{headers:{Authorization:'Bearer '+tok},cache:'no-store'});
+    if(r.status===401&&tent===0){azulTokLimpar();continue;}
+    var j={};
+    try{j=await r.json();}catch(x){}
+    if(!r.ok){
+      var e=new Error(j.mensagem||('Erro '+r.status+' na Azul.'));
+      e.codigo=j.codigo||('HTTP_'+r.status);
+      throw e;
+    }
+    AZUL.cache[url]={t:Date.now(),d:j};
+    AZUL.atualizado=new Date();
+    return j;
+  }
+}
+
+// Executa tarefas (funções que retornam promessas) com no máximo "limite" ao mesmo tempo
+async function azulLote(tarefas,limite){
+  var res=new Array(tarefas.length),i=0;
+  async function worker(){
+    while(true){
+      var k=i++;
+      if(k>=tarefas.length)return;
+      res[k]=await tarefas[k]();
+    }
+  }
+  var ws=[];
+  for(var w=0;w<Math.min(limite,tarefas.length);w++)ws.push(worker());
+  await Promise.all(ws);
+  return res;
+}
+
+function isoD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function brD(iso){var p=String(iso).slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+
+// A Azul aceita no máximo 31 dias por consulta de vendas
+function janelas31(iniISO,fimISO){
+  var out=[],a=new Date(iniISO+'T12:00:00'),fim=new Date(fimISO+'T12:00:00');
+  while(a<=fim){
+    var b=new Date(a);b.setDate(b.getDate()+30);
+    if(b>fim)b=new Date(fim);
+    out.push([isoD(a),isoD(b)]);
+    a=new Date(b);a.setDate(a.getDate()+1);
+  }
+  return out;
+}
+
+async function azulVendasPeriodo(filialAzul,iniISO,fimISO,opt){
+  var js=janelas31(iniISO,fimISO),acc=[];
+  var tarefas=js.map(function(j){
+    return function(){
+      var p={dataInicial:j[0],dataFinal:j[1]};
+      if(filialAzul)p.filial=filialAzul;
+      return azulGet('vendas',p,opt);
+    };
+  });
+  var rs=await azulLote(tarefas,3);
+  rs.forEach(function(r){(r.vendas||[]).forEach(function(v){acc.push(v);});});
+  return acc;
+}
+
+// Vendas do mês no formato antigo da tabela "vendas" (func_id, valor, data_venda dd/mm/aaaa)
+async function azulVendasComoLinhas(mes,ano){
+  var hoje=new Date(),ini=new Date(ano,mes-1,1),fimMes=new Date(ano,mes,0);
+  var fim=fimMes>hoje?hoje:fimMes;
+  if(ini>hoje)return [];
+  var iniISO=isoD(ini),fimISO=isoD(fim);
+  var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,azul_vendedor_codigo');
+  var mapa={};
+  funcs.forEach(function(f){if(f.azul_vendedor_codigo)mapa[f.azul_vendedor_codigo]=f.id;});
+  var vendas=[];
+  if(S&&S.tipo==='gestor'){
+    var fils=await gt('filiais','?select=id,nome,azul_filial'+eid());
+    var tarefas=fils.filter(function(f){return f.azul_filial;}).map(function(f){
+      return function(){return azulVendasPeriodo(f.azul_filial,iniISO,fimISO);};
+    });
+    var rs=await azulLote(tarefas,2);
+    rs.forEach(function(r){vendas=vendas.concat(r);});
+  } else {
+    vendas=await azulVendasPeriodo(null,iniISO,fimISO);
+  }
+  var rows=[],nm={total:0,qtd:0,por:{}};
+  vendas.forEach(function(v){
+    if(v.situacao_codigo!==1)return;
+    var val=Number(v.total_real_venda)||0;
+    var fid=mapa[v.vendedor_codigo];
+    if(!fid){
+      nm.total+=val;nm.qtd++;
+      var k=(v.vendedor_nome||('Código '+v.vendedor_codigo));
+      nm.por[k]=(nm.por[k]||0)+val;
+      return;
+    }
+    rows.push({func_id:fid,valor:val,data_venda:brD(v.data),origem:'azul',codigo_venda:v.codigo_venda});
+  });
+  AZUL.naoMapeado=nm;
+  return rows;
+}
+
+// Troca, nas linhas antigas, o mês escolhido pelas vendas da Azul. Se a Azul falhar, mantém as antigas e avisa.
+async function vendasMisturadas(antigas,mes,ano){
+  AZUL.aviso='';AZUL.naoMapeado=null;
+  try{
+    var rows=await azulVendasComoLinhas(mes,ano);
+    var outros=antigas.filter(function(v){
+      var p=String(v.data_venda||'').split('/');
+      return !(+p[1]===mes&&+p[2]===ano);
+    });
+    return outros.concat(rows);
+  }catch(e){
+    console.error('Azul:',e);
+    var msgs={
+      CANCELADO:'Para ver as vendas da Azul, informe a senha do Financeiro.',
+      CREDENCIAIS_INVALIDAS:'Não foi possível entrar na Azul com essas credenciais.',
+      MAPEAMENTO_AZUL_PENDENTE:'Seu cadastro ainda não está ligado à Azul. Fale com a gestora.',
+      SERVIDOR_NAO_CONFIGURADO:'A integração com a Azul ainda não está configurada.'
+    };
+    AZUL.aviso=(msgs[e.codigo]||('Não foi possível carregar as vendas da Azul ('+e.message+').'))+' Mostrando os lançamentos manuais.';
+    return antigas;
+  }
+}
+
+function azulRetentar(){
+  AZUL.pausado=false;AZUL.cache={};
+  navTo(window.NAV_ATUAL||'g-metas');
+}
+
+function avisoAzulHtml(){
+  var h='';
+  if(AZUL.aviso){
+    h+='<div class="ae aer" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>'+AZUL.aviso+'</span>'
+      +'<button class="btn bsm" onclick="azulRetentar()" style="flex-shrink:0">Tentar de novo</button></div>';
+  } else if(AZUL.atualizado){
+    var hh=AZUL.atualizado;
+    h+='<div style="font-size:11px;color:var(--t2);margin-bottom:6px"><i class="ti ti-plug-connected"></i> Vendas da Azul · atualizado às '
+      +String(hh.getHours()).padStart(2,'0')+':'+String(hh.getMinutes()).padStart(2,'0')+'</div>';
+  }
+  var nm=AZUL.naoMapeado;
+  if(!AZUL.aviso&&S&&S.tipo==='gestor'&&nm&&nm.qtd>0){
+    var nomes=Object.keys(nm.por).sort(function(a,b){return nm.por[b]-nm.por[a];}).slice(0,3).join(', ');
+    h+='<div class="hn"><i class="ti ti-info-circle"></i> '+fm(nm.total)+' em '+nm.qtd+' vendas foram feitas por códigos sem funcionária ligada ('+nomes+'). Ligue no módulo Equipe para entrarem nas metas.</div>';
+  }
+  return h;
+}
+
+// ── FINANCEIRO: VENDAS POR LOJA ──
+var FIN={ini:null,fim:null,fil:''};
+
+function finPreset(p){
+  var h=new Date(),a,b;
+  if(p==='hoje'){a=h;b=h;}
+  else if(p==='7'){b=h;a=new Date(h);a.setDate(a.getDate()-6);}
+  else if(p==='mes'){a=new Date(h.getFullYear(),h.getMonth(),1);b=h;}
+  else if(p==='mesant'){a=new Date(h.getFullYear(),h.getMonth()-1,1);b=new Date(h.getFullYear(),h.getMonth(),0);}
+  else {a=new Date(h.getFullYear(),0,1);b=h;}
+  FIN.ini=isoD(a);FIN.fim=isoD(b);
+  gFinVendas();
+}
+function finAplicar(){
+  var i=document.getElementById('fin-ini').value,f=document.getElementById('fin-fim').value;
+  FIN.fil=document.getElementById('fin-fil').value;
+  if(!i||!f||i>f){alert('Confira as datas.');return;}
+  FIN.ini=i;FIN.fim=f;
+  gFinVendas();
+}
+
+async function gFinVendas(){
+  AZUL.aviso='';AZUL.naoMapeado=null;
+  if(!FIN.ini){var h0=new Date();FIN.ini=isoD(new Date(h0.getFullYear(),h0.getMonth(),1));FIN.fim=isoD(h0);}
+  var fils=await gt('filiais','?select=id,nome,azul_filial'+eid()+'&order=nome');
+  fils=fils.filter(function(f){return f.azul_filial;});
+  var alvo=FIN.fil?fils.filter(function(f){return String(f.id)===String(FIN.fil);}):fils;
+  var funcs=await gt('funcionarias','?select=azul_vendedor_codigo,nome'+eid());
+  var nomes={};funcs.forEach(function(f){if(f.azul_vendedor_codigo)nomes[f.azul_vendedor_codigo]=f.nome;});
+
+  var barra='<div class="h1"><i class="ti ti-chart-line"></i> Financeiro · Vendas</div>'
+    +'<div class="card" style="padding:12px;margin-bottom:12px">'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<button class="btn bsm" onclick="finPreset(\'hoje\')">Hoje</button>'
+    +'<button class="btn bsm" onclick="finPreset(\'7\')">7 dias</button>'
+    +'<button class="btn bsm" onclick="finPreset(\'mes\')">Este mês</button>'
+    +'<button class="btn bsm" onclick="finPreset(\'mesant\')">Mês passado</button>'
+    +'<button class="btn bsm" onclick="finPreset(\'ano\')">Ano</button></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+    +'<div class="fi"><label>De</label><input type="date" id="fin-ini" value="'+FIN.ini+'"></div>'
+    +'<div class="fi"><label>Até</label><input type="date" id="fin-fim" value="'+FIN.fim+'"></div></div>'
+    +'<div class="fi"><label>Loja</label><select id="fin-fil"><option value="">Todas as lojas</option>'
+    +fils.map(function(f){return '<option value="'+f.id+'"'+(String(f.id)===String(FIN.fil)?' selected':'')+'>'+f.nome+'</option>';}).join('')
+    +'</select></div>'
+    +'<button class="btn bp" style="width:100%;justify-content:center" onclick="finAplicar()"><i class="ti ti-filter"></i> Aplicar</button></div>';
+
+  var dias=(new Date(FIN.fim+'T12:00:00')-new Date(FIN.ini+'T12:00:00'))/86400000+1;
+  if(dias>370){document.getElementById('ct').innerHTML=barra+'<div class="ae aer">Escolha um período de até 1 ano.</div>';return;}
+
+  var porLoja=[];
+  try{
+    var rs=await azulLote(alvo.map(function(f){return function(){return azulVendasPeriodo(f.azul_filial,FIN.ini,FIN.fim);};}),2);
+    alvo.forEach(function(f,i){porLoja.push({fil:f,vendas:rs[i]});});
+  }catch(e){
+    console.error('Financeiro:',e);
+    var msg=e.codigo==='CANCELADO'?'Para ver as vendas, informe a senha do Financeiro.':('Não foi possível carregar as vendas da Azul ('+e.message+').');
+    document.getElementById('ct').innerHTML=barra+'<div class="ae aer" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>'+msg+'</span><button class="btn bsm" onclick="AZUL.pausado=false;gFinVendas()">Tentar de novo</button></div>';
+    return;
+  }
+
+  var T={bruto:0,desc:0,liq:0,qtd:0,canc:0,cancV:0};
+  var dia={},vend={},lojas=[];
+  porLoja.forEach(function(pl){
+    var L={nome:pl.fil.nome,liq:0,qtd:0,canc:0,desc:0};
+    pl.vendas.forEach(function(v){
+      var val=Number(v.total_real_venda)||0;
+      if(v.situacao_codigo!==1){T.canc++;T.cancV+=val;L.canc++;return;}
+      T.liq+=val;T.qtd++;T.bruto+=Number(v.valor_bruto)||0;T.desc+=Number(v.valor_desconto)||0;
+      L.liq+=val;L.qtd++;L.desc+=Number(v.valor_desconto)||0;
+      var d=String(v.data).slice(0,10);dia[d]=(dia[d]||0)+val;
+      var vk=v.vendedor_codigo;
+      if(!vend[vk])vend[vk]={nome:nomes[vk]||v.vendedor_nome||('Código '+vk),liq:0,qtd:0};
+      vend[vk].liq+=val;vend[vk].qtd++;
+    });
+    lojas.push(L);
+  });
+  lojas.sort(function(a,b){return b.liq-a.liq;});
+  var ticket=T.qtd?T.liq/T.qtd:0;
+  var pDesc=T.bruto?T.desc/T.bruto*100:0;
+  var chavesDia=Object.keys(dia).sort();
+  var melhor=chavesDia.reduce(function(m,k){return !m||dia[k]>dia[m]?k:m;},null);
+  var mediaDia=chavesDia.length?T.liq/chavesDia.length:0;
+
+  function kpi(ic,rot,val,sub){
+    return '<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--t2)"><i class="ti '+ic+'"></i> '+rot+'</div>'
+      +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+val+'</div>'
+      +(sub?'<div style="font-size:11px;color:var(--t2)">'+sub+'</div>':'')+'</div>';
+  }
+  var h=barra+avisoAzulHtml();
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
+    +kpi('ti-cash','Faturamento',fm(T.liq),(chavesDia.length)+' dias com venda')
+    +kpi('ti-receipt','Vendas',String(T.qtd),'Ticket médio '+fm(ticket))
+    +kpi('ti-discount-2','Descontos',fm(T.desc),pDesc.toFixed(1).replace('.',',')+'% do bruto')
+    +kpi('ti-ban','Canceladas',String(T.canc),fm(T.cancV))
+    +kpi('ti-calendar-stats','Média por dia',fm(mediaDia),'com venda')
+    +kpi('ti-trophy','Melhor dia',melhor?fm(dia[melhor]):'—',melhor?brD(melhor):'')
+    +'</div>';
+
+  h+='<div class="card" style="padding:12px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">Por loja</div>';
+  if(!lojas.length)h+='<div style="font-size:13px;color:var(--t2)">Nenhuma loja ligada à Azul.</div>';
+  lojas.forEach(function(L){
+    var pc=T.liq?L.liq/T.liq*100:0;
+    h+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px"><b>'+L.nome+'</b><span>'+fm(L.liq)+'</span></div>'
+      +'<div class="pb"><div class="pf" style="width:'+pc.toFixed(1)+'%;background:#00897B"></div></div>'
+      +'<div style="font-size:11px;color:var(--t2)">'+pc.toFixed(1).replace('.',',')+'% do total · '+L.qtd+' vendas · ticket '+fm(L.qtd?L.liq/L.qtd:0)+(L.canc?' · '+L.canc+' canc.':'')+'</div></div>';
+  });
+  h+='</div>';
+
+  if(chavesDia.length&&chavesDia.length<=62){
+    var mx=Math.max.apply(null,chavesDia.map(function(k){return dia[k];}));
+    h+='<div class="card" style="padding:12px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">Vendas por dia</div>'
+      +'<div style="display:flex;align-items:flex-end;gap:2px;height:90px">'
+      +chavesDia.map(function(k){return '<div title="'+brD(k)+' · '+fm(dia[k])+'" style="flex:1;min-width:2px;background:#00897B;border-radius:2px 2px 0 0;height:'+Math.max(dia[k]/mx*100,2).toFixed(0)+'%"></div>';}).join('')
+      +'</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t2);margin-top:4px"><span>'+brD(chavesDia[0]).slice(0,5)+'</span><span>'+brD(chavesDia[chavesDia.length-1]).slice(0,5)+'</span></div></div>';
+  }
+
+  var top=Object.keys(vend).map(function(k){return vend[k];}).sort(function(a,b){return b.liq-a.liq;}).slice(0,10);
+  h+='<div class="card" style="padding:12px"><div style="font-weight:700;margin-bottom:8px">Vendedoras</div>';
+  top.forEach(function(v,i){
+    h+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--bd)"><span>'+(i+1)+'. '+v.nome+' <span style="color:var(--t2);font-size:11px">('+v.qtd+')</span></span><b>'+fm(v.liq)+'</b></div>';
+  });
+  if(!top.length)h+='<div style="font-size:13px;color:var(--t2)">Sem vendas no período.</div>';
+  h+='</div>';
+  document.getElementById('ct').innerHTML=h;
 }
 
 // ── GESTORA: LANÇAR ──
@@ -1280,7 +1648,7 @@ async function gMetas(){
   try {
     [funcs,vendas,metas,fils]=await Promise.all([
       gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'),
-      gt('vendas','?select=func_id,valor,data_venda'+eid()),
+      gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
       gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*'),
       gt('filiais','?select=*'+eid())
     ]);
@@ -1341,7 +1709,7 @@ async function gMetas(){
     +'<div id="hist-result" style="margin-top:12px"></div>'
     +'</div>';
 
-  document.getElementById('ct').innerHTML=h;
+  document.getElementById('ct').innerHTML=avisoAzulHtml()+h;
   document.querySelectorAll('.inp-data-lanc').forEach(el=>{el.value=hjISO()});
 
   // Setar data "de" como 1º dia do mês atual
@@ -1997,7 +2365,7 @@ async function gMais(filtroFil){
   const [fils,funcs,vendas,metas]=await Promise.all([
     gt('filiais','?select=*'+eid()),
     gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*'),
-    gt('vendas','?select=func_id,valor,data_venda'+eid()),
+    gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
   ]);
 
@@ -2149,14 +2517,14 @@ async function gMais(filtroFil){
   });
   h+='</div>';
 
-  document.getElementById('ct').innerHTML=h;
+  document.getElementById('ct').innerHTML=avisoAzulHtml()+h;
 }
 
 // ── RELATÓRIO DA VENDEDORA ──
 async function fRelatorio(){
   const f=S.func;
   const [vendas,metaR]=await Promise.all([
-    gt('vendas','?func_id=eq.'+f.id+'&select=*'),
+    gt('vendas','?func_id=eq.'+f.id+'&select=*').then(function(v){return vendasMisturadas(v,mS,aS).then(function(r){return r.filter(function(x){return x.func_id===f.id;});});}),
     gt('metas_mensais','?func_id=eq.'+f.id+'&mes=eq.'+mS+'&ano=eq.'+aS+'&select=valor')
   ]);
   const meta=metaR.length?parseFloat(metaR[0].valor):0;
@@ -2288,7 +2656,7 @@ async function fRelatorio(){
     +(vendasMes.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')
     +'</div>';
 
-  document.getElementById('ct').innerHTML=h;
+  document.getElementById('ct').innerHTML=avisoAzulHtml()+h;
 }
 
 // ── PAINEL SUPER ADMIN (acessado digitando /admin na senha da gestora) ──
@@ -2335,14 +2703,15 @@ async function gGerente(){
   while(ontem.getDay()===0||isFeriado(ontem)) ontem.setDate(ontem.getDate()-1);
   const ontemStr=String(ontem.getDate()).padStart(2,'0')+'/'+String(ontem.getMonth()+1).padStart(2,'0')+'/'+ontem.getFullYear();
 
-  const [funcs,vendas,metas,filRaw,vendasEmp]=await Promise.all([
+  let [funcs,vendas,metas,filRaw,vendasEmp]=await Promise.all([
     gt('funcionarias','?ativa=eq.true&filial_id=eq.'+f.filial_id+'&perfil=in.(vendedora,gerente)'+eid()+'&select=*'),
-    gt('vendas','?select=func_id,valor,data_venda'+eid()),
+    gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*'),
     gt('filiais','?id=eq.'+f.filial_id+'&select=nome'),
-    gt('vendas','?select=valor,data_venda'+eid())
+    Promise.resolve([])
   ]);
 
+  vendasEmp=vendas;
   const nomeFil=filRaw.length?filRaw[0].nome:'Filial';
   const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
   const tot={};vendasMes.forEach(v=>{tot[v.func_id]=(tot[v.func_id]||0)+parseFloat(v.valor)});
@@ -2469,7 +2838,7 @@ async function gGerente(){
       +'</div>';
   });
 
-  document.getElementById('ct').innerHTML=h;
+  document.getElementById('ct').innerHTML=avisoAzulHtml()+h;
 }
 
 // ── VENDEDORA: METAS ──
@@ -2479,11 +2848,13 @@ async function fMetas(){
   const HOJE_DS=HOJE.getDay(); // 0=Dom,1=Seg...6=Sab
   const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-  const [vendas,metaR,vendasFilial]=await Promise.all([
-    gt('vendas','?func_id=eq.'+f.id+'&select=*&order=data_venda.desc'),
+  let [vendas,metaR,vendasFilial]=await Promise.all([
+    gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
     gt('metas_mensais','?func_id=eq.'+f.id+'&mes=eq.'+mS+'&ano=eq.'+aS+'&select=valor'),
-    gt('vendas','?select=valor,data_venda'+eid())
+    Promise.resolve([])
   ]);
+  vendasFilial=vendas;
+  vendas=vendas.filter(function(x){return x.func_id===f.id;});
 
   const meta=metaR.length?parseFloat(metaR[0].valor):0;
   const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
@@ -2757,7 +3128,7 @@ async function fMetas(){
     +(vendasMes.length===0?'<div class="em">Nenhum lançamento neste mês.</div>':'')
     +'</div>';
 
-  document.getElementById('ct').innerHTML=h;
+  document.getElementById('ct').innerHTML=avisoAzulHtml()+h;
 }
 
 // ── CHECKLIST ──
