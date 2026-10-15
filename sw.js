@@ -1,5 +1,5 @@
 // ── Service Worker — Maria Elegante ──
-const CACHE_NAME = 'maria-elegante-v2';
+const CACHE_NAME = 'maria-elegante-v3';
 
 // Arquivos essenciais para funcionar offline
 const CACHE_URLS = [
@@ -38,6 +38,11 @@ self.addEventListener('activate', event => {
 // Fetch — estratégia: Network First para dados, Cache First para assets
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  // Só GET é cacheável; funções do Netlify (Azul) nunca passam pelo cache
+  if (event.request.method !== 'GET' || url.pathname.indexOf('/.netlify/functions/') === 0) {
+    return;
+  }
 
   // Requisições ao Supabase — sempre buscar da rede (dados em tempo real)
   if (url.hostname.includes('supabase.co')) {

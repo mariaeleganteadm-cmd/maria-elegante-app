@@ -33,7 +33,7 @@ var PATHS_PERMITIDOS = {
 };
 
 // Paths liberados para gerente e vendedora (escopo forcado no servidor)
-var PATHS_METAS = { 'vendas/totalizador': true };
+var PATHS_METAS = { 'vendas/totalizador': true, 'vendas': true };
 
 var PATHS_BINARIOS = { 'produtos/foto': true };
 
