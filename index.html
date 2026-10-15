@@ -927,26 +927,39 @@ async function init(){
   renderHome();
 }
 
+const MODULOS_DEF=[
+  {id:'metas',nome:'Metas',desc:'Lançar e acompanhar vendas',icon:'ti-bolt',cor:'#00897B'},
+  {id:'estoque',nome:'Estoque',desc:'Conferência e inventário',icon:'ti-package',cor:'#5C6BC0'},
+  {id:'dre',nome:'DRE',desc:'Resultado financeiro',icon:'ti-chart-bar',cor:'#EF6C00'},
+  {id:'docs',nome:'Documentos',desc:'Termos e comunicados',icon:'ti-file-text',cor:'#6D4C41'},
+  {id:'avisos',nome:'Avisos',desc:'Comunicados da empresa',icon:'ti-speakerphone',cor:'#AD1457'}
+];
+
+// Permissão por módulo: gestor vê tudo; demais seguem a lista func.modulos
+function temModulo(id){
+  if(!S)return false;
+  if(S.tipo==='gestor')return true;
+  var f=S.func||{};
+  if(f.modulos&&f.modulos.length)return f.modulos.indexOf(id)>=0;
+  if(id==='metas'||id==='docs'||id==='avisos')return true;
+  if(id==='estoque')return S.tipo==='gerente'||!!f.acesso_estoque;
+  if(id==='dre')return !!f.acesso_dre;
+  return false;
+}
+
 function renderHome(){
   document.getElementById('bn').innerHTML='';
   var func = S.func || {};
   var tipo = S.tipo || '';
   // Subsistemas disponíveis para este usuário
   var subs = [];
-  // Metas — sempre disponível para todos
-  subs.push({id:'metas', icon:'ti-bolt', nome:'Metas', desc:'Lançar e acompanhar vendas', cor:'#00897B', bg:'#E0F2F1'});
-  // Estoque — gestor vê sempre; funcionária só se tiver acesso
-  if(tipo==='gestor' || tipo==='gerente' || func.acesso_estoque){
-    subs.push({id:'estoque', icon:'ti-package', nome:'Estoque', desc:'Conferência e inventário', cor:'#5C6BC0', bg:'#E8EAF6'});
-  }
-  // DRE — apenas gestor ou quem tiver acesso
-  if(tipo==='gestor' || func.acesso_dre){
-    subs.push({id:'dre', icon:'ti-chart-bar', nome:'DRE', desc:'Resultado financeiro', cor:'#EF6C00', bg:'#FFF3E0'});
-  }
-  // Docs — sempre disponível
-  subs.push({id:'docs', icon:'ti-file-text', nome:'Documentos', desc:'Termos e comunicados', cor:'#6D4C41', bg:'#EFEBE9'});
-  // Avisos — sempre disponível
-  subs.push({id:'avisos', icon:'ti-speakerphone', nome:'Avisos', desc:'Comunicados da empresa', cor:'#AD1457', bg:'#FCE4EC'});
+  if(temModulo('metas')) subs.push({id:'metas', icon:'ti-bolt', nome:'Metas', desc:'Lançar e acompanhar vendas', cor:'#00897B', bg:'#E0F2F1'});
+  if(temModulo('estoque')) subs.push({id:'estoque', icon:'ti-package', nome:'Estoque', desc:'Conferência e inventário', cor:'#5C6BC0', bg:'#E8EAF6'});
+  if(temModulo('dre')) subs.push({id:'dre', icon:'ti-chart-bar', nome:'DRE', desc:'Resultado financeiro', cor:'#EF6C00', bg:'#FFF3E0'});
+  if(temModulo('docs')) subs.push({id:'docs', icon:'ti-file-text', nome:'Documentos', desc:'Termos e comunicados', cor:'#6D4C41', bg:'#EFEBE9'});
+  if(temModulo('avisos')) subs.push({id:'avisos', icon:'ti-speakerphone', nome:'Avisos', desc:'Comunicados da empresa', cor:'#AD1457', bg:'#FCE4EC'});
+  // Equipe — cadastro e permissões, somente gestor
+  if(tipo==='gestor') subs.push({id:'equipe', icon:'ti-users', nome:'Equipe', desc:'Cadastro e permissões', cor:'#2E7D32', bg:'#E8F5E9'});
   var cards = subs.map(function(s){
     return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
       '<div style="width:56px;height:56px;border-radius:14px;background:'+s.cor+';display:flex;align-items:center;justify-content:center">'+
@@ -987,6 +1000,9 @@ async function entrarSubsistema(sub){
   } else if(sub==='avisos'){
     buildNav(S.tipo);
     navTo(S.tipo==='gestor'?'g-comunic':'f-comunic');
+  } else if(sub==='equipe'){
+    buildNav(S.tipo,'equipe');
+    navTo('g-equipe');
   }
 }
 
@@ -1000,12 +1016,13 @@ function sair(){
   document.getElementById('li').style.display='none';
 }
 
-function buildNav(tipo){
+function buildNav(tipo,modulo){
   const ns={
-    gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-equipe',i:'ti-users',l:'Equipe'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'},{id:'g-config',i:'ti-settings',l:'Empresa'}],
+    gestor:[{id:'g-metas',i:'ti-bolt',l:'Lançar'},{id:'g-metames',i:'ti-target',l:'Meta do mês'},{id:'g-mais',i:'ti-chart-bar',l:'Relatório'},{id:'g-config',i:'ti-settings',l:'Empresa'}],
     gerente:[{id:'r-painel',i:'ti-chart-bar',l:'Painel'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'}],
     vendedora:[{id:'f-metas',i:'ti-chart-bar',l:'Metas'},{id:'f-rel',i:'ti-report-analytics',l:'Relatório'},{id:'f-check',i:'ti-checkbox',l:'Checklist'}]
   };
+  if(modulo==='equipe'){ns.gestor=[{id:'g-equipe',i:'ti-users',l:'Equipe'}];}
   var botaoHome='<button class="nb" onclick="renderHome()" style="min-width:44px"><i class="ti ti-home"></i><span>Início</span></button>';
   document.getElementById('bn').innerHTML=botaoHome+(ns[tipo]||ns.vendedora).map(function(x){
     return '<button class="nb" id="n-'+x.id+'" onclick="navTo(this.dataset.id)" data-id="'+x.id+'"><i class="ti '+x.i+'"></i><span>'+x.l+'</span></button>';
@@ -1028,7 +1045,7 @@ async function navTo(id){
       }catch(e){console.error(e);}
     }
   }
-  const fns={g_metas:gMetas,g_equipe:gEquipe,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic};
+  const fns={g_metas:gMetas,g_equipe:gEquipe,g_metames:gMetaMes,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic};
   const fn=fns[id.replace(/-/g,'_')];
   if(fn){
     try{await fn();}
@@ -1420,11 +1437,13 @@ async function gEquipe(){
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
     +'<span style="font-size:15px;font-weight:700">Nova funcionária</span>'
     +'<button class="btn bsm" onclick="fecharCad()"><i class="ti ti-x"></i></button></div>'
-    +'<div class="hn"><i class="ti ti-device-mobile"></i> A funcionária cria a própria senha no primeiro acesso</div>'
+    +'<div class="hn"><i class="ti ti-mail"></i> O e-mail será usado no novo login. Os módulos liberados você define depois, ao editar.</div>'
     +'<div id="ce" class="ae aer" style="display:none"></div>'
     +'<div id="co" class="ae aok" style="display:none"></div>'
     +'<div class="fi"><label>Nome completo</label><input id="cn" placeholder="Ex: Maria Silva"></div>'
     +'<div class="fi"><label>Telefone (somente números)</label><input id="cte" type="tel" placeholder="35999990001" inputmode="numeric"></div>'
+    +'<div class="fi"><label>E-mail <span style="font-size:10px;color:var(--t2)">(usado no login; pode preencher depois)</span></label><input id="cem" type="email" placeholder="exemplo@email.com"></div>'
+    +'<div class="fi"><label>Código de vendedor na Azul <span style="font-size:10px;color:var(--t2)">(opcional)</span></label><input id="caz" type="number" inputmode="numeric" placeholder="Ex: 301"></div>'
     +'<div class="fi"><label>Filial</label><select id="cf">'+fO+'</select></div>'
     +'<div class="fi"><label>Perfil</label><select id="cp"><option value="vendedora">Vendedora</option><option value="gerente">Gerente</option></select></div>'
     +'<div style="display:flex;gap:8px">'
@@ -1453,7 +1472,8 @@ async function gEquipe(){
           +'<div class="rn">'+f.nome+'</div>'
           +'<div class="rs">📱 '+(f.telefone||'—')+' · '
           +'<span style="font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600;background:'+pBg+';color:'+pCl+'">'+f.perfil+'</span>'
-          +(f.senha_criada?'':'&nbsp;<span style="font-size:10px;color:#BA7517">⏳ 1º acesso pendente</span>')
+          +(f.email?'':'&nbsp;<span style="font-size:10px;color:#BA7517">sem e-mail</span>')
+          +(f.azul_vendedor_codigo?'&nbsp;<span style="font-size:10px;color:var(--t2)">Azul '+f.azul_vendedor_codigo+'</span>':'&nbsp;<span style="font-size:10px;color:#BA7517">sem código Azul</span>')
           +'</div></div>'
           +'<div style="display:flex;gap:6px;flex-shrink:0">'
           +'<button class="btn bsm" onclick="editarFunc('+f.id+')" title="Editar / Metas"><i class="ti ti-edit"></i></button>'
@@ -1469,6 +1489,7 @@ async function gEquipe(){
     +fils.map(f=>{const n=funcs.filter(x=>x.filial_id===f.id).length;
       return'<div class="ri"><div class="av" style="width:36px;height:36px;font-size:13px;background:var(--tl);color:var(--tdd)"><i class="ti ti-building-store"></i></div>'
         +'<div style="flex:1"><div class="rn">'+f.nome+'</div><div class="rs">'+n+' func.</div></div>'
+        +'<input type="number" inputmode="numeric" value="'+(f.azul_filial||'')+'" placeholder="Cód. Azul" title="Código da filial na Azul" onchange="salvarFilAzul('+f.id+',this.value)" style="width:86px;padding:6px 8px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;margin-right:6px">'
         +'<button class="btn bd2r" onclick="rmFil('+f.id+')"><i class="ti ti-trash"></i></button></div>'}).join('')
     +'<div class="sep"></div>'
     +'<div class="fi"><label>Nova filial</label><input id="fn" placeholder="Ex: Elói Mendes"></div>'
@@ -1516,6 +1537,7 @@ async function gEquipe(){
       +'<div class="fi"><label>Nome</label><input id="ef-nome" value="'+f.nome+'" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Telefone</label><input id="ef-tel" type="tel" value="'+(f.telefone||f.login||'')+'" inputmode="numeric" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>E-mail <span style="font-size:10px;color:var(--t2)">(para assinatura digital)</span></label><input id="ef-email" type="email" value="'+(f.email||'')+'" placeholder="exemplo@email.com" style="font-size:16px;min-height:46px"></div>'
+      +'<div class="fi"><label>Código de vendedor na Azul</label><input id="ef-azul" type="number" inputmode="numeric" value="'+(f.azul_vendedor_codigo||'')+'" placeholder="Ex: 301" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Perfil</label><select id="ef-perfil" style="font-size:16px;min-height:46px">'
       +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
       +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
@@ -1523,91 +1545,32 @@ async function gEquipe(){
       +'<button class="btn bp bsm" onclick="salvarDadosFunc('+id+')" style="margin-bottom:12px;width:100%;justify-content:center"><i class="ti ti-device-floppy"></i> Salvar dados</button>'
       +'<div id="ef-ok" class="ae aok" style="display:none"></div>'
       +'<div class="sep"></div>'
-      +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="ti ti-lock-open" style="vertical-align:middle"></i> Acesso aos subsistemas</h3>'
-      +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">'
-      +'<label style="display:flex;align-items:center;justify-content:space-between;background:#F5F5F5;border-radius:10px;padding:12px 14px;cursor:pointer">'
-      +'<div style="display:flex;align-items:center;gap:10px">'
-      +'<div style="width:36px;height:36px;border-radius:10px;background:#5C6BC020;display:flex;align-items:center;justify-content:center"><i class="ti ti-package" style="color:#5C6BC0;font-size:18px"></i></div>'
-      +'<div><div style="font-size:14px;font-weight:600;color:#333">Estoque</div><div style="font-size:11px;color:#888">Conferência e inventário</div></div>'
-      +'</div>'
-      +'<input type="checkbox" id="ef-estoque"'+(f.acesso_estoque?' checked':'')+' onchange="toggleAcesso('+id+',\'acesso_estoque\',this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:#5C6BC0">'
-      +'</label>'
-      +'<label style="display:flex;align-items:center;justify-content:space-between;background:#F5F5F5;border-radius:10px;padding:12px 14px;cursor:pointer">'
-      +'<div style="display:flex;align-items:center;gap:10px">'
-      +'<div style="width:36px;height:36px;border-radius:10px;background:#EF6C0020;display:flex;align-items:center;justify-content:center"><i class="ti ti-chart-bar" style="color:#EF6C00;font-size:18px"></i></div>'
-      +'<div><div style="font-size:14px;font-weight:600;color:#333">DRE</div><div style="font-size:11px;color:#888">Resultado financeiro</div></div>'
-      +'</div>'
-      +'<input type="checkbox" id="ef-dre"'+(f.acesso_dre?' checked':'')+' onchange="toggleAcesso('+id+',\'acesso_dre\',this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:#EF6C00">'
-      +'</label>'
-      +'</div>'
-      +'<div id="acesso-ok" class="ae aok" style="display:none"></div>'
-      +'<div class="sep"></div>'
-      +'<div id="edit-ok" class="ae aok" style="display:none"></div>'
-      +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Metas mensais 2026</h3>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="ti ti-lock-open" style="vertical-align:middle"></i> Acesso aos módulos</h3>'
+      +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">';
 
-    MESES.forEach((nm,i)=>{
-      const mes=i+1;
-      const val=mmF[mes]?fmtMeta(mmF[mes]):'';
-      eh+='<div style="background:var(--bg);border-radius:10px;padding:10px">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:6px">'+nm+'/2026</div>'
-        +'<div style="display:flex;gap:4px;align-items:center">'
-        +'<input type="text" inputmode="numeric" id="em-'+mes+'" value="'+val+'" placeholder="R$ 0,00" '
-        +'onkeydown="return metaKey(event)" oninput="maskMeta(this)" '
-        +'style="flex:1;padding:7px 8px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;color:var(--tx);outline:none;text-align:right">'
-        +'<button class="btn bp" style="padding:7px 10px;font-size:12px" onclick="svMes('+id+','+mes+')">✓</button>'
+    MODULOS_DEF.forEach(function(m){
+      var tem=(f.modulos||[]).indexOf(m.id)>=0;
+      eh+='<label style="display:flex;align-items:center;justify-content:space-between;background:#F5F5F5;border-radius:10px;padding:12px 14px;cursor:pointer">'
+        +'<div style="display:flex;align-items:center;gap:10px">'
+        +'<div style="width:36px;height:36px;border-radius:10px;background:'+m.cor+'20;display:flex;align-items:center;justify-content:center"><i class="ti '+m.icon+'" style="color:'+m.cor+';font-size:18px"></i></div>'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333">'+m.nome+'</div><div style="font-size:11px;color:#888">'+m.desc+'</div></div>'
         +'</div>'
-        +'<div id="ok-'+mes+'" style="font-size:11px;color:#00695C;font-weight:600;margin-top:4px;min-height:14px"></div>'
-        +'</div>';
+        +'<input type="checkbox" data-mod="'+m.id+'"'+(tem?' checked':'')+' onchange="toggleModulo('+id+',this.dataset.mod,this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:'+m.cor+'">'
+        +'</label>';
     });
 
-    eh+='</div></div>';
+    eh+='</div><div id="acesso-ok" class="ae aok" style="display:none"></div></div>';
 
     const el=document.getElementById('form-edit');
     el.style.display='block';
     el.innerHTML=eh;
     el.scrollIntoView({behavior:'smooth'});
 
-    window.svMes=async(funcId,mes)=>{
-      const el2=document.getElementById('em-'+mes);
-      const okEl=document.getElementById('ok-'+mes);
-      const val=parseMeta(el2.value);
-      if(!val||val<=0){
-        el2.style.borderColor='#E24B4A';
-        if(okEl){okEl.textContent='❌ Digite um valor válido';okEl.style.color='#E24B4A';}
-        setTimeout(()=>{el2.style.borderColor='';if(okEl)okEl.textContent=''},2000);
-        return;
-      }
-      await pt('metas_mensais',{func_id:funcId,mes,ano:2026,valor:val,empresa_id:EMP?EMP.id:null})
-        .catch(async()=>await pk('metas_mensais','?func_id=eq.'+funcId+'&mes=eq.'+mes+'&ano=eq.2026',{valor:val}));
-      el2.style.borderColor='#00897B';
-      el2.value = fmtMeta(val);
-      if(okEl){okEl.textContent='✅ Salvo!';okEl.style.color='#00695C';}
-      const ok=document.getElementById('edit-ok');
-      if(ok){ok.textContent='✅ Meta de '+MESES[mes-1]+'/2026 salva com sucesso!';ok.style.display='block';}
-      setTimeout(()=>{
-        el2.style.borderColor='';
-        if(okEl)okEl.textContent='';
-        if(ok)ok.style.display='none';
-      },2500);
-    };
   };
 
   window.fecharEdit=()=>{
     document.getElementById('form-edit').style.display='none';
     document.getElementById('form-edit').innerHTML='';
-  };
-
-  window.toggleAcesso=async function(funcId, campo, valor){
-    var body={};
-    body[campo]=valor;
-    await pk('funcionarias','?id=eq.'+funcId,body);
-    var ok=document.getElementById('acesso-ok');
-    if(ok){
-      ok.textContent='✅ Acesso '+(valor?'liberado':'removido')+' com sucesso!';
-      ok.style.display='block';
-      setTimeout(function(){ok.style.display='none';},2200);
-    }
   };
 
   // cadastrar
@@ -1618,12 +1581,14 @@ async function gEquipe(){
     const perf=document.getElementById('cp').value;
     const e=document.getElementById('ce'),o=document.getElementById('co');
     e.style.display='none';o.style.display='none';
+    const em=(document.getElementById('cem').value||'').trim().toLowerCase();
+    const azv=parseInt(document.getElementById('caz').value)||null;
     if(!nm||!tel){e.textContent='Preencha nome e telefone.';e.style.display='block';return}
     const ex=await gt('funcionarias','?telefone=eq.'+tel+'&select=id'+eid());
     if(ex.length){e.textContent='Telefone já cadastrado.';e.style.display='block';return}
-    await pt('funcionarias',{nome:nm,telefone:tel,login:tel,filial_id:fid,perfil:perf,meta:0,ativa:true,senha_hash:'',senha_criada:false,empresa_id:EMP?EMP.id:null});
-    o.textContent='✅ '+nm+' cadastrada! Ela cria a senha no primeiro acesso.';o.style.display='block';
-    ['cn','cte'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+    await pt('funcionarias',{nome:nm,telefone:tel,login:tel,filial_id:fid,perfil:perf,meta:0,ativa:true,senha_hash:'',senha_criada:false,empresa_id:EMP?EMP.id:null,email:em||null,azul_vendedor_codigo:azv});
+    o.textContent='✅ '+nm+' cadastrada! Abra a funcionária para definir os módulos que ela acessa.';o.style.display='block';
+    ['cn','cte','cem','caz'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
     setTimeout(()=>gEquipe(),1800);
   };
 
@@ -2914,9 +2879,92 @@ async function salvarDadosFunc(id){
   if(!tel){alert('Digite o telefone.');return}
   var dadosSalvar={nome:nome,telefone:tel,login:tel,perfil:perfil};
   if(email)dadosSalvar.email=email;
+  dadosSalvar.azul_vendedor_codigo=parseInt(document.getElementById('ef-azul')?.value)||null;
   await pk('funcionarias','?id=eq.'+id,dadosSalvar);
   if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(function(){ok.style.display='none';},2500);}
   gEquipe();
+}
+
+async function toggleModulo(funcId,mod,ligado){
+  var r=await gt('funcionarias','?id=eq.'+funcId+'&select=modulos');
+  var atual=(r[0]&&r[0].modulos)||[];
+  var novo=atual.filter(function(x){return x!==mod;});
+  if(ligado)novo.push(mod);
+  var body={modulos:novo};
+  if(mod==='estoque')body.acesso_estoque=ligado;
+  if(mod==='dre')body.acesso_dre=ligado;
+  await pk('funcionarias','?id=eq.'+funcId,body);
+  var ok=document.getElementById('acesso-ok');
+  if(ok){
+    ok.textContent='✅ Acesso '+(ligado?'liberado':'removido')+' com sucesso!';
+    ok.style.display='block';
+    setTimeout(function(){ok.style.display='none';},2200);
+  }
+}
+
+async function salvarFilAzul(filId,valor){
+  var v=parseInt(valor)||null;
+  await pk('filiais','?id=eq.'+filId,{azul_filial:v});
+}
+
+// ── GESTORA: META DO MÊS ──
+async function gMetaMes(){
+  const [funcs,fils,metas]=await Promise.all([
+    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,perfil,filial_id'),
+    gt('filiais','?select=*'+eid()),
+    gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=func_id,valor')
+  ]);
+  const mm={};metas.forEach(function(m){mm[m.func_id]=m.valor;});
+  let h='<div class="h1">Meta do mês</div>'+mSel('gMetaMes()');
+  h+='<div class="hn"><i class="ti ti-target"></i> Defina a meta de cada pessoa para '+MESES[mS-1]+'/'+aS+'. O cadastro e as permissões ficam no módulo Equipe.</div>';
+  let temAlguem=false;
+  fils.forEach(function(fl){
+    const fs=funcs.filter(function(f){return f.filial_id===fl.id&&(f.perfil==='vendedora'||f.perfil==='gerente');});
+    if(!fs.length)return;
+    temAlguem=true;
+    let totalLoja=0;fs.forEach(function(f){totalLoja+=Number(mm[f.id]||0);});
+    h+='<div class="card"><div class="ct2"><i class="ti ti-building-store"></i>'+fl.nome
+      +' <span style="margin-left:auto;font-weight:600;font-size:11px;text-transform:none">Soma: '+(totalLoja?fmtMeta(totalLoja):'—')+'</span></div>';
+    fs.forEach(function(f,i){
+      const val=mm[f.id]?fmtMeta(mm[f.id]):'';
+      h+='<div class="ri">'
+        +'<div class="av" style="width:38px;height:38px;font-size:13px;background:'+CORES[i%CORES.length].b+';color:'+CORES[i%CORES.length].c+'">'+in2(f.nome)+'</div>'
+        +'<div style="flex:1;min-width:0"><div class="rn">'+f.nome+'</div><div class="rs">'+f.perfil+'</div>'
+        +'<div id="mm-ok-'+f.id+'" style="font-size:11px;color:#00695C;font-weight:600;min-height:14px"></div></div>'
+        +'<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">'
+        +'<input type="text" inputmode="numeric" id="mm-'+f.id+'" value="'+val+'" placeholder="R$ 0,00" onkeydown="return metaKey(event)" oninput="maskMeta(this)" '
+        +'style="width:112px;padding:7px 8px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;color:var(--tx);outline:none;text-align:right">'
+        +'<button class="btn bp" style="padding:7px 10px;font-size:12px" onclick="svMetaMes('+f.id+')">✓</button>'
+        +'</div></div>';
+    });
+    h+='</div>';
+  });
+  if(!temAlguem){
+    h+='<div class="card"><div class="em">Nenhuma funcionária cadastrada. Cadastre no módulo Equipe.</div></div>';
+  }
+  document.getElementById('ct').innerHTML=h;
+}
+
+async function svMetaMes(funcId){
+  const el=document.getElementById('mm-'+funcId);
+  const okEl=document.getElementById('mm-ok-'+funcId);
+  const val=parseMeta(el.value);
+  if(!val||val<=0){
+    el.style.borderColor='#E24B4A';
+    if(okEl){okEl.textContent='❌ Digite um valor válido';okEl.style.color='#E24B4A';}
+    setTimeout(function(){el.style.borderColor='';if(okEl)okEl.textContent='';},2000);
+    return;
+  }
+  const ex=await gt('metas_mensais','?func_id=eq.'+funcId+'&mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=id');
+  if(ex.length){
+    await pk('metas_mensais','?id=eq.'+ex[0].id,{valor:val});
+  } else {
+    await pt('metas_mensais',{func_id:funcId,mes:mS,ano:aS,valor:val,empresa_id:EMP?EMP.id:null});
+  }
+  el.style.borderColor='#00897B';
+  el.value=fmtMeta(val);
+  if(okEl){okEl.textContent='✅ Salvo!';okEl.style.color='#00695C';}
+  setTimeout(function(){el.style.borderColor='';if(okEl)okEl.textContent='';},2200);
 }
 
 // ── CONFIGURAÇÕES DE COMISSÃO ──
