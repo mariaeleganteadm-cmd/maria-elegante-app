@@ -1558,7 +1558,7 @@ async function gFinVendas(){
 // ═══ ESTOQUE POR FAIXA DE PREÇO ═══
 // Saldo = contagem inicial + ajustes (com data e autor) - vendas ativas do Azul depois da contagem.
 // O saldo é calculado no banco (view vw_estoque_saldo). Devoluções ainda não entram na conta.
-var EST={fils:[],prods:[],saldo:{},base:{},sync:{},pode:false,podeSync:false,msg:'',msgErro:false};
+var EST={fils:[],prods:[],prodNome:{},saldo:{},base:{},sync:{},pode:false,podeSync:false,msg:'',msgErro:false,aba:'saldo',dist:{tela:'lista',data:null,pend:{},timers:{},emVoo:0,erro:''}};
 
 function estEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function estAddDias(iso,n){var d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d);}
@@ -1566,6 +1566,12 @@ function estNum(v){return Number(v).toLocaleString('pt-BR');}
 function estSaldo(fid,cod){var r=EST.saldo[fid+'|'+cod];return r?Number(r.saldo)||0:0;}
 
 async function eEstoque(){
+  if(!EST.aba)EST.aba='saldo';
+  if(EST.aba==='dist'){await estTelaDist();return;}
+  await estTelaSaldo();
+}
+
+async function estTelaSaldo(){
   EST.pode=S.tipo==='gestor';
   EST.podeSync=S.tipo==='gestor'&&!!S.func&&Array.isArray(S.func.modulos)&&S.func.modulos.indexOf('financeiro')>=0;
   var fils=await gt('filiais','?select=id,nome,azul_filial'+eid()+'&order=nome');
@@ -1604,7 +1610,7 @@ async function eEstoque(){
   fils.forEach(function(f){var s=EST.sync[f.id];if(s&&s.atualizado_em&&(!ult||s.atualizado_em>ult.atualizado_em))ult=s;});
   var txtSync=ult?('Vendas do Azul atualizadas em '+brD(String(ult.atualizado_em).slice(0,10))+' às '+new Date(ult.atualizado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})):'Vendas do Azul ainda não foram atualizadas';
 
-  var h='<div class="h1"><i class="ti ti-package"></i> Estoque por faixa de preço</div>';
+  var h='<div class="h1"><i class="ti ti-package"></i> Estoque por faixa de preço</div>'+estAbasHtml();
   if(EST.msg){h+='<div class="ae '+(EST.msgErro?'aer':'aok')+'">'+estEsc(EST.msg)+'</div>';EST.msg='';EST.msgErro=false;}
 
   h+='<div class="card" style="padding:12px"><div style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-clock"></i> '+txtSync+'</div>'
@@ -1656,7 +1662,7 @@ async function eEstoque(){
   tab+='</tbody></table></div>';
   h+=tab;
 
-  var rodape='Saldo = contagem inicial + ajustes − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta.';
+  var rodape='Saldo = contagem inicial + ajustes + entradas enviadas (quantidade conferida, quando já conferida) − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta.';
   if(EST.pode)rodape+=' Toque em um número para ajustar.';
   h+='<div style="font-size:11px;color:var(--t2);padding:2px 4px 16px">'+rodape+'</div>';
   document.getElementById('ct').innerHTML=h;
@@ -1842,6 +1848,390 @@ async function estSincronizar(){
   }
   if(erroTxt){EST.msg='Não foi possível atualizar as vendas: '+erroTxt;EST.msgErro=true;}
   else EST.msg='Vendas atualizadas: '+novasTot+' novas, '+cancTot+' canceladas.';
+  await eEstoque();
+}
+
+
+// ═══ DISTRIBUIÇÃO DE MERCADORIA (entrada de estoque) ═══
+// A matriz cadastra os modelos (lista de conferência física) por faixa de preço e quantidade por loja.
+// Depois de enviado, a quantidade enviada fica travada no banco. A loja só confere (e pode corrigir o número recebido).
+// No saldo: entra a quantidade conferida (se já conferida) ou a enviada.
+
+function estAbasHtml(){
+  var abas=[['saldo','Saldo','ti-package'],['dist',EST.pode?'Distribuição':'Entradas','ti-truck-delivery']];
+  return '<div style="display:flex;gap:6px;margin-bottom:12px">'+abas.map(function(a){
+    var on=EST.aba===a[0];
+    return '<button class="btn bsm'+(on?' bp':'')+'" style="flex:1" data-a="'+a[0]+'" onclick="estAba(this.dataset.a)"><i class="ti '+a[2]+'"></i> '+a[1]+'</button>';
+  }).join('')+'</div>';
+}
+async function estAba(a){
+  await estDistFlush();
+  EST.aba=a;EST.dist.tela='lista';EST.dist.data=null;
+  eEstoque();
+}
+function estMsgHtml(){
+  if(!EST.msg)return '';
+  var h='<div class="ae '+(EST.msgErro?'aer':'aok')+'">'+estEsc(EST.msg)+'</div>';
+  EST.msg='';EST.msgErro=false;
+  return h;
+}
+function estCab(titulo,voltar){
+  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px"><div class="h1" style="margin:0"><i class="ti ti-truck-delivery"></i> '+titulo+'</div>'
+    +(voltar?'<button class="btn bsm" onclick="estDistVoltar()"><i class="ti ti-arrow-left"></i> Voltar</button>':'')+'</div>';
+}
+
+// Dados comuns das telas de distribuição
+async function estBase(){
+  EST.pode=S.tipo==='gestor';
+  EST.podeSync=S.tipo==='gestor'&&!!S.func&&Array.isArray(S.func.modulos)&&S.func.modulos.indexOf('financeiro')>=0;
+  var fils=await gt('filiais','?select=id,nome,azul_filial'+eid()+'&order=nome');
+  if(S.tipo!=='gestor'&&S.func&&S.func.filial_id){
+    fils=fils.filter(function(f){return String(f.id)===String(S.func.filial_id);});
+  }
+  var prods=await gt('estoque_produtos','?select=*&ativo=eq.true&order=ordem'+eid());
+  EST.fils=Array.isArray(fils)?fils:[];
+  EST.prods=Array.isArray(prods)?prods:[];
+  EST.prodNome={};EST.prods.forEach(function(p){EST.prodNome[p.codigo]=p.descricao;});
+}
+function estEmpId(){return EMP?parseInt(EMP.id,10):null;}
+function estQuem(){return (S.func&&S.func.nome)||'Usuário';}
+
+async function estTelaDist(){
+  await estBase();
+  var t=EST.dist.tela;
+  if(EST.pode){
+    if(t==='rascunho')return estDistRascunho();
+    if(t==='data')return estDistDataGestor(EST.dist.data);
+    return estDistListaGestor();
+  }
+  if(!EST.fils.length){
+    document.getElementById('ct').innerHTML='<div class="h1"><i class="ti ti-package"></i> Estoque</div>'+estAbasHtml()+'<div class="ae aer">Seu cadastro ainda não está ligado a uma loja. Fale com a gestora.</div>';
+    return;
+  }
+  if(t==='data')return estDistDataLoja(EST.dist.data);
+  return estDistListaLoja();
+}
+
+async function estDistVoltar(){
+  await estDistFlush();
+  EST.dist.tela='lista';EST.dist.data=null;
+  eEstoque();
+}
+
+// ── GESTOR: HISTÓRICO POR DATA ──
+async function estDistListaGestor(){
+  var rs=await Promise.all([
+    gt('vw_distribuicao_datas','?select=*&order=data_entrada.desc&limit=200'+eid()),
+    gt('distribuicao','?select=id&enviado=eq.false&limit=1'+eid())
+  ]);
+  var datas=Array.isArray(rs[0])?rs[0]:[];
+  var temRascunho=Array.isArray(rs[1])&&rs[1].length>0;
+  var h='<div class="h1"><i class="ti ti-package"></i> Estoque por faixa de preço</div>'+estAbasHtml()+estMsgHtml();
+  if(temRascunho){
+    h+='<div class="card" style="padding:12px;border:1.5px solid var(--wn)"><div style="font-weight:700;margin-bottom:4px"><i class="ti ti-pencil"></i> Envio em rascunho</div>'
+      +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">As linhas são salvas sozinhas. Só chegam às lojas quando você concluir.</div>'
+      +'<button class="btn bp" style="width:100%;justify-content:center" onclick="estDistAbrirRascunho()"><i class="ti ti-player-play"></i> Continuar preenchendo</button></div>';
+  }else{
+    h+='<button class="btn bp" id="est-novo" style="width:100%;justify-content:center;margin-bottom:12px" onclick="estDistCriar()"><i class="ti ti-plus"></i> Criar novo envio</button>';
+  }
+  if(!datas.length){
+    h+='<div class="card" style="padding:16px;font-size:13px;color:var(--t2)">Nenhuma entrada enviada ainda.</div>';
+  }
+  datas.forEach(function(d){
+    var completo=d.itens>0&&d.conferidos>=d.itens;
+    h+='<div class="card" style="padding:12px;cursor:pointer" data-d="'+d.data_entrada+'" onclick="estDistAbrirData(this.dataset.d)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+brD(d.data_entrada)+'</b>'
+      +'<span class="bx '+(completo?'ok':'wn')+'">'+d.conferidos+'/'+d.itens+' conferidos</span></div>'
+      +'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças'
+      +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div></div>';
+  });
+  document.getElementById('ct').innerHTML=h;
+}
+
+async function estDistAbrirData(d){EST.dist.tela='data';EST.dist.data=d;await eEstoque();}
+async function estDistAbrirRascunho(){EST.dist.tela='rascunho';await eEstoque();}
+
+async function estDistCriar(){
+  var btn=document.getElementById('est-novo');if(btn)btn.disabled=true;
+  try{
+    var ex=await gt('distribuicao','?select=id&enviado=eq.false&limit=1'+eid());
+    if(Array.isArray(ex)&&ex.length){EST.dist.tela='rascunho';await eEstoque();return;}
+    var linhas=[];
+    for(var i=1;i<=20;i++)linhas.push({empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:i,criado_por:S.funcId,criado_por_nome:estQuem()});
+    var ms=await pt('distribuicao',linhas);
+    if(!Array.isArray(ms)||ms.length!==20)throw new Error((ms&&ms.message)||'Não foi possível criar o envio.');
+    var itens=[];
+    ms.forEach(function(m){EST.fils.forEach(function(f){itens.push({distribuicao_id:m.id,filial_id:f.id,quantidade:0});});});
+    var ri=await pt('distribuicao_itens',itens);
+    if(!Array.isArray(ri))throw new Error((ri&&ri.message)||'Não foi possível criar as linhas por loja.');
+    EST.dist.tela='rascunho';
+    await eEstoque();
+  }catch(e){
+    console.error('Criar envio:',e);
+    EST.msg='Não foi possível criar o envio: '+e.message;EST.msgErro=true;
+    await eEstoque();
+  }
+}
+
+// ── GESTOR: RASCUNHO (autosave) ──
+async function estDistRascunho(){
+  var ms=await gt('distribuicao','?select=*&enviado=eq.false&order=ordem'+eid());
+  if(!Array.isArray(ms)||!ms.length){EST.dist.tela='lista';return estDistListaGestor();}
+  var ids=ms.map(function(m){return m.id;});
+  var its=await gt('distribuicao_itens','?select=*&distribuicao_id=in.('+ids.join(',')+')&limit=1000');
+  var porModelo={};
+  (Array.isArray(its)?its:[]).forEach(function(i){(porModelo[i.distribuicao_id]=porModelo[i.distribuicao_id]||{})[i.filial_id]=i;});
+  var th='padding:8px 6px;font-size:11px;font-weight:700;color:#fff;background:var(--td);white-space:nowrap;text-align:center';
+  var inp='padding:8px 6px;border:1.5px solid var(--bd);border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:var(--tx)';
+  var t='<div class="card" style="padding:0;overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:'+(330+EST.fils.length*74)+'px">';
+  t+='<thead><tr><th style="'+th+';border-radius:14px 0 0 0">#</th><th style="'+th+';text-align:left">Modelo (descrição)</th><th style="'+th+'">Faixa de preço</th>';
+  EST.fils.forEach(function(f){t+='<th style="'+th+'">'+estEsc(f.nome)+'</th>';});
+  t+='<th style="'+th+';border-radius:0 14px 0 0">Total</th></tr></thead><tbody>';
+  ms.forEach(function(m){
+    var tot=0;
+    var opt='<option value="">Escolha</option>'+EST.prods.map(function(p){return '<option value="'+p.codigo+'"'+(m.produto_codigo===p.codigo?' selected':'')+'>'+estEsc(p.descricao)+'</option>';}).join('');
+    var tr='<tr><td style="padding:6px;text-align:center;font-size:12px;color:var(--t2);border-bottom:1px solid var(--bd)">'+m.ordem+'</td>'
+      +'<td style="padding:6px;border-bottom:1px solid var(--bd)"><input type="text" value="'+estEsc(m.descricao)+'" placeholder="Ex.: Vestido Floral" data-k="d" data-id="'+m.id+'" oninput="estDistCampo(this)" style="'+inp+';width:100%;min-width:150px;font-weight:600"></td>'
+      +'<td style="padding:6px;border-bottom:1px solid var(--bd)"><select data-k="p" data-id="'+m.id+'" onchange="estDistCampo(this)" style="'+inp+';min-width:120px">'+opt+'</select></td>';
+    EST.fils.forEach(function(f){
+      var it=(porModelo[m.id]||{})[f.id];
+      var q=it?Number(it.quantidade)||0:0;tot+=q;
+      tr+='<td style="padding:6px;border-bottom:1px solid var(--bd);text-align:center">'+(it?'<input type="number" inputmode="numeric" min="0" step="1" value="'+(q>0?q:'')+'" placeholder="0" data-k="q" data-id="'+it.id+'" data-f="'+f.id+'" data-m="'+m.id+'" oninput="estDistCampo(this)" style="'+inp+';width:64px;text-align:right">':'—')+'</td>';
+    });
+    tr+='<td id="est-rt-'+m.id+'" style="padding:6px;border-bottom:1px solid var(--bd);text-align:center;font-weight:700">'+estNum(tot)+'</td></tr>';
+    t+=tr;
+  });
+  t+='<tr style="background:var(--bg)"><td colspan="3" style="padding:9px 6px;font-weight:700;text-align:right">Total de peças</td>';
+  EST.fils.forEach(function(f){t+='<td id="est-tot-'+f.id+'" style="padding:9px 6px;text-align:center;font-weight:700">0</td>';});
+  t+='<td id="est-tot-geral" style="padding:9px 6px;text-align:center;font-weight:800">0</td></tr></tbody></table></div>';
+
+  var h=estCab('Novo envio',true)+estMsgHtml()
+    +'<div class="card" style="padding:12px"><div id="est-status" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-circle-check"></i> Salvo automaticamente</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Linhas em branco são descartadas ao concluir. Depois de enviado, a quantidade enviada não pode mais ser alterada.</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn bsm" onclick="estDistMaisLinha()"><i class="ti ti-plus"></i> Linha</button>'
+    +'<button class="btn bsm" onclick="estDistDescartar()"><i class="ti ti-trash"></i> Descartar rascunho</button></div></div>'
+    +t
+    +'<button class="btn bp" id="est-concluir" style="width:100%;justify-content:center;margin:4px 0 16px" onclick="estDistConcluir()"><i class="ti ti-send"></i> Concluir, enviar para lojas</button>';
+  document.getElementById('ct').innerHTML=h;
+  estDistTotais();
+}
+
+function estDistStatus(txt,erro){
+  var el=document.getElementById('est-status');if(!el)return;
+  el.style.color=erro?'var(--rd)':'var(--t2)';
+  el.innerHTML='<i class="ti '+(erro?'ti-alert-triangle':(txt.indexOf('Salvando')===0?'ti-loader':'ti-circle-check'))+'"></i> '+estEsc(txt);
+}
+function estDistTotais(){
+  var porLoja={},porModelo={},geral=0;
+  document.querySelectorAll('#ct input[data-k="q"]').forEach(function(el){
+    var q=parseInt(el.value,10);if(isNaN(q)||q<0)q=0;
+    porLoja[el.dataset.f]=(porLoja[el.dataset.f]||0)+q;
+    porModelo[el.dataset.m]=(porModelo[el.dataset.m]||0)+q;
+    geral+=q;
+  });
+  EST.fils.forEach(function(f){var e=document.getElementById('est-tot-'+f.id);if(e)e.textContent=estNum(porLoja[f.id]||0);});
+  Object.keys(porModelo).forEach(function(m){var e=document.getElementById('est-rt-'+m);if(e)e.textContent=estNum(porModelo[m]);});
+  var g=document.getElementById('est-tot-geral');if(g)g.textContent=estNum(geral);
+}
+// Salva cada campo ~0,7 s depois da última digitação
+function estDistCampo(el){
+  var chave=el.dataset.k+'|'+el.dataset.id;
+  EST.dist.pend[chave]={k:el.dataset.k,id:el.dataset.id,v:el.value};
+  clearTimeout(EST.dist.timers[chave]);
+  EST.dist.timers[chave]=setTimeout(function(){estDistSalvarCampo(chave);},700);
+  estDistStatus('Salvando...');
+  if(el.dataset.k==='q')estDistTotais();
+}
+async function estDistSalvarCampo(chave){
+  var p=EST.dist.pend[chave];if(!p)return;
+  delete EST.dist.pend[chave];
+  clearTimeout(EST.dist.timers[chave]);delete EST.dist.timers[chave];
+  var tabela='distribuicao',corpo={};
+  if(p.k==='d'){corpo={descricao:p.v};}
+  else if(p.k==='p'){corpo={produto_codigo:p.v===''?null:parseInt(p.v,10)};}
+  else{tabela='distribuicao_itens';var q=parseInt(p.v,10);if(isNaN(q)||q<0)q=0;corpo={quantidade:q};}
+  EST.dist.emVoo++;
+  try{
+    var r=await pk(tabela,'?id=eq.'+p.id,corpo);
+    if(!Array.isArray(r))throw new Error((r&&r.message)||'Falha ao salvar.');
+    EST.dist.erro='';
+  }catch(e){
+    console.error('Autosave:',e);
+    EST.dist.erro='Não foi possível salvar: '+e.message;
+  }finally{EST.dist.emVoo--;}
+  if(EST.dist.erro)estDistStatus(EST.dist.erro,true);
+  else if(!Object.keys(EST.dist.pend).length&&EST.dist.emVoo===0)estDistStatus('Salvo automaticamente');
+}
+// Grava na hora tudo o que ainda está esperando o tempo de salvar
+async function estDistFlush(){
+  var chaves=Object.keys(EST.dist.pend);
+  for(var i=0;i<chaves.length;i++)await estDistSalvarCampo(chaves[i]);
+  while(EST.dist.emVoo>0)await new Promise(function(r){setTimeout(r,50);});
+}
+async function estDistMaisLinha(){
+  await estDistFlush();
+  try{
+    var ms=await gt('distribuicao','?select=ordem&enviado=eq.false&order=ordem.desc&limit=1'+eid());
+    var prox=(Array.isArray(ms)&&ms.length?ms[0].ordem:0)+1;
+    var r=await pt('distribuicao',[{empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:prox,criado_por:S.funcId,criado_por_nome:estQuem()}]);
+    if(!Array.isArray(r)||!r.length)throw new Error((r&&r.message)||'Falha ao criar a linha.');
+    var itens=EST.fils.map(function(f){return {distribuicao_id:r[0].id,filial_id:f.id,quantidade:0};});
+    var ri=await pt('distribuicao_itens',itens);
+    if(!Array.isArray(ri))throw new Error((ri&&ri.message)||'Falha ao criar a linha.');
+  }catch(e){EST.msg='Não foi possível adicionar a linha: '+e.message;EST.msgErro=true;}
+  await eEstoque();
+}
+async function estDistDescartar(){
+  if(!confirm('Descartar o rascunho inteiro? As linhas preenchidas serão apagadas.'))return;
+  await estDistFlush();
+  await dl('distribuicao','?enviado=eq.false'+eid());
+  var ex=await gt('distribuicao','?select=id&enviado=eq.false&limit=1'+eid());
+  if(Array.isArray(ex)&&ex.length){EST.msg='Não foi possível descartar o rascunho.';EST.msgErro=true;}
+  else EST.msg='Rascunho descartado.';
+  EST.dist.tela='lista';
+  await eEstoque();
+}
+async function estDistConcluir(){
+  var btn=document.getElementById('est-concluir');
+  await estDistFlush();
+  if(EST.dist.erro){estDistStatus(EST.dist.erro,true);return;}
+  if(!confirm('Concluir e enviar para as lojas? Depois de enviado, a quantidade enviada fica travada.'))return;
+  if(btn)btn.disabled=true;
+  try{
+    var r=await pt('rpc/distribuicao_enviar',{p_empresa:estEmpId(),p_data:estHojeISO()});
+    if(typeof r!=='number')throw new Error((r&&r.message)||'Não foi possível enviar.');
+    EST.msg='Envio concluído: '+r+(r===1?' modelo liberado':' modelos liberados')+' para conferência nas lojas.';
+    EST.dist.tela='lista';
+    await eEstoque();
+  }catch(e){
+    console.error('Concluir envio:',e);
+    estDistStatus(e.message,true);
+    if(btn)btn.disabled=false;
+  }
+}
+
+// ── GESTOR: DETALHE DE UMA DATA ──
+async function estDistDataGestor(data){
+  var ms=await gt('distribuicao','?select=*&enviado=eq.true&data_entrada=eq.'+data+'&order=ordem'+eid());
+  ms=Array.isArray(ms)?ms:[];
+  var its=ms.length?await gt('distribuicao_itens','?select=*&distribuicao_id=in.('+ms.map(function(m){return m.id;}).join(',')+')&limit=1000'):[];
+  var porModelo={};
+  (Array.isArray(its)?its:[]).forEach(function(i){(porModelo[i.distribuicao_id]=porModelo[i.distribuicao_id]||{})[i.filial_id]=i;});
+  var th='padding:8px 6px;font-size:11px;font-weight:700;color:#fff;background:var(--td);white-space:nowrap;text-align:center';
+  var t='<div class="card" style="padding:0;overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px;min-width:'+(260+EST.fils.length*84)+'px">';
+  t+='<thead><tr><th style="'+th+';text-align:left;border-radius:14px 0 0 0">Modelo</th><th style="'+th+'">Faixa</th>';
+  EST.fils.forEach(function(f){t+='<th style="'+th+'">'+estEsc(f.nome)+'</th>';});
+  t+='<th style="'+th+';border-radius:0 14px 0 0">Total</th></tr></thead><tbody>';
+  var totLoja={},geral=0,conf=0,itensTot=0,div=0;
+  ms.forEach(function(m){
+    var tot=0;
+    var tr='<tr><td style="padding:9px 6px 9px 10px;border-bottom:1px solid var(--bd);font-weight:600">'+estEsc(m.descricao)+'</td>'
+      +'<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center;white-space:nowrap">'+estEsc(EST.prodNome[m.produto_codigo]||('Produto '+m.produto_codigo))+'</td>';
+    EST.fils.forEach(function(f){
+      var it=(porModelo[m.id]||{})[f.id];var q=it?Number(it.quantidade)||0:0;
+      var cel='<span style="color:var(--t3)">0</span>';
+      if(it&&q>0){
+        tot+=q;itensTot++;totLoja[f.id]=(totLoja[f.id]||0)+q;
+        if(it.conferido){
+          conf++;
+          if(Number(it.qtd_conferida)!==q){div++;cel='<span style="color:var(--rd);font-weight:700">'+q+' → '+it.qtd_conferida+'</span>';}
+          else cel='<span style="color:var(--gd)">'+q+' ✓</span>';
+        }else cel=String(q);
+      }
+      tr+='<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center">'+cel+'</td>';
+    });
+    geral+=tot;
+    tr+='<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center;font-weight:700">'+estNum(tot)+'</td></tr>';
+    t+=tr;
+  });
+  t+='<tr style="background:var(--bg)"><td colspan="2" style="padding:9px 10px;font-weight:700;text-align:right">Total enviado</td>';
+  EST.fils.forEach(function(f){t+='<td style="padding:9px 6px;text-align:center;font-weight:700">'+estNum(totLoja[f.id]||0)+'</td>';});
+  t+='<td style="padding:9px 6px;text-align:center;font-weight:800">'+estNum(geral)+'</td></tr></tbody></table></div>';
+  var h=estCab('Entrada de '+brD(data),true)
+    +'<div class="card" style="padding:12px;font-size:13px"><b>'+ms.length+(ms.length===1?' modelo':' modelos')+'</b> · '+estNum(geral)+' peças · '
+    +'<span class="bx '+(itensTot&&conf>=itensTot?'ok':'wn')+'">'+conf+'/'+itensTot+' conferidos</span>'
+    +(div?' <span style="color:var(--rd);font-weight:700">'+div+(div===1?' divergência':' divergências')+'</span>':'')
+    +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Enviado → conferido pela loja. Em vermelho: a loja recebeu quantidade diferente.</div></div>'
+    +t;
+  document.getElementById('ct').innerHTML=h;
+}
+
+// ── LOJA: ENTRADAS PARA CONFERIR ──
+async function estDistListaLoja(){
+  var fid=EST.fils[0].id;
+  var rs=await gt('vw_distribuicao_loja','?select=*&filial_id=eq.'+fid+'&itens=gt.0&order=data_entrada.desc&limit=200');
+  rs=Array.isArray(rs)?rs:[];
+  // não conferidas primeiro; dentro de cada grupo, da mais recente para a mais antiga
+  rs.sort(function(a,b){
+    var pa=a.conferidos<a.itens?0:1,pb=b.conferidos<b.itens?0:1;
+    if(pa!==pb)return pa-pb;
+    return a.data_entrada<b.data_entrada?1:(a.data_entrada>b.data_entrada?-1:0);
+  });
+  var h='<div class="h1"><i class="ti ti-package"></i> Estoque</div>'+estAbasHtml()+estMsgHtml()
+    +'<div style="font-size:13px;color:var(--t2);margin-bottom:10px">Entradas de mercadoria para <b>'+estEsc(EST.fils[0].nome)+'</b>. Toque na data para conferir.</div>';
+  if(!rs.length)h+='<div class="card" style="padding:16px;font-size:13px;color:var(--t2)">Nenhuma entrada enviada para a sua loja ainda.</div>';
+  rs.forEach(function(d){
+    var completo=d.conferidos>=d.itens;
+    h+='<div class="card" style="padding:12px;cursor:pointer" data-d="'+d.data_entrada+'" onclick="estDistAbrirData(this.dataset.d)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+brD(d.data_entrada)+'</b>'
+      +'<span class="bx '+(completo?'ok':'wn')+'">'+(completo?'Conferida':'Conferir')+'</span></div>'
+      +'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças · '+d.conferidos+'/'+d.itens+' conferidos'
+      +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div></div>';
+  });
+  document.getElementById('ct').innerHTML=h;
+}
+
+async function estDistDataLoja(data){
+  var fid=EST.fils[0].id;
+  var ms=await gt('distribuicao','?select=*&enviado=eq.true&data_entrada=eq.'+data+'&order=ordem'+eid());
+  ms=Array.isArray(ms)?ms:[];
+  var its=ms.length?await gt('distribuicao_itens','?select=*&filial_id=eq.'+fid+'&distribuicao_id=in.('+ms.map(function(m){return m.id;}).join(',')+')&limit=1000'):[];
+  var porModelo={};(Array.isArray(its)?its:[]).forEach(function(i){porModelo[i.distribuicao_id]=i;});
+  var lista=ms.filter(function(m){var it=porModelo[m.id];return it&&Number(it.quantidade)>0;});
+  var conf=lista.filter(function(m){return porModelo[m.id].conferido;}).length;
+  var h=estCab('Entrada de '+brD(data),true)+estMsgHtml()
+    +'<div class="card" style="padding:12px;font-size:13px"><b>'+estEsc(EST.fils[0].nome)+'</b> · <span class="bx '+(conf>=lista.length?'ok':'wn')+'">'+conf+'/'+lista.length+' conferidos</span>'
+    +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Confira cada modelo. Se a quantidade que chegou for diferente, corrija o número e toque em Conferido.</div></div>';
+  lista.forEach(function(m){
+    var it=porModelo[m.id],q=Number(it.quantidade),qc=it.qtd_conferida==null?q:Number(it.qtd_conferida);
+    var div=it.conferido&&qc!==q;
+    h+='<div class="card" style="padding:12px'+(div?';border:1.5px solid var(--rd)':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div><div style="font-weight:700;font-size:15px">'+estEsc(m.descricao)+'</div>'
+      +'<div style="font-size:12px;color:var(--t2)">'+estEsc(EST.prodNome[m.produto_codigo]||('Produto '+m.produto_codigo))+'</div></div>'
+      +'<span class="bx '+(it.conferido?(div?'al':'ok'):'wn')+'">'+(it.conferido?(div?'Divergência':'Conferido'):'Pendente')+'</span></div>'
+      +'<div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px">'
+      +'<div style="flex:1"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">Enviado</div><div style="font-size:20px;font-weight:800">'+estNum(q)+'</div></div>'
+      +'<div style="flex:1"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">Conferido</div>'
+      +'<input type="number" inputmode="numeric" min="0" step="1" id="est-qc-'+it.id+'" value="'+qc+'"'+(it.conferido?' disabled':'')+' style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"></div>'
+      +(it.conferido
+        ?'<button class="btn bsm" data-i="'+it.id+'" onclick="estConferir(this.dataset.i,false)"><i class="ti ti-arrow-back-up"></i> Reabrir</button>'
+        :'<button class="btn bp" data-i="'+it.id+'" onclick="estConferir(this.dataset.i,true)"><i class="ti ti-check"></i> Conferido</button>')
+      +'</div>'
+      +(div?'<div style="font-size:12px;color:var(--rd);margin-top:8px;font-weight:600">Enviado '+q+', conferido '+qc+'. A diferença aparece para a gestora.</div>':'')
+      +'</div>';
+  });
+  if(!lista.length)h+='<div class="card" style="padding:16px;font-size:13px;color:var(--t2)">Nenhum modelo para a sua loja nesta data.</div>';
+  document.getElementById('ct').innerHTML=h;
+}
+
+async function estConferir(itemId,conferir){
+  try{
+    var corpo;
+    if(conferir){
+      var v=parseInt(document.getElementById('est-qc-'+itemId).value,10);
+      if(isNaN(v)||v<0){EST.msg='Informe a quantidade conferida (zero ou mais).';EST.msgErro=true;await eEstoque();return;}
+      corpo={conferido:true,qtd_conferida:v,conferido_em:new Date().toISOString(),conferido_por:S.funcId,conferido_por_nome:estQuem()};
+    }else{
+      corpo={conferido:false};
+    }
+    var r=await pk('distribuicao_itens','?id=eq.'+itemId,corpo);
+    if(!Array.isArray(r))throw new Error((r&&r.message)||'Falha ao salvar.');
+    EST.msg=conferir?'Conferência salva.':'Conferência reaberta.';EST.msgErro=false;
+  }catch(e){
+    console.error('Conferência:',e);
+    EST.msg='Não foi possível salvar: '+e.message;EST.msgErro=true;
+  }
   await eEstoque();
 }
 
