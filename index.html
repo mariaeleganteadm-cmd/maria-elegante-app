@@ -1299,6 +1299,12 @@ function azulPedirSenha(msgErro){
 }
 
 function azulToken(){
+  if(S&&S.auth){
+    return authToken().then(function(t){
+      if(t)return t;
+      var e=new Error('Sua sessão expirou. Saia e entre novamente.');e.codigo='SESSAO_EXPIRADA';throw e;
+    });
+  }
   azulTokLer();
   if(AZUL.tok&&AZUL.exp>Date.now())return Promise.resolve(AZUL.tok);
   if(!AZUL.pend){AZUL.pend=azulTokenNovo().then(function(t){AZUL.pend=null;return t;},function(e){AZUL.pend=null;throw e;});}
@@ -1334,7 +1340,7 @@ async function azulGet(path,params,opt){
   for(var tent=0;tent<2;tent++){
     var tok=await azulToken();
     var r=await fetch(url,{headers:{Authorization:'Bearer '+tok},cache:'no-store'});
-    if(r.status===401&&tent===0){azulTokLimpar();continue;}
+    if(r.status===401&&tent===0){azulTokLimpar();if(S&&S.auth)AUTH.exp=0;continue;}
     var j={};
     try{j=await r.json();}catch(x){}
     if(!r.ok){

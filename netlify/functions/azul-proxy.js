@@ -37,6 +37,37 @@ var PATHS_METAS = { 'vendas/totalizador': true, 'vendas': true };
 
 var PATHS_BINARIOS = { 'produtos/foto': true };
 
+// Login novo: o token e o JWT do Supabase Auth. Valida no Supabase e le o perfil no banco.
+var cacheSb = {};
+async function claimsDoSupabase(token) {
+  var sbUrl = process.env.SUPABASE_URL || 'https://wkiwpszvhprjkilppdbr.supabase.co';
+  var svc = process.env.SUPABASE_SERVICE_KEY;
+  if (!svc || !token) return null;
+  var c = cacheSb[token];
+  if (c && c.t > Date.now() - 60000) return c.v;
+  try {
+    var ru = await fetch(sbUrl + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
+    if (!ru.ok) return null;
+    var uid = (await ru.json()).id;
+    var rf = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&ativa=eq.true&select=perfil,modulos,azul_vendedor_codigo,filiais(azul_filial)', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    var rows = rf.ok ? await rf.json() : [];
+    if (!rows.length) return null;
+    var f = rows[0];
+    var mods = f.modulos || [];
+    var v = {
+      role: f.perfil,
+      fil: f.filiais && f.filiais.azul_filial,
+      vend: f.azul_vendedor_codigo,
+      fin: f.perfil === 'gestor' ? mods.indexOf('financeiro') >= 0 : false
+    };
+    cacheSb = {};
+    cacheSb[token] = { t: Date.now(), v: v };
+    return v;
+  } catch (e) {
+    return null;
+  }
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'GET') {
     return auth.resposta(405, { erro: true, codigo: 'METODO_NAO_PERMITIDO', mensagem: 'Use GET.' });
@@ -49,7 +80,9 @@ exports.handler = async function (event) {
   }
 
   // 1) Quem esta chamando?
-  var claims = auth.verificarToken(auth.tokenDoHeader(event), secret);
+  var tokenRecebido = auth.tokenDoHeader(event);
+  var claims = auth.verificarToken(tokenRecebido, secret);
+  if (!claims) claims = await claimsDoSupabase(tokenRecebido);
   if (!claims) {
     return auth.resposta(401, { erro: true, codigo: 'NAO_AUTENTICADO', mensagem: 'Sessao invalida ou expirada. Entre novamente.' });
   }
@@ -64,10 +97,16 @@ exports.handler = async function (event) {
   // 2) O perfil pode usar esse endpoint?
   var forcados = {};
   if (claims.role === 'gestor') {
-    // acesso total
+    // acesso total (gestor sem o modulo Financeiro so ve o que as Metas usam)
+    if (claims.fin === false && !PATHS_METAS[path]) {
+      return auth.resposta(403, { erro: true, codigo: 'SEM_PERMISSAO', mensagem: 'Seu usuario nao tem acesso ao Financeiro.' });
+    }
   } else if (claims.role === 'gerente' || claims.role === 'vendedora') {
     if (!PATHS_METAS[path]) {
       return auth.resposta(403, { erro: true, codigo: 'SEM_PERMISSAO', mensagem: 'Seu perfil nao tem acesso a este dado.' });
+    }
+    if (!claims.fil || (claims.role === 'vendedora' && !claims.vend)) {
+      return auth.resposta(403, { erro: true, codigo: 'MAPEAMENTO_AZUL_PENDENTE', mensagem: 'Seu cadastro ainda nao esta ligado a Azul. Fale com a gestora.' });
     }
     forcados.filial = String(claims.fil);
     if (claims.role === 'vendedora') forcados.vendedor = String(claims.vend);
