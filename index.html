@@ -240,8 +240,7 @@ table td{padding:6px 4px;vertical-align:middle}
   <div class="ll"><img id="iln" alt="Maria Elegante"><p>SISTEMA INTERNO</p></div>
   <div class="st">
     <button class="sb active" onclick="swL('e',this)">E-mail</button>
-    <button class="sb" onclick="swL('f',this)">Telefone</button>
-    <button class="sb" onclick="swL('g',this)">Gestora</button>
+
   </div>
   <div id="le" class="le"></div>
   <div id="li" class="li"></div>
@@ -559,6 +558,7 @@ const dl=(t,p)=>api(t,'DELETE',null,p);
 let EMP = null; // dados da empresa ativa
 
 window.addEventListener('load',async()=>{
+  try{Object.keys(localStorage).forEach(function(k){if(k.indexOf('me_senha_gestora_')===0||k.indexOf('me_rec_cod_')===0)localStorage.removeItem(k);});}catch(x){}
   // Acesso super admin via URL oculta
   const params=new URLSearchParams(window.location.search);
   if(params.get('superadmin')==='1'&&params.get('key')==='admin123'){
@@ -985,6 +985,7 @@ function rst(){
 }
 
 async function step(){
+  authMsgErro('O acesso agora é pelo e-mail. Peça seu convite à gestora.');return;
   const le=document.getElementById('le'),li=document.getElementById('li');
   le.style.display='none';li.style.display='none';
   if(!fP){
@@ -1254,94 +1255,20 @@ function mSel(cb){
 
 // ═══ INTEGRAÇÃO AZUL ═══
 // Tudo passa pela função do Netlify (azul-proxy). A chave da Azul nunca chega ao navegador.
-// Gestora: pede a senha do Financeiro. Gerente/vendedora: usa as credenciais da própria sessão
-// (transição até o novo login com e-mail).
+// O servidor confere o login (Supabase Auth) e limita cada pessoa ao que o perfil dela permite.
 var AZUL={tok:null,exp:0,cache:{},aviso:'',naoMapeado:null,atualizado:null,pausado:false};
 
-function azulTokLer(){
-  try{
-    var t=sessionStorage.getItem('me_azul_tok'),e=+sessionStorage.getItem('me_azul_exp');
-    if(t&&e>Date.now()){AZUL.tok=t;AZUL.exp=e;}
-  }catch(x){}
-}
-function azulTokSalvar(t){
-  AZUL.tok=t;AZUL.exp=Date.now()+7*3600*1000;
-  try{sessionStorage.setItem('me_azul_tok',t);sessionStorage.setItem('me_azul_exp',String(AZUL.exp));}catch(x){}
-}
 function azulTokLimpar(){
   AZUL.tok=null;AZUL.exp=0;
   try{sessionStorage.removeItem('me_azul_tok');sessionStorage.removeItem('me_azul_exp');}catch(x){}
 }
 function azulSair(){azulTokLimpar();AZUL.cache={};AZUL.aviso='';AZUL.naoMapeado=null;AZUL.pausado=false;}
 
-async function azulLogin(corpo){
-  var r=await fetch('/.netlify/functions/azul-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo),cache:'no-store'});
-  var j={};
-  try{j=await r.json();}catch(x){}
-  if(!r.ok||!j.token){
-    var e=new Error(j.mensagem||'Falha no acesso à Azul.');
-    e.codigo=j.codigo||('HTTP_'+r.status);
-    throw e;
-  }
-  azulTokSalvar(j.token);
-}
-
-function azulPedirSenha(msgErro){
-  return new Promise(function(resolve){
-    var antigo=document.getElementById('modal-azul');
-    if(antigo)antigo.remove();
-    var m=document.createElement('div');
-    m.id='modal-azul';
-    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px';
-    m.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px;width:100%;max-width:360px">'
-      +'<div style="font-size:17px;font-weight:700;margin-bottom:6px">Acesso aos dados da Azul</div>'
-      +'<div style="font-size:13px;color:#666;margin-bottom:14px">Digite a senha do Financeiro para carregar as vendas.</div>'
-      +'<input id="azul-senha" type="password" autocomplete="current-password" placeholder="Senha do Financeiro" style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;margin-bottom:8px;box-sizing:border-box">'
-      +'<div style="color:#c0392b;font-size:12px;min-height:16px;margin-bottom:8px">'+(msgErro||'')+'</div>'
-      +'<div style="display:flex;gap:8px"><button class="btn bp" id="azul-ok" style="flex:1;justify-content:center">Entrar</button><button class="btn" id="azul-cancel">Agora não</button></div>'
-      +'</div>';
-    document.body.appendChild(m);
-    var inp=document.getElementById('azul-senha');
-    function fechar(v){m.remove();resolve(v);}
-    document.getElementById('azul-ok').onclick=function(){fechar(inp.value||'');};
-    document.getElementById('azul-cancel').onclick=function(){fechar(null);};
-    inp.onkeydown=function(ev){if(ev.key==='Enter')fechar(inp.value||'');};
-    setTimeout(function(){inp.focus();},50);
-  });
-}
-
 function azulToken(){
-  if(S&&S.auth){
-    return authToken().then(function(t){
-      if(t)return t;
-      var e=new Error('Sua sessão expirou. Saia e entre novamente.');e.codigo='SESSAO_EXPIRADA';throw e;
-    });
-  }
-  azulTokLer();
-  if(AZUL.tok&&AZUL.exp>Date.now())return Promise.resolve(AZUL.tok);
-  if(!AZUL.pend){AZUL.pend=azulTokenNovo().then(function(t){AZUL.pend=null;return t;},function(e){AZUL.pend=null;throw e;});}
-  return AZUL.pend;
-}
-async function azulTokenNovo(){
-  if(!S){var e0=new Error('Sessão não iniciada.');e0.codigo='SEM_SESSAO';throw e0;}
-  if(S.tipo==='gestor'){
-    if(AZUL.pausado){var ec=new Error('Senha do Financeiro não informada.');ec.codigo='CANCELADO';throw ec;}
-    var erro='';
-    for(var i=0;i<3;i++){
-      var senha=await azulPedirSenha(erro);
-      if(senha===null){AZUL.pausado=true;var ec2=new Error('Senha do Financeiro não informada.');ec2.codigo='CANCELADO';throw ec2;}
-      try{await azulLogin({modo:'gestor',senha:senha});return AZUL.tok;}
-      catch(e){
-        if(e.codigo!=='CREDENCIAIS_INVALIDAS')throw e;
-        erro='Senha incorreta.';
-      }
-    }
-    AZUL.pausado=true;
-    var e3=new Error('Senha incorreta.');e3.codigo='CREDENCIAIS_INVALIDAS';throw e3;
-  }
-  var f=S.func||{};
-  await azulLogin({modo:'func',telefone:f.telefone||f.login,senha:f.senha_hash});
-  return AZUL.tok;
+  return authToken().then(function(t){
+    if(t)return t;
+    var e=new Error('Sua sessão expirou. Saia e entre novamente.');e.codigo='SESSAO_EXPIRADA';throw e;
+  });
 }
 
 async function azulGet(path,params,opt){
@@ -4229,6 +4156,7 @@ function verificarTermo(){
 
 // ── LOGIN DA GESTORA ──
 async function loginG(){
+  authMsgErro('O acesso agora é pelo e-mail.');return;
   const s=(document.getElementById('gsen').value||'');
   const le=document.getElementById('le');
   le.style.display='none';
