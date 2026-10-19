@@ -1,6 +1,6 @@
 // Netlify Function: proxy entre o app Maria Elegante e a Azul API (v1.3.12)
 // A chave fica SOMENTE em process.env.AZUL_API_KEY (Netlify -> Environment Variables).
-// Toda chamada exige o token emitido por azul-login (header Authorization: Bearer <token>).
+// Toda chamada exige o login do app (header Authorization: Bearer <JWT do Supabase Auth>).
 //
 // Permissoes:
 //   gestor     -> todos os endpoints
@@ -74,15 +74,13 @@ exports.handler = async function (event) {
   }
 
   var apiKey = process.env.AZUL_API_KEY;
-  var secret = process.env.AZUL_TOKEN_SECRET;
-  if (!apiKey || !secret) {
-    return auth.resposta(500, { erro: true, codigo: 'SERVIDOR_NAO_CONFIGURADO', mensagem: 'AZUL_API_KEY ou AZUL_TOKEN_SECRET nao configurada no Netlify.' });
+  if (!apiKey) {
+    return auth.resposta(500, { erro: true, codigo: 'SERVIDOR_NAO_CONFIGURADO', mensagem: 'AZUL_API_KEY nao configurada no Netlify.' });
   }
 
   // 1) Quem esta chamando?
   var tokenRecebido = auth.tokenDoHeader(event);
-  var claims = auth.verificarToken(tokenRecebido, secret);
-  if (!claims) claims = await claimsDoSupabase(tokenRecebido);
+  var claims = await claimsDoSupabase(tokenRecebido);
   if (!claims) {
     return auth.resposta(401, { erro: true, codigo: 'NAO_AUTENTICADO', mensagem: 'Sessao invalida ou expirada. Entre novamente.' });
   }
