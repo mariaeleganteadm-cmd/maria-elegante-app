@@ -239,12 +239,21 @@ table td{padding:6px 4px;vertical-align:middle}
 <div class="ls"><div class="lb">
   <div class="ll"><img id="iln" alt="Maria Elegante"><p>SISTEMA INTERNO</p></div>
   <div class="st">
-    <button class="sb active" onclick="swL('f',this)">Funcionária</button>
+    <button class="sb active" onclick="swL('e',this)">E-mail</button>
+    <button class="sb" onclick="swL('f',this)">Telefone</button>
     <button class="sb" onclick="swL('g',this)">Gestora</button>
   </div>
   <div id="le" class="le"></div>
   <div id="li" class="li"></div>
-  <div id="lfd">
+  <div id="led">
+    <div class="lf"><label>E-mail</label><input id="aemail" type="email" autocomplete="username" placeholder="seu@email.com" inputmode="email"></div>
+    <div class="lf"><label>Senha</label><input id="asenha" type="password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authEntrar()"></div>
+    <div style="text-align:right;margin-top:-8px;margin-bottom:12px">
+      <button onclick="authEsqueci()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;padding:4px">Esqueci minha senha</button>
+    </div>
+    <button class="bl" id="abtn" onclick="authEntrar()">Entrar</button>
+  </div>
+  <div id="lfd" style="display:none">
     <div class="lf"><label>Telefone</label><input id="tel" type="tel" placeholder="35999990001" inputmode="numeric"></div>
     <div id="sw" style="display:none">
       <div class="lf"><label>Senha</label><input id="sen" type="password" placeholder="••••••"></div>
@@ -591,6 +600,7 @@ window.addEventListener('load',async()=>{
       console.log('✅ Empresa carregada: '+EMP.nome+' (ID: '+EMP.id+')');
       // Ir direto para login
       document.getElementById('pg-login').style.display='block';
+      if(!authTratarHash())authRestaurar();
     } else {
       // Sem empresa — mostrar login mesmo assim
       console.log('Nenhuma empresa ativa encontrada');
@@ -781,8 +791,172 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(ob) ob.addEventListener('shown',renderOB);
 });
 
+// ═══ LOGIN COM E-MAIL (Supabase Auth) ═══
+var AUTH={at:null,rt:null,exp:0,uid:null};
+
+function authMsgErro(txt){
+  var le=document.getElementById('le');
+  if(le){le.textContent=txt;le.style.display=txt?'block':'none';}
+  var li=document.getElementById('li');
+  if(li&&txt)li.style.display='none';
+}
+function authSalvar(j){
+  AUTH.at=j.access_token;AUTH.rt=j.refresh_token;
+  AUTH.exp=Date.now()+((j.expires_in||3600)-60)*1000;
+  AUTH.uid=j.user&&j.user.id?j.user.id:AUTH.uid;
+  try{localStorage.setItem('me_auth_rt',j.refresh_token||'');}catch(x){}
+}
+function authLimpar(){
+  AUTH.at=null;AUTH.rt=null;AUTH.exp=0;AUTH.uid=null;
+  try{localStorage.removeItem('me_auth_rt');}catch(x){}
+}
+async function authReq(caminho,metodo,corpo,token){
+  var h={'apikey':KEY,'Content-Type':'application/json','Authorization':'Bearer '+(token||KEY)};
+  var r=await fetch(SB+'/auth/v1/'+caminho,{method:metodo,headers:h,body:corpo?JSON.stringify(corpo):undefined});
+  var j={};
+  try{j=await r.json();}catch(x){}
+  return {ok:r.ok,status:r.status,j:j};
+}
+// Token válido para chamar funções do servidor (renova se precisar)
+async function authToken(){
+  if(AUTH.at&&AUTH.exp>Date.now())return AUTH.at;
+  if(!AUTH.rt)return null;
+  var r=await authReq('token?grant_type=refresh_token','POST',{refresh_token:AUTH.rt});
+  if(!r.ok)return null;
+  authSalvar(r.j);return AUTH.at;
+}
+
+async function authEntrar(){
+  authMsgErro('');
+  var email=(document.getElementById('aemail').value||'').trim().toLowerCase();
+  var senha=document.getElementById('asenha').value||'';
+  if(!email||!senha){authMsgErro('Digite e-mail e senha.');return;}
+  var btn=document.getElementById('abtn');btn.disabled=true;btn.textContent='Entrando...';
+  try{
+    var r=await authReq('token?grant_type=password','POST',{email:email,password:senha});
+    if(!r.ok){authMsgErro(r.status===400?'E-mail ou senha incorretos.':'Não foi possível entrar agora. Tente de novo.');return;}
+    await authIniciarSessao(r.j);
+  }catch(e){
+    console.error(e);authMsgErro('Sem conexão. Verifique a internet.');
+  }finally{btn.disabled=false;btn.textContent='Entrar';}
+}
+
+async function authIniciarSessao(j){
+  authSalvar(j);
+  if(!AUTH.uid){var ur=await authReq('user','GET',null,AUTH.at);AUTH.uid=ur.j&&ur.j.id;}
+  var rows=await gt('funcionarias','?auth_user_id=eq.'+AUTH.uid+'&ativa=eq.true&select=*');
+  if(!rows.length){
+    authLimpar();
+    authMsgErro('Seu acesso ainda não foi liberado. Fale com a gestora.');
+    return false;
+  }
+  var f=rows[0];
+  if(f.empresa_id){
+    try{
+      var em=await gt('empresas','?id=eq.'+f.empresa_id+'&ativa=eq.true&select=*');
+      if(em.length){EMP=em[0];localStorage.setItem('me_empresa_id',String(EMP.id));aplicarIdentidade(EMP);}
+    }catch(x){}
+  }
+  if(f.perfil==='gestor'){
+    S={tipo:'gestor',funcId:f.id,func:f,auth:true};
+    init();
+  } else {
+    fP=f;S={tipo:f.perfil,funcId:f.id,func:f,auth:true};
+    verificarTermo();
+  }
+  return true;
+}
+
+async function authRestaurar(){
+  var rt=null;
+  try{rt=localStorage.getItem('me_auth_rt');}catch(x){}
+  if(!rt)return;
+  try{
+    var r=await authReq('token?grant_type=refresh_token','POST',{refresh_token:rt});
+    if(!r.ok){authLimpar();return;}
+    await authIniciarSessao(r.j);
+  }catch(e){console.error(e);}
+}
+
+async function authSairServidor(){
+  var t=AUTH.at;
+  authLimpar();
+  if(t){try{await authReq('logout','POST',null,t);}catch(x){}}
+}
+
+async function authEsqueci(){
+  authMsgErro('');
+  var email=(document.getElementById('aemail').value||'').trim().toLowerCase();
+  if(!email){authMsgErro('Digite seu e-mail acima e toque de novo.');return;}
+  try{
+    await authReq('recover?redirect_to='+encodeURIComponent(location.origin),'POST',{email:email});
+  }catch(x){}
+  var li=document.getElementById('li');
+  li.textContent='Se esse e-mail estiver cadastrado, enviamos um link para criar uma nova senha. Veja também o spam.';
+  li.style.display='block';
+}
+
+// Link do e-mail (convite ou redefinição): chega com #access_token=...&type=invite|recovery
+var AUTH_LINK=null;
+function authTratarHash(){
+  var h=String(location.hash||'').replace(/^#/,'');
+  if(!h)return false;
+  var p=new URLSearchParams(h);
+  if(p.get('error')){
+    history.replaceState({},'',location.pathname);
+    authMsgErro('Esse link expirou ou já foi usado. Toque em "Esqueci minha senha" para receber outro.');
+    return true;
+  }
+  var tipo=p.get('type');
+  if(!p.get('access_token')||(tipo!=='invite'&&tipo!=='recovery'))return false;
+  AUTH_LINK={at:p.get('access_token'),rt:p.get('refresh_token'),exp:parseInt(p.get('expires_in'),10)||3600,tipo:tipo};
+  history.replaceState({},'',location.pathname);
+  var m=document.getElementById('modal-rec');
+  m.style.display='flex';
+  document.getElementById('modal-rec-body').innerHTML=
+    '<div style="font-size:18px;font-weight:700;margin-bottom:6px">'+(tipo==='invite'?'Bem-vinda! Crie sua senha':'Criar nova senha')+'</div>'
+    +'<div style="font-size:13px;color:#666;margin-bottom:14px">Use pelo menos 8 caracteres.</div>'
+    +'<div class="fi"><label>Nova senha</label><input id="ns1" type="password" autocomplete="new-password" style="font-size:16px;min-height:46px"></div>'
+    +'<div class="fi"><label>Repita a senha</label><input id="ns2" type="password" autocomplete="new-password" style="font-size:16px;min-height:46px"></div>'
+    +'<div id="ns-erro" style="color:#c0392b;font-size:13px;min-height:18px;margin-bottom:8px"></div>'
+    +'<button class="btn bp" id="ns-btn" style="width:100%;justify-content:center" onclick="authDefinirSenha()">Salvar e entrar</button>';
+  return true;
+}
+async function authDefinirSenha(){
+  var s1=document.getElementById('ns1').value,s2=document.getElementById('ns2').value;
+  var er=document.getElementById('ns-erro');
+  if(s1.length<8){er.textContent='A senha precisa ter pelo menos 8 caracteres.';return;}
+  if(s1!==s2){er.textContent='As senhas não coincidem.';return;}
+  var btn=document.getElementById('ns-btn');btn.disabled=true;
+  try{
+    var r=await authReq('user','PUT',{password:s1},AUTH_LINK.at);
+    if(!r.ok){er.textContent=(r.j&&r.j.msg)||'Não foi possível salvar. Peça um novo link.';btn.disabled=false;return;}
+    var uid=r.j.id;
+    document.getElementById('modal-rec').style.display='none';
+    var ok=await authIniciarSessao({access_token:AUTH_LINK.at,refresh_token:AUTH_LINK.rt,expires_in:AUTH_LINK.exp,user:{id:uid}});
+    AUTH_LINK=null;
+    if(!ok)document.getElementById('pg-login').style.display='block';
+  }catch(e){console.error(e);er.textContent='Sem conexão. Tente de novo.';btn.disabled=false;}
+}
+
+// Gestor envia convite / redefinição para uma funcionária (pelo módulo Equipe)
+async function convidarFunc(id){
+  var ok=document.getElementById('ef-ok');
+  function msg(t,erro){ok.textContent=t;ok.className='ae '+(erro?'aer':'aok');ok.style.display='block';}
+  var tk=await authToken();
+  if(!tk){msg('Para enviar convites, saia e entre com seu e-mail e senha.',true);return;}
+  msg('Enviando...',false);
+  try{
+    var r=await fetch('/.netlify/functions/auth-convidar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({funcId:id}),cache:'no-store'});
+    var j={};try{j=await r.json();}catch(x){}
+    if(!r.ok){msg(j.mensagem||'Não foi possível enviar.',true);return;}
+    msg((j.tipo==='convite'?'Convite enviado para ':'Link para nova senha enviado para ')+j.email+'.',false);
+  }catch(e){msg('Sem conexão.',true);}
+}
+
 function swL(t,btn){
   document.querySelectorAll('.sb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('led').style.display=t==='e'?'block':'none';
   document.getElementById('lfd').style.display=t==='f'?'block':'none';
   document.getElementById('lgd').style.display=t==='g'?'block':'none';
   rst();
@@ -1011,7 +1185,7 @@ async function entrarSubsistema(sub){
 }
 
 function sair(){
-  S=null;fP=null;azulSair();
+  S=null;fP=null;azulSair();authSairServidor();
   document.getElementById('app').style.display='none';
   document.getElementById('pg-login').style.display='block';
   rst();
@@ -1910,7 +2084,8 @@ async function gEquipe(){
       +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
       +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
       +'</select></div>'
-      +'<button class="btn bp bsm" onclick="salvarDadosFunc('+id+')" style="margin-bottom:12px;width:100%;justify-content:center"><i class="ti ti-device-floppy"></i> Salvar dados</button>'
+      +'<button class="btn bp bsm" onclick="salvarDadosFunc('+id+')" style="margin-bottom:8px;width:100%;justify-content:center"><i class="ti ti-device-floppy"></i> Salvar dados</button>'
+      +'<button class="btn bsm" onclick="convidarFunc('+id+')" style="margin-bottom:12px;width:100%;justify-content:center"><i class="ti ti-mail"></i> '+(f.auth_user_id?'Enviar link para nova senha':'Enviar convite por e-mail')+'</button>'
       +'<div id="ef-ok" class="ae aok" style="display:none"></div>'
       +'<div class="sep"></div>'
       +'<h3 style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="ti ti-lock-open" style="vertical-align:middle"></i> Acesso aos módulos</h3>'
