@@ -544,7 +544,15 @@ function metaKey(e){
   return false;
 }
 
+function refMes(){return '&_ref='+isoD(new Date(aS,mS-1,1));}
 async function api(t,m='GET',b=null,p=''){
+  // Quem tem data de demissão deixa de aparecer a partir dessa data
+  // (telas de mês passam &_ref=primeiro dia do mês: a pessoa aparece nos meses em que ainda estava na loja)
+  if(t==='funcionarias'&&m==='GET'&&p.indexOf('ativa=eq.true')>=0&&p.indexOf('data_demissao')<0){
+    var mr=/&_ref=(\d{4}-\d{2}-\d{2})/.exec(p);
+    p=p.replace(/&_ref=\d{4}-\d{2}-\d{2}/,'');
+    p+=mr?'&or=(data_demissao.is.null,data_demissao.gte.'+mr[1]+')':'&or=(data_demissao.is.null,data_demissao.gt.'+isoD(new Date())+')';
+  }
   const r=await fetch(SB+'/rest/v1/'+t+p,{method:m,headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''},body:b?JSON.stringify(b):null});
   if(m==='DELETE')return true;
   const tx=await r.text();return tx?JSON.parse(tx):[];
@@ -1344,7 +1352,7 @@ async function azulVendasComoLinhas(mes,ano){
   var fim=fimMes>hoje?hoje:fimMes;
   if(ini>hoje)return [];
   var iniISO=isoD(ini),fimISO=isoD(fim);
-  var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,azul_vendedor_codigo');
+  var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,azul_vendedor_codigo'+'&_ref='+isoD(new Date(ano,mes-1,1)));
   var mapa={};
   funcs.forEach(function(f){if(f.azul_vendedor_codigo)mapa[f.azul_vendedor_codigo]=f.id;});
   var vendas=[];
@@ -1766,7 +1774,7 @@ async function gMetas(){
   let funcs=[], vendas=[], metas=[], fils=[];
   try {
     [funcs,vendas,metas,fils]=await Promise.all([
-      gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'),
+      gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*,filiais(nome)'+refMes()),
       gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
       gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*'),
       gt('filiais','?select=*'+eid())
@@ -1960,6 +1968,7 @@ async function gEquipe(){
           +'<div class="rs">📱 '+(f.telefone||'—')+' · '
           +'<span style="font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600;background:'+pBg+';color:'+pCl+'">'+f.perfil+'</span>'
           +(f.email?'':'&nbsp;<span style="font-size:10px;color:#BA7517">sem e-mail</span>')
+          +(f.data_demissao?'&nbsp;<span style="font-size:10px;color:#c0392b">demissão '+brD(f.data_demissao)+'</span>':'')
           +(f.azul_vendedor_codigo?'&nbsp;<span style="font-size:10px;color:var(--t2)">Azul '+f.azul_vendedor_codigo+'</span>':'&nbsp;<span style="font-size:10px;color:#BA7517">sem código Azul</span>')
           +'</div></div>'
           +'<div style="display:flex;gap:6px;flex-shrink:0">'
@@ -2038,6 +2047,7 @@ async function gEquipe(){
       +'<div class="fi"><label>Telefone</label><input id="ef-tel" type="tel" value="'+(f.telefone||f.login||'')+'" inputmode="numeric" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>E-mail <span style="font-size:10px;color:var(--t2)">(para assinatura digital)</span></label><input id="ef-email" type="email" value="'+(f.email||'')+'" placeholder="exemplo@email.com" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Código de vendedor na Azul</label><input id="ef-azul" type="number" inputmode="numeric" value="'+(f.azul_vendedor_codigo||'')+'" placeholder="Ex: 301" style="font-size:16px;min-height:46px"></div>'
+      +'<div class="fi"><label>Data de demissão <span style="font-size:10px;color:var(--t2)">(perde o acesso nesse dia; continua nos relatórios dos meses em que trabalhou; vazio = ativa)</span></label><input id="ef-dem" type="date" value="'+(f.data_demissao||'')+'" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Perfil</label><select id="ef-perfil" style="font-size:16px;min-height:46px">'
       +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
       +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
@@ -2497,7 +2507,7 @@ async function gMais(filtroFil){
   // filtroFil: null = todas, ou id da filial
   const [fils,funcs,vendas,metas]=await Promise.all([
     gt('filiais','?select=*'+eid()),
-    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*'),
+    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=*'+refMes()),
     gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*')
   ]);
@@ -2837,7 +2847,7 @@ async function gGerente(){
   const ontemStr=String(ontem.getDate()).padStart(2,'0')+'/'+String(ontem.getMonth()+1).padStart(2,'0')+'/'+ontem.getFullYear();
 
   let [funcs,vendas,metas,filRaw,vendasEmp]=await Promise.all([
-    gt('funcionarias','?ativa=eq.true&filial_id=eq.'+f.filial_id+'&perfil=in.(vendedora,gerente)'+eid()+'&select=*'),
+    gt('funcionarias','?ativa=eq.true&filial_id=eq.'+f.filial_id+'&perfil=in.(vendedora,gerente)'+eid()+'&select=*'+refMes()),
     gt('vendas','?select=func_id,valor,data_venda'+eid()).then(function(v){return vendasMisturadas(v,mS,aS);}),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=*'),
     gt('filiais','?id=eq.'+f.filial_id+'&select=nome'),
@@ -3384,6 +3394,7 @@ async function salvarDadosFunc(id){
   var dadosSalvar={nome:nome,telefone:tel,login:tel,perfil:perfil};
   if(email)dadosSalvar.email=email;
   dadosSalvar.azul_vendedor_codigo=parseInt(document.getElementById('ef-azul')?.value)||null;
+  dadosSalvar.data_demissao=document.getElementById('ef-dem')?.value||null;
   await pk('funcionarias','?id=eq.'+id,dadosSalvar);
   if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(function(){ok.style.display='none';},2500);}
   gEquipe();
@@ -3414,7 +3425,7 @@ async function salvarFilAzul(filId,valor){
 // ── GESTORA: META DO MÊS ──
 async function gMetaMes(){
   const [funcs,fils,metas]=await Promise.all([
-    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,perfil,filial_id'),
+    gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,perfil,filial_id'+refMes()),
     gt('filiais','?select=*'+eid()),
     gt('metas_mensais','?mes=eq.'+mS+'&ano=eq.'+aS+eid()+'&select=func_id,valor')
   ]);
