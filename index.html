@@ -940,8 +940,20 @@ async function authDefinirSenha(){
 }
 
 // Gestor envia convite / redefinição para uma funcionária (pelo módulo Equipe)
-async function convidarFunc(id){
-  var ok=document.getElementById('ef-ok');
+async function cadGestor(){
+  var nome=(document.getElementById('gn').value||'').trim();
+  var em=(document.getElementById('ge').value||'').trim().toLowerCase();
+  var ok=document.getElementById('gest-ok');
+  function msg(t,erro){ok.textContent=t;ok.className='ae '+(erro?'aer':'aok');ok.style.display='block';}
+  if(!nome||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){msg('Informe o nome e um e-mail válido.',true);return;}
+  var ja=await gt('funcionarias','?or=(email.eq.'+encodeURIComponent(em)+',login.eq.'+encodeURIComponent(em)+')&select=id');
+  if(ja.length){msg('Já existe cadastro com esse e-mail.',true);return;}
+  await pt('funcionarias',{nome:nome,login:em,email:em,perfil:'gestor',ativa:true,empresa_id:EMP?parseInt(EMP.id):null,modulos:['metas','docs','avisos','estoque','dre','financeiro'],senha_criada:true});
+  await gEquipe();
+}
+
+async function convidarFunc(id,alvo){
+  var ok=document.getElementById(alvo||'ef-ok');
   function msg(t,erro){ok.textContent=t;ok.className='ae '+(erro?'aer':'aok');ok.style.display='block';}
   var tk=await authToken();
   if(!tk){msg('Para enviar convites, saia e entre com seu e-mail e senha.',true);return;}
@@ -2031,6 +2043,19 @@ async function gEquipe(){
       h+='</div>';
     });
   }
+
+  // gestores (acesso total, entram só pelo e-mail)
+  const gest=funcs.filter(f=>f.perfil==='gestor');
+  h+='<div class="card"><h3 style="font-size:14px;font-weight:700;margin-bottom:12px"><i class="ti ti-shield-check"></i> Gestores</h3>'
+    +gest.map(g=>'<div class="ri"><div class="av" style="width:38px;height:38px;font-size:13px;background:var(--tl);color:var(--tdd)">'+in2(g.nome)+'</div>'
+      +'<div style="flex:1;min-width:0"><div class="rn">'+g.nome+'</div><div class="rs">'+(g.email||'sem e-mail')+' · '+(g.auth_user_id?'<span style="color:#2E7D32">com acesso</span>':'<span style="color:#BA7517">sem convite</span>')+'</div></div>'
+      +'<button class="btn bsm" onclick="convidarFunc('+g.id+',\'gest-ok\')" title="Enviar convite ou nova senha"><i class="ti ti-mail"></i></button></div>').join('')
+    +'<div id="gest-ok" class="ae aok" style="display:none"></div>'
+    +'<div class="sep"></div>'
+    +'<div class="fi"><label>Novo gestor — nome</label><input id="gn" placeholder="Ex: Laisa"></div>'
+    +'<div class="fi"><label>E-mail</label><input id="ge" type="email" placeholder="exemplo@email.com"></div>'
+    +'<button class="btn bp bsm" onclick="cadGestor()"><i class="ti ti-user-plus"></i> Cadastrar gestor</button>'
+    +'</div>';
 
   // filiais
   h+='<div class="card"><h3 style="font-size:14px;font-weight:700;margin-bottom:12px"><i class="ti ti-building-store"></i> Filiais</h3>'
