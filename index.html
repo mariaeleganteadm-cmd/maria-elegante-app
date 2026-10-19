@@ -545,6 +545,8 @@ function metaKey(e){
 }
 
 async function api(t,m='GET',b=null,p=''){
+  // Quem tem data de demissão deixa de aparecer a partir dessa data
+  if(t==='funcionarias'&&m==='GET'&&p.indexOf('ativa=eq.true')>=0&&p.indexOf('data_demissao')<0){p+='&or=(data_demissao.is.null,data_demissao.gt.'+isoD(new Date())+')';}
   const r=await fetch(SB+'/rest/v1/'+t+p,{method:m,headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''},body:b?JSON.stringify(b):null});
   if(m==='DELETE')return true;
   const tx=await r.text();return tx?JSON.parse(tx):[];
@@ -1960,6 +1962,7 @@ async function gEquipe(){
           +'<div class="rs">📱 '+(f.telefone||'—')+' · '
           +'<span style="font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600;background:'+pBg+';color:'+pCl+'">'+f.perfil+'</span>'
           +(f.email?'':'&nbsp;<span style="font-size:10px;color:#BA7517">sem e-mail</span>')
+          +(f.data_demissao?'&nbsp;<span style="font-size:10px;color:#c0392b">demissão '+brD(f.data_demissao)+'</span>':'')
           +(f.azul_vendedor_codigo?'&nbsp;<span style="font-size:10px;color:var(--t2)">Azul '+f.azul_vendedor_codigo+'</span>':'&nbsp;<span style="font-size:10px;color:#BA7517">sem código Azul</span>')
           +'</div></div>'
           +'<div style="display:flex;gap:6px;flex-shrink:0">'
@@ -2038,6 +2041,7 @@ async function gEquipe(){
       +'<div class="fi"><label>Telefone</label><input id="ef-tel" type="tel" value="'+(f.telefone||f.login||'')+'" inputmode="numeric" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>E-mail <span style="font-size:10px;color:var(--t2)">(para assinatura digital)</span></label><input id="ef-email" type="email" value="'+(f.email||'')+'" placeholder="exemplo@email.com" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Código de vendedor na Azul</label><input id="ef-azul" type="number" inputmode="numeric" value="'+(f.azul_vendedor_codigo||'')+'" placeholder="Ex: 301" style="font-size:16px;min-height:46px"></div>'
+      +'<div class="fi"><label>Data de demissão <span style="font-size:10px;color:var(--t2)">(a partir dela a pessoa some do sistema e perde o acesso; deixe vazio se está ativa)</span></label><input id="ef-dem" type="date" value="'+(f.data_demissao||'')+'" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Perfil</label><select id="ef-perfil" style="font-size:16px;min-height:46px">'
       +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
       +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
@@ -3384,6 +3388,7 @@ async function salvarDadosFunc(id){
   var dadosSalvar={nome:nome,telefone:tel,login:tel,perfil:perfil};
   if(email)dadosSalvar.email=email;
   dadosSalvar.azul_vendedor_codigo=parseInt(document.getElementById('ef-azul')?.value)||null;
+  dadosSalvar.data_demissao=document.getElementById('ef-dem')?.value||null;
   await pk('funcionarias','?id=eq.'+id,dadosSalvar);
   if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(function(){ok.style.display='none';},2500);}
   gEquipe();

@@ -19,7 +19,7 @@ exports.handler = async function (event) {
   var ru = await fetch(sbUrl + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + m[1] } });
   if (!ru.ok) return resp(401, { codigo: 'NAO_AUTENTICADO', mensagem: 'Sessão inválida. Entre novamente.' });
   var uid = (await ru.json()).id;
-  var rg = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&perfil=eq.gestor&ativa=eq.true&select=id', { headers: H });
+  var rg = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&perfil=eq.gestor&ativa=eq.true&or=(data_demissao.is.null,data_demissao.gt.' + new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10) + ')&select=id', { headers: H });
   var gs = rg.ok ? await rg.json() : [];
   if (!gs.length) return resp(403, { codigo: 'SEM_PERMISSAO', mensagem: 'Apenas gestores podem convidar.' });
 

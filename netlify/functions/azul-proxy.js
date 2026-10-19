@@ -49,7 +49,7 @@ async function claimsDoSupabase(token) {
     var ru = await fetch(sbUrl + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
     if (!ru.ok) return null;
     var uid = (await ru.json()).id;
-    var rf = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&ativa=eq.true&select=perfil,modulos,azul_vendedor_codigo,filiais(azul_filial)', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    var rf = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&ativa=eq.true&or=(data_demissao.is.null,data_demissao.gt.' + new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10) + ')&select=perfil,modulos,azul_vendedor_codigo,filiais(azul_filial)', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
     var rows = rf.ok ? await rf.json() : [];
     if (!rows.length) return null;
     var f = rows[0];
