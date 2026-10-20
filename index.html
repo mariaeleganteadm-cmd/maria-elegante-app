@@ -1570,7 +1570,7 @@ async function gFinVendas(){
 // ═══ ESTOQUE POR FAIXA DE PREÇO ═══
 // Saldo = contagem inicial + ajustes (com data e autor) - vendas ativas do Azul depois da contagem.
 // O saldo é calculado no banco (view vw_estoque_saldo). Devoluções ainda não entram na conta.
-var EST={fils:[],prods:[],prodNome:{},saldo:{},base:{},sync:{},pode:false,podeSync:false,msg:'',msgErro:false,aba:'saldo',dist:{tela:'lista',data:null,pend:{},timers:{},emVoo:0,erro:''}};
+var EST={fils:[],prods:[],prodNome:{},saldo:{},base:{},sync:{},pode:false,podeSync:false,msg:'',msgErro:false,aba:'saldo',dist:{tela:'lista',data:null,pend:{},timers:{},emVoo:0,erro:'',cx:{},cxp:{}}};
 
 function estEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function estAddDias(iso,n){var d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d);}
@@ -1961,6 +1961,26 @@ async function estBase(){
   EST.prods=Array.isArray(prods)?prods:[];
   EST.prodNome={};EST.prods.forEach(function(p){EST.prodNome[p.codigo]=p.descricao;});
 }
+// Custo da compra (somente gestor): valor total pago pela linha/modelo, guardado em tabela separada
+function estParseMoeda(v){
+  var t=String(v==null?'':v).replace(/\s/g,'').replace('R$','');
+  if(t==='')return 0;
+  if(t.indexOf(',')>=0)t=t.replace(/\./g,'').replace(',','.');
+  if(!/^\d+(\.\d{1,2})?$/.test(t))return null;
+  return Math.round(parseFloat(t)*100)/100;
+}
+function estMoedaCampo(v){v=Number(v)||0;return v>0?v.toFixed(2).replace('.',','):'';}
+function estCustoCelula(id,custo,estiloInp){
+  return '<input type="text" inputmode="decimal" value="'+estMoedaCampo(custo)+'" placeholder="0,00" data-k="c" data-id="'+id+'" oninput="estDistCampo(this)" style="'+estiloInp+';width:92px;text-align:right">'
+    +'<div id="est-uc-'+id+'" style="font-size:10px;color:var(--t2);margin-top:2px"></div>';
+}
+async function estCarregarCustos(ids){
+  EST.dist.cx={};var mapa={};
+  if(!ids.length)return mapa;
+  var cs=await gt('distribuicao_custos','?select=distribuicao_id,custo&distribuicao_id=in.('+ids.join(',')+')&limit=1000');
+  (Array.isArray(cs)?cs:[]).forEach(function(c){mapa[c.distribuicao_id]=Number(c.custo)||0;EST.dist.cx[c.distribuicao_id]=true;});
+  return mapa;
+}
 function estEmpId(){return EMP?parseInt(EMP.id,10):null;}
 function estQuem(){return (S.func&&S.func.nome)||'Usuário';}
 
@@ -2052,14 +2072,15 @@ async function estDistRascunho(){
   if(!Array.isArray(ms)||!ms.length){EST.dist.tela='lista';return estDistListaGestor();}
   var ids=ms.map(function(m){return m.id;});
   var its=await gt('distribuicao_itens','?select=*&distribuicao_id=in.('+ids.join(',')+')&limit=1000');
+  var custos=await estCarregarCustos(ids);
   var porModelo={};
   (Array.isArray(its)?its:[]).forEach(function(i){(porModelo[i.distribuicao_id]=porModelo[i.distribuicao_id]||{})[i.filial_id]=i;});
   var th='padding:8px 6px;font-size:11px;font-weight:700;color:#fff;background:var(--td);white-space:nowrap;text-align:center';
   var inp='padding:8px 6px;border:1.5px solid var(--bd);border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:var(--tx)';
-  var t='<div class="card" style="padding:0;overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:'+(330+EST.fils.length*74)+'px">';
+  var t='<div class="card" style="padding:0;overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:'+(430+EST.fils.length*74)+'px">';
   t+='<thead><tr><th style="'+th+';border-radius:14px 0 0 0">#</th><th style="'+th+';text-align:left">Modelo (descrição)</th><th style="'+th+'">Faixa de preço</th>';
   EST.fils.forEach(function(f){t+='<th style="'+th+'">'+estEsc(f.nome)+'</th>';});
-  t+='<th style="'+th+';border-radius:0 14px 0 0">Total</th></tr></thead><tbody>';
+  t+='<th style="'+th+'">Total</th><th style="'+th+';border-radius:0 14px 0 0">Custo da compra (R$)</th></tr></thead><tbody>';
   ms.forEach(function(m){
     var tot=0;
     var opt='<option value="">Escolha</option>'+EST.prods.map(function(p){return '<option value="'+p.codigo+'"'+(m.produto_codigo===p.codigo?' selected':'')+'>'+estEsc(p.descricao)+'</option>';}).join('');
@@ -2071,12 +2092,13 @@ async function estDistRascunho(){
       var q=it?Number(it.quantidade)||0:0;tot+=q;
       tr+='<td style="padding:6px;border-bottom:1px solid var(--bd);text-align:center">'+(it?'<input type="number" inputmode="numeric" min="0" step="1" value="'+(q>0?q:'')+'" placeholder="0" data-k="q" data-id="'+it.id+'" data-f="'+f.id+'" data-m="'+m.id+'" oninput="estDistCampo(this)" style="'+inp+';width:64px;text-align:right">':'—')+'</td>';
     });
-    tr+='<td id="est-rt-'+m.id+'" style="padding:6px;border-bottom:1px solid var(--bd);text-align:center;font-weight:700">'+estNum(tot)+'</td></tr>';
+    tr+='<td id="est-rt-'+m.id+'" style="padding:6px;border-bottom:1px solid var(--bd);text-align:center;font-weight:700">'+estNum(tot)+'</td>'
+      +'<td style="padding:6px;border-bottom:1px solid var(--bd);text-align:right">'+estCustoCelula(m.id,custos[m.id],inp)+'</td></tr>';
     t+=tr;
   });
   t+='<tr style="background:var(--bg)"><td colspan="3" style="padding:9px 6px;font-weight:700;text-align:right">Total de peças</td>';
   EST.fils.forEach(function(f){t+='<td id="est-tot-'+f.id+'" style="padding:9px 6px;text-align:center;font-weight:700">0</td>';});
-  t+='<td id="est-tot-geral" style="padding:9px 6px;text-align:center;font-weight:800">0</td></tr></tbody></table></div>';
+  t+='<td id="est-tot-geral" style="padding:9px 6px;text-align:center;font-weight:800">0</td><td id="est-tot-custo" style="padding:9px 8px;text-align:right;font-weight:800">R$ 0,00</td></tr></tbody></table></div>';
 
   var dataEnv=estDataRascunho(ms);
   var criado=ms.reduce(function(a,m){return !a||m.criado_em<a?m.criado_em:a;},null);
@@ -2125,18 +2147,32 @@ function estDistTotais(){
   EST.fils.forEach(function(f){var e=document.getElementById('est-tot-'+f.id);if(e)e.textContent=estNum(porLoja[f.id]||0);});
   Object.keys(porModelo).forEach(function(m){var e=document.getElementById('est-rt-'+m);if(e)e.textContent=estNum(porModelo[m]);});
   var g=document.getElementById('est-tot-geral');if(g)g.textContent=estNum(geral);
+  estDistCustos(porModelo);
+}
+// Soma dos custos e custo médio por peça de cada linha
+function estDistCustos(porModelo){
+  var soma=0;
+  document.querySelectorAll('#ct input[data-k="c"]').forEach(function(el){
+    var v=estParseMoeda(el.value);if(v===null)v=0;
+    soma+=v;
+    var e=document.getElementById('est-uc-'+el.dataset.id);
+    var q=(porModelo&&porModelo[el.dataset.id]!==undefined)?porModelo[el.dataset.id]:(EST.dist.qtd||{})[el.dataset.id];
+    if(e)e.textContent=(v>0&&q>0)?(fm(v/q)+' por peça'):'';
+  });
+  var t=document.getElementById('est-tot-custo');if(t)t.textContent=fm(soma);
 }
 // Salva cada campo ~0,7 s depois da última digitação
 function estDistCampo(el){
   if(el.dataset.k==='dt'){
     if(!el.value||el.value>estHojeISO()){estDistStatus('Escolha uma data válida (hoje ou antes).',true);return;}
   }
+  if(el.dataset.k==='c'&&estParseMoeda(el.value)===null){estDistStatus('Custo inválido: use só números, por exemplo 1250,50.',true);return;}
   var chave=el.dataset.k+'|'+el.dataset.id;
   EST.dist.pend[chave]={k:el.dataset.k,id:el.dataset.id,v:el.value};
   clearTimeout(EST.dist.timers[chave]);
   EST.dist.timers[chave]=setTimeout(function(){estDistSalvarCampo(chave);},700);
   estDistStatus('Salvando...');
-  if(el.dataset.k==='q')estDistTotais();
+  if(el.dataset.k==='q'||el.dataset.k==='c')estDistTotais();
 }
 async function estDistSalvarCampo(chave){
   var p=EST.dist.pend[chave];if(!p)return;
@@ -2146,10 +2182,21 @@ async function estDistSalvarCampo(chave){
   if(p.k==='dt'){corpo={data_entrada:p.v};filtro='?enviado=eq.false'+eid();}
   else if(p.k==='d'){corpo={descricao:p.v};}
   else if(p.k==='p'){corpo={produto_codigo:p.v===''?null:parseInt(p.v,10)};}
+  else if(p.k==='c'){tabela='distribuicao_custos';}
   else{tabela='distribuicao_itens';var q=parseInt(p.v,10);if(isNaN(q)||q<0)q=0;corpo={quantidade:q};}
   EST.dist.emVoo++;
   try{
-    var r=await pk(tabela,filtro,corpo);
+    var r;
+    if(p.k==='c'){
+      var ant=EST.dist.cxp[p.id];if(ant){try{await ant;}catch(e0){}}
+      var cv=estParseMoeda(p.v);if(cv===null)throw new Error('Custo inválido.');
+      var cc={custo:cv,atualizado_em:new Date().toISOString(),atualizado_por:S.funcId,atualizado_por_nome:estQuem()};
+      var op=EST.dist.cx[p.id]?pk('distribuicao_custos','?distribuicao_id=eq.'+p.id,cc):pt('distribuicao_custos',Object.assign({distribuicao_id:p.id,empresa_id:estEmpId()},cc));
+      EST.dist.cxp[p.id]=op;
+      r=await op;
+      if(Array.isArray(r))EST.dist.cx[p.id]=true;
+      delete EST.dist.cxp[p.id];
+    }else r=await pk(tabela,filtro,corpo);
     if(!Array.isArray(r))throw new Error((r&&r.message)||'Falha ao salvar.');
     EST.dist.erro='';EST.dist.ultimo=new Date();
   }catch(e){
@@ -2197,7 +2244,12 @@ async function estDistConcluir(){
   var campoDt=document.getElementById('est-dt');
   var dataEnv=campoDt?campoDt.value:estHojeISO();
   if(!dataEnv||dataEnv>estHojeISO()){estDistStatus('Escolha uma data de entrada válida (hoje ou antes).',true);return;}
-  if(!confirm('Concluir e enviar para as lojas com data de entrada '+brD(dataEnv)+'? Depois de enviado, a quantidade enviada fica travada.'))return;
+  var semCusto=0;
+  document.querySelectorAll('#ct input[data-k="c"]').forEach(function(el){
+    var tr=el.closest('tr'),d=tr&&tr.querySelector('input[data-k="d"]');
+    if(d&&d.value.trim()!==''&&!(estParseMoeda(el.value)>0))semCusto++;
+  });
+  if(!confirm('Concluir e enviar para as lojas com data de entrada '+brD(dataEnv)+'? Depois de enviado, a quantidade enviada fica travada.'+(semCusto?'\n\nAtenção: '+semCusto+(semCusto===1?' linha está':' linhas estão')+' sem custo (você ainda pode preencher depois, na entrada enviada).':'')))return;
   if(btn)btn.disabled=true;
   try{
     var r=await pt('rpc/distribuicao_enviar',{p_empresa:estEmpId(),p_data:dataEnv});
@@ -2217,14 +2269,16 @@ async function estDistDataGestor(data){
   var ms=await gt('distribuicao','?select=*&enviado=eq.true&data_entrada=eq.'+data+'&order=ordem'+eid());
   ms=Array.isArray(ms)?ms:[];
   var its=ms.length?await gt('distribuicao_itens','?select=*&distribuicao_id=in.('+ms.map(function(m){return m.id;}).join(',')+')&limit=1000'):[];
+  var custos=await estCarregarCustos(ms.map(function(m){return m.id;}));
+  var inpC='padding:8px 6px;border:1.5px solid var(--bd);border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:var(--tx)';
   var porModelo={};
   (Array.isArray(its)?its:[]).forEach(function(i){(porModelo[i.distribuicao_id]=porModelo[i.distribuicao_id]||{})[i.filial_id]=i;});
   var th='padding:8px 6px;font-size:11px;font-weight:700;color:#fff;background:var(--td);white-space:nowrap;text-align:center';
-  var t='<div class="card" style="padding:0;overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px;min-width:'+(260+EST.fils.length*84)+'px">';
+  var t='<div class="card" style="padding:0;overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px;min-width:'+(360+EST.fils.length*84)+'px">';
   t+='<thead><tr><th style="'+th+';text-align:left;border-radius:14px 0 0 0">Modelo</th><th style="'+th+'">Faixa</th>';
   EST.fils.forEach(function(f){t+='<th style="'+th+'">'+estEsc(f.nome)+'</th>';});
-  t+='<th style="'+th+';border-radius:0 14px 0 0">Total</th></tr></thead><tbody>';
-  var totLoja={},geral=0,conf=0,itensTot=0,div=0;
+  t+='<th style="'+th+'">Total</th><th style="'+th+';border-radius:0 14px 0 0">Custo da compra (R$)</th></tr></thead><tbody>';
+  var totLoja={},geral=0,conf=0,itensTot=0,div=0,qtdModelo={};
   ms.forEach(function(m){
     var tot=0;
     var tr='<tr><td style="padding:9px 6px 9px 10px;border-bottom:1px solid var(--bd);font-weight:600">'+estEsc(m.descricao)+'</td>'
@@ -2242,20 +2296,24 @@ async function estDistDataGestor(data){
       }
       tr+='<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center">'+cel+'</td>';
     });
-    geral+=tot;
-    tr+='<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center;font-weight:700">'+estNum(tot)+'</td></tr>';
+    geral+=tot;qtdModelo[m.id]=tot;
+    tr+='<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center;font-weight:700">'+estNum(tot)+'</td>'
+      +'<td style="padding:6px;border-bottom:1px solid var(--bd);text-align:right">'+estCustoCelula(m.id,custos[m.id],inpC)+'</td></tr>';
     t+=tr;
   });
   t+='<tr style="background:var(--bg)"><td colspan="2" style="padding:9px 10px;font-weight:700;text-align:right">Total enviado</td>';
   EST.fils.forEach(function(f){t+='<td style="padding:9px 6px;text-align:center;font-weight:700">'+estNum(totLoja[f.id]||0)+'</td>';});
-  t+='<td style="padding:9px 6px;text-align:center;font-weight:800">'+estNum(geral)+'</td></tr></tbody></table></div>';
+  t+='<td style="padding:9px 6px;text-align:center;font-weight:800">'+estNum(geral)+'</td><td id="est-tot-custo" style="padding:9px 8px;text-align:right;font-weight:800">R$ 0,00</td></tr></tbody></table></div>';
   var h=estCab('Entrada de '+brD(data),true)
     +'<div class="card" style="padding:12px;font-size:13px"><b>'+ms.length+(ms.length===1?' modelo':' modelos')+'</b> · '+estNum(geral)+' peças · '
     +'<span class="bx '+(itensTot&&conf>=itensTot?'ok':'wn')+'">'+conf+'/'+itensTot+' conferidos</span>'
     +(div?' <span style="color:var(--rd);font-weight:700">'+div+(div===1?' divergência':' divergências')+'</span>':'')
-    +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Enviado → conferido pela loja. Em vermelho: a loja recebeu quantidade diferente.</div></div>'
+    +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Enviado → conferido pela loja. Em vermelho: a loja recebeu quantidade diferente.</div>'
+    +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-top:6px"><i class="ti ti-circle-check"></i> O custo é salvo automaticamente e só você enxerga.</div></div>'
     +t;
   document.getElementById('ct').innerHTML=h;
+  EST.dist.qtd=qtdModelo;
+  estDistCustos(qtdModelo);
 }
 
 // ── LOJA: ENTRADAS PARA CONFERIR ──
