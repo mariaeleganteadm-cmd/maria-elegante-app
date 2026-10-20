@@ -1581,6 +1581,31 @@ async function eEstoque(){
   if(!EST.aba)EST.aba='saldo';
   if(EST.aba==='dist'){await estTelaDist();return;}
   await estTelaSaldo();
+  estAutoSync();
+}
+
+// Pode puxar as vendas do Azul: gestor com Financeiro, ou gerente (o servidor trava a gerente na loja dela)
+function estPodeSync(){
+  if(!S.func)return false;
+  if(S.tipo==='gerente')return !!S.func.filial_id;
+  return S.tipo==='gestor'&&Array.isArray(S.func.modulos)&&S.func.modulos.indexOf('financeiro')>=0;
+}
+
+// Atualiza as vendas sozinho ao abrir a tela, se a última atualização tem mais de 10 minutos
+var ESTAUTO_MIN=10;
+function estAutoSync(){
+  if(!EST.podeSync||EST.auto||EST.aba==='dist')return;
+  var agora=Date.now();
+  if(EST.autoTent&&agora-EST.autoTent<ESTAUTO_MIN*60000)return;
+  var velho=false;
+  EST.fils.forEach(function(f){
+    if(!f.azul_filial||!EST.base[f.id])return;
+    var sy=EST.sync[f.id];
+    if(!sy||!sy.atualizado_em||agora-new Date(sy.atualizado_em).getTime()>ESTAUTO_MIN*60000)velho=true;
+  });
+  if(!velho)return;
+  EST.autoTent=agora;
+  estSincronizar(true);
 }
 
 // Quem não é gestor só enxerga a própria loja; sem loja vinculada no cadastro, não enxerga nenhuma
@@ -1594,7 +1619,7 @@ function estFiliaisDoPerfil(fils){
 
 async function estTelaSaldo(){
   EST.pode=S.tipo==='gestor';
-  EST.podeSync=S.tipo==='gestor'&&!!S.func&&Array.isArray(S.func.modulos)&&S.func.modulos.indexOf('financeiro')>=0;
+  EST.podeSync=estPodeSync();
   var fils=estFiliaisDoPerfil(await gt('filiais','?select=id,nome,azul_filial'+eid()+'&order=nome'));
   if(!EST.pode&&!fils.length){
     document.getElementById('ct').innerHTML='<div class="h1"><i class="ti ti-package"></i> Estoque</div><div class="ae aer">Seu cadastro ainda não está ligado a uma loja. Fale com a gestora.</div>';
@@ -1605,7 +1630,7 @@ async function estTelaSaldo(){
   var rs=await Promise.all([
     gt('estoque_produtos','?select='+(EST.pode?'*':'id,codigo,descricao,ordem')+'&ativo=eq.true&order=ordem'+eid()),
     gt('vw_estoque_saldo','?select='+(EST.pode?'*':'filial_id,produto_codigo,saldo')+filtroLoja),
-    EST.pode?gt('estoque_movimentos','?select=filial_id,data_mov&tipo=eq.inicial&order=data_mov'):Promise.resolve([]),
+    (EST.pode||EST.podeSync)?gt('estoque_movimentos','?select=filial_id,data_mov&tipo=eq.inicial'+filtroLoja+'&order=data_mov'):Promise.resolve([]),
     gt('estoque_sync','?select=*'+filtroLoja)
   ]);
   EST.fils=fils;
@@ -1638,7 +1663,7 @@ async function estTelaSaldo(){
     // Gerente/vendedora com acesso: somente a quantidade de peças da própria loja, sem valores
     var lj=fils[0];
     var hl='<div class="h1"><i class="ti ti-package"></i> Estoque · '+estEsc(lj.nome)+'</div>'+estAbasHtml()+estMsgHtml();
-    hl+='<div class="card" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-size:12px;color:var(--t2)"><i class="ti ti-clock"></i> '+txtSync+'</div><button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button></div>';
+    hl+='<div class="card" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div id="est-sync-box" style="font-size:12px;color:var(--t2)"><i class="ti ti-clock"></i> '+txtSync+'<span id="est-auto" style="display:none"> · <i class="ti ti-loader"></i> atualizando...</span></div><button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button></div>';
     hl+='<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--t2)"><i class="ti ti-packages"></i> Total de peças</div><div style="font-size:26px;font-weight:800;margin-top:2px'+(geralQ<0?';color:var(--rd)':'')+'">'+estNum(geralQ)+'</div></div>';
     var thl='padding:8px 12px;font-size:11px;color:var(--t2);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap';
     var tl='<div class="card" style="padding:0;overflow:hidden"><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr><th style="'+thl+';text-align:left">Faixa</th><th style="'+thl+';text-align:right">Peças</th></tr></thead><tbody>';
@@ -1654,7 +1679,7 @@ async function estTelaSaldo(){
   var h='<div class="h1"><i class="ti ti-package"></i> Estoque por faixa de preço</div>'+estAbasHtml();
   if(EST.msg){h+='<div class="ae '+(EST.msgErro?'aer':'aok')+'">'+estEsc(EST.msg)+'</div>';EST.msg='';EST.msgErro=false;}
 
-  h+='<div class="card" style="padding:12px"><div style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-clock"></i> '+txtSync+'</div>'
+  h+='<div class="card" style="padding:12px"><div id="est-sync-box" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-clock"></i> '+txtSync+'<span id="est-auto" style="display:none"> · <i class="ti ti-loader"></i> atualizando...</span></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +(EST.podeSync?'<button class="btn bsm" id="est-sync" onclick="estSincronizar()"><i class="ti ti-refresh"></i> Atualizar vendas</button>':'')
     +(EST.pode?'<button class="btn bsm bp" onclick="estAbrirAjuste()"><i class="ti ti-adjustments"></i> Ajustar estoque</button>':'')
@@ -1823,8 +1848,10 @@ async function estHistorico(){
 }
 
 // ── SINCRONIZAR VENDAS DO AZUL (saídas) ──
-async function estSincronizar(){
-  if(!EST.podeSync)return;
+async function estSincronizar(auto){
+  if(!EST.podeSync||EST.auto)return;
+  EST.auto=true;
+  if(auto===true){var bx=document.getElementById('est-auto');if(bx)bx.style.display='';}
   var btn=document.getElementById('est-sync');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader"></i> Atualizando...';}
   var hoje=estHojeISO(),novasTot=0,cancTot=0,erroTxt='';
@@ -1888,9 +1915,11 @@ async function estSincronizar(){
     console.error('Sincronizar estoque:',e);
     erroTxt=e.message||'Erro desconhecido';
   }
+  EST.auto=false;
   if(erroTxt){EST.msg='Não foi possível atualizar as vendas: '+erroTxt;EST.msgErro=true;}
+  else if(auto===true){EST.msg='';EST.msgErro=false;}
   else EST.msg='Vendas atualizadas: '+novasTot+' novas, '+cancTot+' canceladas.';
-  await eEstoque();
+  if(EST.aba!=='dist'&&document.getElementById('est-sync-box'))await eEstoque();
 }
 
 
@@ -1925,7 +1954,7 @@ function estCab(titulo,voltar){
 // Dados comuns das telas de distribuição
 async function estBase(){
   EST.pode=S.tipo==='gestor';
-  EST.podeSync=S.tipo==='gestor'&&!!S.func&&Array.isArray(S.func.modulos)&&S.func.modulos.indexOf('financeiro')>=0;
+  EST.podeSync=estPodeSync();
   var fils=estFiliaisDoPerfil(await gt('filiais','?select=id,nome,azul_filial'+eid()+'&order=nome'));
   var prods=await gt('estoque_produtos','?select='+(EST.pode?'*':'id,codigo,descricao,ordem')+'&ativo=eq.true&order=ordem'+eid());
   EST.fils=Array.isArray(fils)?fils:[];

@@ -4,7 +4,7 @@
 //
 // Permissoes:
 //   gestor     -> todos os endpoints
-//   gerente    -> somente vendas/totalizador, travado na filial dela
+//   gerente    -> vendas, vendas/totalizador e vendas/itens, travado na filial dela
 //   vendedora  -> somente vendas/totalizador, travado na filial e no codigo de vendedor dela
 //
 // Exemplo (gestora):
@@ -100,7 +100,8 @@ exports.handler = async function (event) {
       return auth.resposta(403, { erro: true, codigo: 'SEM_PERMISSAO', mensagem: 'Seu usuario nao tem acesso ao Financeiro.' });
     }
   } else if (claims.role === 'gerente' || claims.role === 'vendedora') {
-    if (!PATHS_METAS[path]) {
+    // gerente tambem le os itens das vendas (estoque), sempre travado na filial dela; vendedora nao
+    if (!PATHS_METAS[path] && !(claims.role === 'gerente' && path === 'vendas/itens')) {
       return auth.resposta(403, { erro: true, codigo: 'SEM_PERMISSAO', mensagem: 'Seu perfil nao tem acesso a este dado.' });
     }
     if (!claims.fil || (claims.role === 'vendedora' && !claims.vend)) {
