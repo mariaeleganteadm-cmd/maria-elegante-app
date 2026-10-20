@@ -834,6 +834,18 @@ async function authToken(){
   authSalvar(r.j);return AUTH.at;
 }
 
+// Holerites: as tabelas são fechadas para a chave anon; tudo passa pela função do servidor
+// com o login (JWT) do usuário. Retorna {ok, j} (j.mensagem traz o erro, se houver).
+async function hol(acao,dados){
+  try{
+    var tk=await authToken();
+    if(!tk)return {ok:false,j:{mensagem:'Entre com seu e-mail e senha para acessar os holerites.'}};
+    var r=await fetch('/.netlify/functions/holerites',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(Object.assign({acao:acao},dados||{})),cache:'no-store'});
+    var j={};try{j=await r.json();}catch(x){}
+    return {ok:r.ok,j:j};
+  }catch(e){return {ok:false,j:{mensagem:'Sem conexão com o servidor.'}};}
+}
+
 async function authEntrar(){
   authMsgErro('');
   var email=(document.getElementById('aemail').value||'').trim().toLowerCase();
@@ -2971,7 +2983,42 @@ async function gDocs(){
     +'<button onclick="window._docsAba=\'holerites\';gDocs()" style="flex:1;padding:11px 0;border:none;background:none;font-weight:700;font-size:14px;cursor:pointer;'
     +(window._docsAba==='holerites'?'color:var(--td);border-bottom:2px solid var(--td);margin-bottom:-2px':'color:var(--t2)')
     +'"><i class="ti ti-receipt"></i> Holerites</button>'
+    +'<button onclick="window._docsAba=\'meus\';gDocs()" style="flex:1;padding:11px 0;border:none;background:none;font-weight:700;font-size:14px;cursor:pointer;'
+    +(window._docsAba==='meus'?'color:var(--td);border-bottom:2px solid var(--td);margin-bottom:-2px':'color:var(--t2)')
+    +'"><i class="ti ti-user"></i> Meus</button>'
     +'</div>';
+
+  if(window._docsAba==='meus'){
+    // ── aba "Meus holerites" (o gestor vê só o próprio, como qualquer funcionária) ──
+    var mrG=await hol('meus');
+    var hG=tabBar;
+    if(!mrG.ok){
+      hG+='<div class="em"><i class="ti ti-lock"></i>'+((mrG.j&&mrG.j.mensagem)||'Não foi possível carregar seus holerites.')+'</div>';
+    } else if(!(mrG.j.holerites||[]).length){
+      hG+='<div class="em"><i class="ti ti-receipt-off"></i>Nenhum holerite disponível ainda.</div>';
+    } else {
+      hG+='<div class="h2">Seus holerites. Assine pelo app Gov.br.</div>';
+      mrG.j.holerites.forEach(function(hl){
+        var ass=hl.status==='assinado';
+        hG+='<div class="card" style="padding:14px"><div style="display:flex;align-items:center;gap:12px">'
+          +'<div style="font-size:28px">'+(ass?'✅':'📄')+'</div>'
+          +'<div style="flex:1"><div style="font-weight:700;font-size:15px">'+MESES[hl.mes-1]+'/'+hl.ano+'</div>'
+          +'<div style="font-size:12px;color:'+(ass?'var(--gd)':'var(--t2)')+';margin-top:3px">'+(ass?'Assinado (Gov.br)':'Disponível para assinar')+'</div>'
+          +(hl.assinado_em?'<div style="font-size:11px;color:var(--t3)">Assinado em '+new Date(hl.assinado_em).toLocaleDateString('pt-BR')+'</div>':'')
+          +'</div>'
+          +(ass?'':'<button class="btn bp" style="font-size:12px;padding:10px 14px" onclick="gAssinarMeuHolerite('+hl.id+')"><i class="ti ti-check"></i> Confirmar assinatura</button>')
+          +'</div></div>';
+      });
+    }
+    document.getElementById('ct').innerHTML=hG;
+    window.gAssinarMeuHolerite=async function(holId){
+      if(!confirm('Você já assinou este holerite pelo app Gov.br?\n\nClique OK para confirmar.'))return;
+      var r=await hol('assinar',{id:holId});
+      if(!r.ok){alert((r.j&&r.j.mensagem)||'Não foi possível confirmar.');return;}
+      gDocs();
+    };
+    return;
+  }
 
   if(window._docsAba==='documentos'){
     // ── aba documentos (sistema antigo) ──
@@ -3027,8 +3074,13 @@ async function gDocs(){
   } else {
     // ── aba holerites ──
     var funcs=await gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,telefone&order=nome.asc');
-    var holerites=await gt('holerites','?select=*'+eid()+'&order=created_at.desc');
-    var lotes=await gt('holerite_lotes','?select=*'+eid()+'&order=created_at.desc&limit=5');
+    var hr=await hol('listar');
+    if(!hr.ok){
+      document.getElementById('ct').innerHTML=tabBar+'<div class="em"><i class="ti ti-lock"></i>'+((hr.j&&hr.j.mensagem)||'Não foi possível carregar os holerites.')+'</div>';
+      return;
+    }
+    var holerites=hr.j.holerites||[];
+    var lotes=hr.j.lotes||[];
 
     var mesAtual=holerites.length>0?holerites[0].mes:mS;
     var anoAtual=holerites.length>0?holerites[0].ano:aS;
@@ -3149,21 +3201,11 @@ window.processarHoleritePdf=async function(input){
 
     prog.innerHTML='<i class="ti ti-loader ti-spin"></i> Salvando ('+partes.length+' holerites encontrados)...';
 
-    // Cria lote
-    var loteRes=await pt('holerite_lotes',{empresa_id:EMP?EMP.id:null,mes:mes,ano:ano,pdf_nome:file.name,total_encontrados:partes.length,status:'pronto'});
-    var loteId=Array.isArray(loteRes)?loteRes[0].id:loteRes.id;
-
-    // Cria registro para cada funcionária encontrada
-    for(var i=0;i<partes.length;i++){
-      var parte=partes[i];
-      // Verifica se já existe holerite para essa func no mês/ano
-      var exist=await gt('holerites','?func_id=eq.'+parte.func_id+'&mes=eq.'+mes+'&ano=eq.'+ano+eid());
-      if(exist&&exist.length>0){
-        // Atualiza lote_id
-        await pk('holerites','?id=eq.'+exist[0].id,{lote_id:loteId,status:'pendente'});
-      } else {
-        await pt('holerites',{empresa_id:EMP?EMP.id:null,func_id:parte.func_id,mes:mes,ano:ano,status:'pendente',lote_id:loteId});
-      }
+    // Cria o lote e um registro por funcionária encontrada (feito no servidor)
+    var ir=await hol('importar',{mes:mes,ano:ano,pdf_nome:file.name,func_ids:partes.map(function(p){return p.func_id;})});
+    if(!ir.ok){
+      prog.innerHTML='❌ '+((ir.j&&ir.j.mensagem)||'Não foi possível salvar os holerites.');
+      return;
     }
 
     prog.innerHTML='✅ '+partes.length+' holerites identificados para '+MESES[mes-1]+'/'+ano+'! Clique "Enviar todos" para mandar para assinatura.';
@@ -3177,25 +3219,25 @@ window.processarHoleritePdf=async function(input){
 
 // ── Marcar holerite individual como compartilhado (Gov.br manual) ──
 window.marcarCompartilhado=async function(holId){
-  await pk('holerites','?id=eq.'+holId,{status:'enviado',enviado_em:new Date().toISOString()});
+  var r=await hol('marcar',{id:holId,status:'enviado'});
+  if(!r.ok){alert((r.j&&r.j.mensagem)||'Não foi possível atualizar.');return;}
   gDocs();
 };
 
 // ── Marcar holerite como assinado manualmente ──
 window.marcarAssinado=async function(holId){
   if(!confirm('Confirmar que esta funcionária assinou o holerite pelo Gov.br?'))return;
-  await pk('holerites','?id=eq.'+holId,{status:'assinado',assinado_em:new Date().toISOString()});
+  var r=await hol('marcar',{id:holId,status:'assinado'});
+  if(!r.ok){alert((r.j&&r.j.mensagem)||'Não foi possível atualizar.');return;}
   gDocs();
 };
 
 // ── Marcar todos os pendentes como compartilhado ──
 window.marcarTodosCompartilhado=async function(mes,ano){
   if(!confirm('Marcar todos os holerites de '+MESES[mes-1]+'/'+ano+' como compartilhados?'))return;
-  var pendentes=await gt('holerites','?status=eq.pendente&mes=eq.'+mes+'&ano=eq.'+ano+eid());
-  if(!pendentes||!pendentes.length){alert('Nenhum holerite pendente.');return;}
-  for(var i=0;i<pendentes.length;i++){
-    await pk('holerites','?id=eq.'+pendentes[i].id,{status:'enviado',enviado_em:new Date().toISOString()});
-  }
+  var r=await hol('marcar',{todos:true,mes:mes,ano:ano});
+  if(!r.ok){alert((r.j&&r.j.mensagem)||'Não foi possível atualizar.');return;}
+  if(!r.j.total){alert('Nenhum holerite pendente.');return;}
   gDocs();
 };
 
@@ -4047,9 +4089,12 @@ async function fDocs(){
 
   } else {
     // ── aba holerites da funcionária ──
-    var meuHols=await gt('holerites','?func_id=eq.'+f.id+'&select=*&order=ano.desc,mes.desc');
+    var mr=await hol('meus');
+    var meuHols=mr.ok?(mr.j.holerites||[]):[];
     var h=tabBar;
-    if(!meuHols||!meuHols.length){
+    if(!mr.ok){
+      h+='<div class="em"><i class="ti ti-lock"></i>'+((mr.j&&mr.j.mensagem)||'Não foi possível carregar seus holerites.')+'</div>';
+    } else if(!meuHols.length){
       h+='<div class="em"><i class="ti ti-receipt-off"></i>Nenhum holerite disponível ainda.</div>';
     } else {
       h+='<div class="h2">Seus holerites. Assine pelo app Gov.br.</div>';
@@ -4076,7 +4121,8 @@ async function fDocs(){
     document.getElementById('ct').innerHTML=h;
     window.funcAssinarHolerite=async function(holId){
       if(!confirm('Você já assinou este holerite pelo app Gov.br?\n\nClique OK para confirmar.'))return;
-      await pk('holerites','?id=eq.'+holId,{status:'assinado',assinado_em:new Date().toISOString()});
+      var r=await hol('assinar',{id:holId});
+      if(!r.ok){alert((r.j&&r.j.mensagem)||'Não foi possível confirmar.');return;}
       fDocs();
     };
   }
