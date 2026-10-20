@@ -1638,7 +1638,7 @@ async function estTelaSaldo(){
     // Gerente/vendedora com acesso: somente a quantidade de peças da própria loja, sem valores
     var lj=fils[0];
     var hl='<div class="h1"><i class="ti ti-package"></i> Estoque · '+estEsc(lj.nome)+'</div>'+estAbasHtml()+estMsgHtml();
-    hl+='<div class="card" style="padding:12px"><div style="font-size:12px;color:var(--t2)"><i class="ti ti-clock"></i> '+txtSync+'</div></div>';
+    hl+='<div class="card" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-size:12px;color:var(--t2)"><i class="ti ti-clock"></i> '+txtSync+'</div><button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button></div>';
     hl+='<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--t2)"><i class="ti ti-packages"></i> Total de peças</div><div style="font-size:26px;font-weight:800;margin-top:2px'+(geralQ<0?';color:var(--rd)':'')+'">'+estNum(geralQ)+'</div></div>';
     var thl='padding:8px 12px;font-size:11px;color:var(--t2);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap';
     var tl='<div class="card" style="padding:0;overflow:hidden"><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr><th style="'+thl+';text-align:left">Faixa</th><th style="'+thl+';text-align:right">Peças</th></tr></thead><tbody>';
@@ -1658,7 +1658,7 @@ async function estTelaSaldo(){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +(EST.podeSync?'<button class="btn bsm" id="est-sync" onclick="estSincronizar()"><i class="ti ti-refresh"></i> Atualizar vendas</button>':'')
     +(EST.pode?'<button class="btn bsm bp" onclick="estAbrirAjuste()"><i class="ti ti-adjustments"></i> Ajustar estoque</button>':'')
-    +(EST.pode?'<button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button>':'')
+    +'<button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button>'
     +'</div></div>';
 
   function kpi(ic,rot,val,sub,cor){
@@ -1798,7 +1798,7 @@ async function estSalvarAjuste(){
 
 // ── HISTÓRICO ──
 async function estHistorico(){
-  if(!EST.pode)return;
+  if(!EST.fils||!EST.fils.length)return;
   estModal('<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>');
   var ids=EST.fils.map(function(f){return f.id;});
   var movs=await gt('estoque_movimentos','?select=*&filial_id=in.('+ids.join(',')+')&order=data_mov.desc,criado_em.desc&limit=60');
