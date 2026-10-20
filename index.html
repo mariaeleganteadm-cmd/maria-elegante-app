@@ -1619,8 +1619,15 @@ function estAutoSync(){
 }
 
 // Quem não é gestor só enxerga a própria loja; sem loja vinculada no cadastro, não enxerga nenhuma
+// Ordem fixa das lojas nas colunas: Lavras, Três Corações, Campo Belo, Elói Mendes (demais, depois, por nome)
+var EST_ORDEM_LOJAS=['lavras','tres coracoes','campo belo','eloi mendes'];
+function estPosLoja(nome){
+  var n=String(nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  var i=EST_ORDEM_LOJAS.indexOf(n);return i<0?99:i;
+}
 function estFiliaisDoPerfil(fils){
-  fils=Array.isArray(fils)?fils:[];
+  fils=Array.isArray(fils)?fils.slice():[];
+  fils.sort(function(a,b){var d=estPosLoja(a.nome)-estPosLoja(b.nome);return d||String(a.nome).localeCompare(String(b.nome));});
   if(S.tipo==='gestor')return fils;
   var fid=S.func&&S.func.filial_id;
   if(!fid)return [];
