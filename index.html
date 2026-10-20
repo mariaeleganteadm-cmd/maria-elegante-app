@@ -1922,14 +1922,19 @@ async function estDistVoltar(){
 async function estDistListaGestor(){
   var rs=await Promise.all([
     gt('vw_distribuicao_datas','?select=*&order=data_entrada.desc&limit=200'+eid()),
-    gt('distribuicao','?select=id&enviado=eq.false&limit=1'+eid())
+    gt('distribuicao','?select=id,descricao,criado_em,data_entrada&enviado=eq.false&order=ordem&limit=500'+eid())
   ]);
   var datas=Array.isArray(rs[0])?rs[0]:[];
-  var temRascunho=Array.isArray(rs[1])&&rs[1].length>0;
+  var rasc=Array.isArray(rs[1])?rs[1]:[];
+  var temRascunho=rasc.length>0;
+  var rascPreench=rasc.filter(function(m){return String(m.descricao||'').trim()!=='';}).length;
+  var rascData=estDataRascunho(rasc);
+  var rascCriado=rasc.reduce(function(a,m){return !a||m.criado_em<a?m.criado_em:a;},null);
   var h='<div class="h1"><i class="ti ti-package"></i> Estoque por faixa de preço</div>'+estAbasHtml()+estMsgHtml();
   if(temRascunho){
     h+='<div class="card" style="padding:12px;border:1.5px solid var(--wn)"><div style="font-weight:700;margin-bottom:4px"><i class="ti ti-pencil"></i> Envio em rascunho</div>'
-      +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">As linhas são salvas sozinhas. Só chegam às lojas quando você concluir.</div>'
+      +'<div style="font-size:13px;margin-bottom:4px"><b>'+rascPreench+'</b> de '+rasc.length+' linhas com modelo · data da entrada <b>'+brD(rascData)+'</b></div>'
+      +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Salvo automaticamente'+(rascCriado?' · criado em '+brD(String(rascCriado).slice(0,10))+' às '+estHora(new Date(rascCriado)):'')+'. Pode sair e voltar depois: só chega às lojas quando você concluir.</div>'
       +'<button class="btn bp" style="width:100%;justify-content:center" onclick="estDistAbrirRascunho()"><i class="ti ti-player-play"></i> Continuar preenchendo</button></div>';
   }else{
     h+='<button class="btn bp" id="est-novo" style="width:100%;justify-content:center;margin-bottom:12px" onclick="estDistCriar()"><i class="ti ti-plus"></i> Criar novo envio</button>';
@@ -1957,7 +1962,7 @@ async function estDistCriar(){
     var ex=await gt('distribuicao','?select=id&enviado=eq.false&limit=1'+eid());
     if(Array.isArray(ex)&&ex.length){EST.dist.tela='rascunho';await eEstoque();return;}
     var linhas=[];
-    for(var i=1;i<=20;i++)linhas.push({empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:i,criado_por:S.funcId,criado_por_nome:estQuem()});
+    for(var i=1;i<=20;i++)linhas.push({empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:i,data_entrada:estHojeISO(),criado_por:S.funcId,criado_por_nome:estQuem()});
     var ms=await pt('distribuicao',linhas);
     if(!Array.isArray(ms)||ms.length!==20)throw new Error((ms&&ms.message)||'Não foi possível criar o envio.');
     var itens=[];
@@ -2005,9 +2010,13 @@ async function estDistRascunho(){
   EST.fils.forEach(function(f){t+='<td id="est-tot-'+f.id+'" style="padding:9px 6px;text-align:center;font-weight:700">0</td>';});
   t+='<td id="est-tot-geral" style="padding:9px 6px;text-align:center;font-weight:800">0</td></tr></tbody></table></div>';
 
+  var dataEnv=estDataRascunho(ms);
+  var criado=ms.reduce(function(a,m){return !a||m.criado_em<a?m.criado_em:a;},null);
   var h=estCab('Novo envio',true)+estMsgHtml()
-    +'<div class="card" style="padding:12px"><div id="est-status" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-circle-check"></i> Salvo automaticamente</div>'
-    +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Linhas em branco são descartadas ao concluir. Depois de enviado, a quantidade enviada não pode mais ser alterada.</div>'
+    +'<div class="card" style="padding:12px">'
+    +'<div class="fi" style="margin-bottom:10px"><label>Data da entrada (dia do envio)</label><input type="date" id="est-dt" value="'+dataEnv+'" max="'+estHojeISO()+'" data-k="dt" data-id="all" oninput="estDistCampo(this)" onchange="estDistCampo(this)"></div>'
+    +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-circle-check"></i> Salvo automaticamente'+(criado?' · rascunho criado em '+brD(String(criado).slice(0,10))+' às '+estHora(new Date(criado)):'')+'</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Tudo é salvo sozinho: pode fechar e voltar depois por "Continuar preenchendo". Linhas em branco são descartadas ao concluir. Depois de enviado, a quantidade enviada não pode mais ser alterada.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +'<button class="btn bsm" onclick="estDistMaisLinha()"><i class="ti ti-plus"></i> Linha</button>'
     +'<button class="btn bsm" onclick="estDistDescartar()"><i class="ti ti-trash"></i> Descartar rascunho</button></div></div>'
@@ -2017,6 +2026,21 @@ async function estDistRascunho(){
   estDistTotais();
 }
 
+function estHora(d){return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+// Data do rascunho: a primeira que estiver gravada nas linhas; senão, hoje (nunca no futuro)
+function estDataRascunho(ms){
+  var hoje=estHojeISO(),d=null;
+  (ms||[]).forEach(function(m){if(!d&&m.data_entrada)d=String(m.data_entrada).slice(0,10);});
+  return (d&&d<=hoje)?d:hoje;
+}
+function estDistPendente(){return Object.keys(EST.dist.pend).length>0||EST.dist.emVoo>0;}
+if(!window.__estGuardas){
+  window.__estGuardas=true;
+  // fechar a aba com algo ainda não gravado: avisa; esconder a aba: grava na hora
+  window.addEventListener('beforeunload',function(e){if(estDistPendente()){e.preventDefault();e.returnValue='';}});
+  document.addEventListener('visibilitychange',function(){if(document.hidden&&estDistPendente())estDistFlush();});
+  window.addEventListener('pagehide',function(){if(estDistPendente())estDistFlush();});
+}
 function estDistStatus(txt,erro){
   var el=document.getElementById('est-status');if(!el)return;
   el.style.color=erro?'var(--rd)':'var(--t2)';
@@ -2036,6 +2060,9 @@ function estDistTotais(){
 }
 // Salva cada campo ~0,7 s depois da última digitação
 function estDistCampo(el){
+  if(el.dataset.k==='dt'){
+    if(!el.value||el.value>estHojeISO()){estDistStatus('Escolha uma data válida (hoje ou antes).',true);return;}
+  }
   var chave=el.dataset.k+'|'+el.dataset.id;
   EST.dist.pend[chave]={k:el.dataset.k,id:el.dataset.id,v:el.value};
   clearTimeout(EST.dist.timers[chave]);
@@ -2047,21 +2074,22 @@ async function estDistSalvarCampo(chave){
   var p=EST.dist.pend[chave];if(!p)return;
   delete EST.dist.pend[chave];
   clearTimeout(EST.dist.timers[chave]);delete EST.dist.timers[chave];
-  var tabela='distribuicao',corpo={};
-  if(p.k==='d'){corpo={descricao:p.v};}
+  var tabela='distribuicao',corpo={},filtro='?id=eq.'+p.id;
+  if(p.k==='dt'){corpo={data_entrada:p.v};filtro='?enviado=eq.false'+eid();}
+  else if(p.k==='d'){corpo={descricao:p.v};}
   else if(p.k==='p'){corpo={produto_codigo:p.v===''?null:parseInt(p.v,10)};}
   else{tabela='distribuicao_itens';var q=parseInt(p.v,10);if(isNaN(q)||q<0)q=0;corpo={quantidade:q};}
   EST.dist.emVoo++;
   try{
-    var r=await pk(tabela,'?id=eq.'+p.id,corpo);
+    var r=await pk(tabela,filtro,corpo);
     if(!Array.isArray(r))throw new Error((r&&r.message)||'Falha ao salvar.');
-    EST.dist.erro='';
+    EST.dist.erro='';EST.dist.ultimo=new Date();
   }catch(e){
     console.error('Autosave:',e);
     EST.dist.erro='Não foi possível salvar: '+e.message;
   }finally{EST.dist.emVoo--;}
   if(EST.dist.erro)estDistStatus(EST.dist.erro,true);
-  else if(!Object.keys(EST.dist.pend).length&&EST.dist.emVoo===0)estDistStatus('Salvo automaticamente');
+  else if(!Object.keys(EST.dist.pend).length&&EST.dist.emVoo===0)estDistStatus('Salvo automaticamente às '+estHora(EST.dist.ultimo||new Date()));
 }
 // Grava na hora tudo o que ainda está esperando o tempo de salvar
 async function estDistFlush(){
@@ -2074,7 +2102,9 @@ async function estDistMaisLinha(){
   try{
     var ms=await gt('distribuicao','?select=ordem&enviado=eq.false&order=ordem.desc&limit=1'+eid());
     var prox=(Array.isArray(ms)&&ms.length?ms[0].ordem:0)+1;
-    var r=await pt('distribuicao',[{empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:prox,criado_por:S.funcId,criado_por_nome:estQuem()}]);
+    var campoDt=document.getElementById('est-dt');
+    var dtLinha=(campoDt&&campoDt.value&&campoDt.value<=estHojeISO())?campoDt.value:estHojeISO();
+    var r=await pt('distribuicao',[{empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:prox,data_entrada:dtLinha,criado_por:S.funcId,criado_por_nome:estQuem()}]);
     if(!Array.isArray(r)||!r.length)throw new Error((r&&r.message)||'Falha ao criar a linha.');
     var itens=EST.fils.map(function(f){return {distribuicao_id:r[0].id,filial_id:f.id,quantidade:0};});
     var ri=await pt('distribuicao_itens',itens);
@@ -2096,10 +2126,13 @@ async function estDistConcluir(){
   var btn=document.getElementById('est-concluir');
   await estDistFlush();
   if(EST.dist.erro){estDistStatus(EST.dist.erro,true);return;}
-  if(!confirm('Concluir e enviar para as lojas? Depois de enviado, a quantidade enviada fica travada.'))return;
+  var campoDt=document.getElementById('est-dt');
+  var dataEnv=campoDt?campoDt.value:estHojeISO();
+  if(!dataEnv||dataEnv>estHojeISO()){estDistStatus('Escolha uma data de entrada válida (hoje ou antes).',true);return;}
+  if(!confirm('Concluir e enviar para as lojas com data de entrada '+brD(dataEnv)+'? Depois de enviado, a quantidade enviada fica travada.'))return;
   if(btn)btn.disabled=true;
   try{
-    var r=await pt('rpc/distribuicao_enviar',{p_empresa:estEmpId(),p_data:estHojeISO()});
+    var r=await pt('rpc/distribuicao_enviar',{p_empresa:estEmpId(),p_data:dataEnv});
     if(typeof r!=='number')throw new Error((r&&r.message)||'Não foi possível enviar.');
     EST.msg='Envio concluído: '+r+(r===1?' modelo liberado':' modelos liberados')+' para conferência nas lojas.';
     EST.dist.tela='lista';
