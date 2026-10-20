@@ -2034,7 +2034,7 @@ async function estDistListaGestor(){
     var completo=d.itens>0&&d.conferidos>=d.itens;
     h+='<div class="card" style="padding:12px;cursor:pointer" data-d="'+d.data_entrada+'" onclick="estDistAbrirData(this.dataset.d)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+brD(d.data_entrada)+'</b>'
-      +'<span class="bx '+(completo?'ok':'wn')+'">'+d.conferidos+'/'+d.itens+' conferidos</span></div>'
+      +'<span class="bx '+(completo?'ok':'wn')+'">'+(d.data_entrada>estHojeISO()?'Prevista · ':'')+d.conferidos+'/'+d.itens+' conferidos</span></div>'
       +'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças'
       +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div></div>';
   });
@@ -2104,7 +2104,7 @@ async function estDistRascunho(){
   var criado=ms.reduce(function(a,m){return !a||m.criado_em<a?m.criado_em:a;},null);
   var h=estCab('Novo envio',true)+estMsgHtml()
     +'<div class="card" style="padding:12px">'
-    +'<div class="fi" style="margin-bottom:10px"><label>Data da entrada (dia do envio)</label><input type="date" id="est-dt" value="'+dataEnv+'" max="'+estHojeISO()+'" data-k="dt" data-id="all" oninput="estDistCampo(this)" onchange="estDistCampo(this)"></div>'
+    +'<div class="fi" style="margin-bottom:10px"><label>Data da entrada (pode ser data futura)</label><input type="date" id="est-dt" value="'+dataEnv+'" data-k="dt" data-id="all" oninput="estDistCampo(this)" onchange="estDistCampo(this)"></div>'
     +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-circle-check"></i> Salvo automaticamente'+(criado?' · rascunho criado em '+brD(String(criado).slice(0,10))+' às '+estHora(new Date(criado)):'')+'</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Tudo é salvo sozinho: pode fechar e voltar depois por "Continuar preenchendo". Linhas em branco são descartadas ao concluir. Depois de enviado, a quantidade enviada não pode mais ser alterada.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
@@ -2121,7 +2121,7 @@ function estHora(d){return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'
 function estDataRascunho(ms){
   var hoje=estHojeISO(),d=null;
   (ms||[]).forEach(function(m){if(!d&&m.data_entrada)d=String(m.data_entrada).slice(0,10);});
-  return (d&&d<=hoje)?d:hoje;
+  return d?d:hoje;
 }
 function estDistPendente(){return Object.keys(EST.dist.pend).length>0||EST.dist.emVoo>0;}
 if(!window.__estGuardas){
@@ -2165,7 +2165,7 @@ function estDistCustos(porModelo){
 // Salva cada campo ~0,7 s depois da última digitação
 function estDistCampo(el){
   if(el.dataset.k==='dt'){
-    if(!el.value||el.value>estHojeISO()){estDistStatus('Escolha uma data válida (hoje ou antes).',true);return;}
+    if(!el.value){estDistStatus('Escolha uma data válida.',true);return;}
   }
   if(el.dataset.k==='c'&&estParseMoeda(el.value)===null){estDistStatus('Custo inválido: use só números, por exemplo 24,10.',true);return;}
   var chave=el.dataset.k+'|'+el.dataset.id;
@@ -2219,7 +2219,7 @@ async function estDistMaisLinha(){
     var ms=await gt('distribuicao','?select=ordem&enviado=eq.false&order=ordem.desc&limit=1'+eid());
     var prox=(Array.isArray(ms)&&ms.length?ms[0].ordem:0)+1;
     var campoDt=document.getElementById('est-dt');
-    var dtLinha=(campoDt&&campoDt.value&&campoDt.value<=estHojeISO())?campoDt.value:estHojeISO();
+    var dtLinha=(campoDt&&campoDt.value)?campoDt.value:estHojeISO();
     var r=await pt('distribuicao',[{empresa_id:estEmpId(),descricao:'',produto_codigo:null,ordem:prox,data_entrada:dtLinha,criado_por:S.funcId,criado_por_nome:estQuem()}]);
     if(!Array.isArray(r)||!r.length)throw new Error((r&&r.message)||'Falha ao criar a linha.');
     var itens=EST.fils.map(function(f){return {distribuicao_id:r[0].id,filial_id:f.id,quantidade:0};});
@@ -2244,13 +2244,13 @@ async function estDistConcluir(){
   if(EST.dist.erro){estDistStatus(EST.dist.erro,true);return;}
   var campoDt=document.getElementById('est-dt');
   var dataEnv=campoDt?campoDt.value:estHojeISO();
-  if(!dataEnv||dataEnv>estHojeISO()){estDistStatus('Escolha uma data de entrada válida (hoje ou antes).',true);return;}
+  if(!dataEnv){estDistStatus('Escolha uma data de entrada válida.',true);return;}
   var semCusto=0;
   document.querySelectorAll('#ct input[data-k="c"]').forEach(function(el){
     var tr=el.closest('tr'),d=tr&&tr.querySelector('input[data-k="d"]');
     if(d&&d.value.trim()!==''&&!(estParseMoeda(el.value)>0))semCusto++;
   });
-  if(!confirm('Concluir e enviar para as lojas com data de entrada '+brD(dataEnv)+'? Depois de enviado, a quantidade enviada fica travada.'+(semCusto?'\n\nAtenção: '+semCusto+(semCusto===1?' linha está':' linhas estão')+' sem custo unitário (você ainda pode preencher depois, na entrada enviada).':'')))return;
+  if(!confirm('Concluir e enviar para as lojas com data de entrada '+brD(dataEnv)+(dataEnv>estHojeISO()?' (data futura: o estoque só aumenta nesse dia)':'')+'? Depois de enviado, a quantidade enviada fica travada.'+(semCusto?'\n\nAtenção: '+semCusto+(semCusto===1?' linha está':' linhas estão')+' sem custo unitário (você ainda pode preencher depois, na entrada enviada).':'')))return;
   if(btn)btn.disabled=true;
   try{
     var r=await pt('rpc/distribuicao_enviar',{p_empresa:estEmpId(),p_data:dataEnv});
@@ -2335,7 +2335,7 @@ async function estDistListaLoja(){
     var completo=d.conferidos>=d.itens;
     h+='<div class="card" style="padding:12px;cursor:pointer" data-d="'+d.data_entrada+'" onclick="estDistAbrirData(this.dataset.d)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+brD(d.data_entrada)+'</b>'
-      +'<span class="bx '+(completo?'ok':'wn')+'">'+(completo?'Conferida':'Conferir')+'</span></div>'
+      +'<span class="bx '+(completo?'ok':'wn')+'">'+(d.data_entrada>estHojeISO()?'Prevista':(completo?'Conferida':'Conferir'))+'</span></div>'
       +'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças · '+d.conferidos+'/'+d.itens+' conferidos'
       +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div></div>';
   });
@@ -2350,7 +2350,9 @@ async function estDistDataLoja(data){
   var porModelo={};(Array.isArray(its)?its:[]).forEach(function(i){porModelo[i.distribuicao_id]=i;});
   var lista=ms.filter(function(m){var it=porModelo[m.id];return it&&Number(it.quantidade)>0;});
   var conf=lista.filter(function(m){return porModelo[m.id].conferido;}).length;
+  var futura=data>estHojeISO();
   var h=estCab('Entrada de '+brD(data),true)+estMsgHtml()
+    +(futura?'<div class="card" style="padding:12px;font-size:13px;border:1.5px solid var(--wn)"><i class="ti ti-calendar-event"></i> Entrada <b>prevista</b> para '+brD(data)+'. A conferência abre nesse dia e o estoque só aumenta nele.</div>':'')
     +'<div class="card" style="padding:12px;font-size:13px"><b>'+estEsc(EST.fils[0].nome)+'</b> · <span class="bx '+(conf>=lista.length?'ok':'wn')+'">'+conf+'/'+lista.length+' conferidos</span>'
     +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Confira cada modelo. Se a quantidade que chegou for diferente, corrija o número e toque em Conferido.</div></div>';
   lista.forEach(function(m){
@@ -2363,8 +2365,8 @@ async function estDistDataLoja(data){
       +'<div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px">'
       +'<div style="flex:1"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">Enviado</div><div style="font-size:20px;font-weight:800">'+estNum(q)+'</div></div>'
       +'<div style="flex:1"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">Conferido</div>'
-      +'<input type="number" inputmode="numeric" min="0" step="1" id="est-qc-'+it.id+'" value="'+qc+'"'+(it.conferido?' disabled':'')+' style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"></div>'
-      +(it.conferido
+      +'<input type="number" inputmode="numeric" min="0" step="1" id="est-qc-'+it.id+'" value="'+qc+'"'+(it.conferido||futura?' disabled':'')+' style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"></div>'
+      +(futura?'':it.conferido
         ?'<button class="btn bsm" data-i="'+it.id+'" onclick="estConferir(this.dataset.i,false)"><i class="ti ti-arrow-back-up"></i> Reabrir</button>'
         :'<button class="btn bp" data-i="'+it.id+'" onclick="estConferir(this.dataset.i,true)"><i class="ti ti-check"></i> Conferido</button>')
       +'</div>'
