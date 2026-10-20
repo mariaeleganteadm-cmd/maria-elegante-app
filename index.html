@@ -62,6 +62,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .uc{font-size:11px;color:#1DE9B6;background:rgba(29,233,182,.1);padding:4px 8px;border-radius:999px;border:1px solid rgba(29,233,182,.2);white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
 .lo{background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:22px;padding:6px;display:flex;min-width:44px;min-height:44px;align-items:center;justify-content:center}
 .ct{flex:1;padding:12px;padding-bottom:80px;width:100%;max-width:680px;margin:0 auto;-webkit-overflow-scrolling:touch}
+.ct.ct-est{max-width:1400px}
+.est-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(min-width:900px){
+  .ct.ct-est{padding:20px 32px 90px}
+  .ct.ct-est .est-kpis{grid-template-columns:repeat(4,1fr);gap:14px}
+  .ct.ct-est table{font-size:14px!important}
+  .ct.ct-est th,.ct.ct-est td{padding-top:11px!important;padding-bottom:11px!important}
+}
 .bn{position:fixed;bottom:0;left:0;right:0;background:#3a3a3a;border-top:1px solid rgba(255,255,255,.1);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px 6px;border:none;background:none;cursor:pointer;color:rgba(255,255,255,.35);font-size:9px;gap:2px;min-height:54px;min-width:0}
 .nb i{font-size:20px}
@@ -1245,6 +1253,7 @@ async function navTo(id){
   window.NAV_ATUAL=id;
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   const b=document.getElementById('n-'+id);if(b)b.classList.add('active');
+  document.getElementById('ct').classList.remove('ct-est');
   document.getElementById('ct').innerHTML='<div class="ld"><i class="ti ti-loader"></i>Carregando...</div>';
   // Se EMP ainda não carregou, aguardar um momento e tentar novamente
   if(!EMP){
@@ -1578,6 +1587,7 @@ function estNum(v){return Number(v).toLocaleString('pt-BR');}
 function estSaldo(fid,cod){var r=EST.saldo[fid+'|'+cod];return r?Number(r.saldo)||0:0;}
 
 async function eEstoque(){
+  var ctEl=document.getElementById('ct');if(ctEl)ctEl.classList.add('ct-est');
   if(!EST.aba)EST.aba='saldo';
   if(EST.aba==='dist'){await estTelaDist();return;}
   await estTelaSaldo();
@@ -1691,7 +1701,7 @@ async function estTelaSaldo(){
       +'<div style="font-size:18px;font-weight:800;margin-top:2px'+(cor?';color:'+cor:'')+'">'+val+'</div>'
       +(sub?'<div style="font-size:11px;color:var(--t2)">'+sub+'</div>':'')+'</div>';
   }
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
+  h+='<div class="est-kpis">'
     +kpi('ti-packages','Total de peças',estNum(geralQ),fils.length+(fils.length===1?' loja':' lojas'),geralQ<0?'var(--rd)':'')
     +kpi('ti-cash','Valor a preço de venda',fm(geralV),'',geralV<0?'var(--rd)':'')
     +kpi('ti-coin','Valor a custo',fm(geralC),'',geralC<0?'var(--rd)':'')
@@ -2104,7 +2114,7 @@ async function estDistRascunho(){
   var criado=ms.reduce(function(a,m){return !a||m.criado_em<a?m.criado_em:a;},null);
   var h=estCab('Novo envio',true)+estMsgHtml()
     +'<div class="card" style="padding:12px">'
-    +'<div class="fi" style="margin-bottom:10px"><label>Data da entrada (pode ser data futura)</label><input type="date" id="est-dt" value="'+dataEnv+'" data-k="dt" data-id="all" oninput="estDistCampo(this)" onchange="estDistCampo(this)"></div>'
+    +'<div class="fi" style="margin-bottom:10px"><label>Data da entrada (pode ser data futura)</label><input type="date" id="est-dt" style="max-width:240px" value="'+dataEnv+'" data-k="dt" data-id="all" oninput="estDistCampo(this)" onchange="estDistCampo(this)"></div>'
     +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-circle-check"></i> Salvo automaticamente'+(criado?' · rascunho criado em '+brD(String(criado).slice(0,10))+' às '+estHora(new Date(criado)):'')+'</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Tudo é salvo sozinho: pode fechar e voltar depois por "Continuar preenchendo". Linhas em branco são descartadas ao concluir. Depois de enviado, a quantidade enviada não pode mais ser alterada.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
