@@ -2335,7 +2335,7 @@ async function estDistListaLoja(){
     var completo=d.conferidos>=d.itens;
     h+='<div class="card" style="padding:12px;cursor:pointer" data-d="'+d.data_entrada+'" onclick="estDistAbrirData(this.dataset.d)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+brD(d.data_entrada)+'</b>'
-      +'<span class="bx '+(completo?'ok':'wn')+'">'+(d.data_entrada>estHojeISO()?'Prevista':(completo?'Conferida':'Conferir'))+'</span></div>'
+      +'<span class="bx '+(completo?'ok':'wn')+'">'+(completo?'Conferida':'Conferir')+(d.data_entrada>estHojeISO()?' · prevista':'')+'</span></div>'
       +'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças · '+d.conferidos+'/'+d.itens+' conferidos'
       +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div></div>';
   });
@@ -2352,7 +2352,7 @@ async function estDistDataLoja(data){
   var conf=lista.filter(function(m){return porModelo[m.id].conferido;}).length;
   var futura=data>estHojeISO();
   var h=estCab('Entrada de '+brD(data),true)+estMsgHtml()
-    +(futura?'<div class="card" style="padding:12px;font-size:13px;border:1.5px solid var(--wn)"><i class="ti ti-calendar-event"></i> Entrada <b>prevista</b> para '+brD(data)+'. A conferência abre nesse dia e o estoque só aumenta nele.</div>':'')
+    +(futura?'<div class="card" style="padding:12px;font-size:13px;border:1.5px solid var(--wn)"><i class="ti ti-calendar-event"></i> Entrada <b>prevista</b> para '+brD(data)+'. Você já pode conferir agora; o estoque só aumenta nesse dia.</div>':'')
     +'<div class="card" style="padding:12px;font-size:13px"><b>'+estEsc(EST.fils[0].nome)+'</b> · <span class="bx '+(conf>=lista.length?'ok':'wn')+'">'+conf+'/'+lista.length+' conferidos</span>'
     +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Confira cada modelo. Se a quantidade que chegou for diferente, corrija o número e toque em Conferido.</div></div>';
   lista.forEach(function(m){
@@ -2365,8 +2365,8 @@ async function estDistDataLoja(data){
       +'<div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px">'
       +'<div style="flex:1"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">Enviado</div><div style="font-size:20px;font-weight:800">'+estNum(q)+'</div></div>'
       +'<div style="flex:1"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">Conferido</div>'
-      +'<input type="number" inputmode="numeric" min="0" step="1" id="est-qc-'+it.id+'" value="'+qc+'"'+(it.conferido||futura?' disabled':'')+' style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"></div>'
-      +(futura?'':it.conferido
+      +'<input type="number" inputmode="numeric" min="0" step="1" id="est-qc-'+it.id+'" value="'+qc+'"'+(it.conferido?' disabled':'')+' style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"></div>'
+      +(it.conferido
         ?'<button class="btn bsm" data-i="'+it.id+'" onclick="estConferir(this.dataset.i,false)"><i class="ti ti-arrow-back-up"></i> Reabrir</button>'
         :'<button class="btn bp" data-i="'+it.id+'" onclick="estConferir(this.dataset.i,true)"><i class="ti ti-check"></i> Conferido</button>')
       +'</div>'
