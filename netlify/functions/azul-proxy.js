@@ -11,6 +11,7 @@
 //   /.netlify/functions/azul-proxy?path=vendas&filial=1&dataInicial=2026-10-01&dataFinal=2026-10-15
 
 var auth = require('./lib/azul-auth');
+var identidade = require('./lib/identidade');
 
 var BASE_URL = 'https://api.azulsistemas.com.br';
 
@@ -37,35 +38,26 @@ var PATHS_METAS = { 'vendas/totalizador': true, 'vendas': true };
 
 var PATHS_BINARIOS = { 'produtos/foto': true };
 
-// Login novo: o token e o JWT do Supabase Auth. Valida no Supabase e le o perfil no banco.
+// Login novo: o token e o JWT do Supabase Auth. O perfil vem do app_metadata do usuario
+// (so o servidor altera); o restante do cadastro (filial, codigo Azul, modulos) vem da tabela.
 var cacheSb = {};
 async function claimsDoSupabase(token) {
-  var sbUrl = process.env.SUPABASE_URL || 'https://wkiwpszvhprjkilppdbr.supabase.co';
-  var svc = process.env.SUPABASE_SERVICE_KEY;
-  if (!svc || !token) return null;
+  if (!token) return null;
   var c = cacheSb[token];
   if (c && c.t > Date.now() - 60000) return c.v;
-  try {
-    var ru = await fetch(sbUrl + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
-    if (!ru.ok) return null;
-    var uid = (await ru.json()).id;
-    var rf = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&ativa=eq.true&or=(data_demissao.is.null,data_demissao.gt.' + new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10) + ')&select=perfil,modulos,azul_vendedor_codigo,filiais(azul_filial)', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
-    var rows = rf.ok ? await rf.json() : [];
-    if (!rows.length) return null;
-    var f = rows[0];
-    var mods = f.modulos || [];
-    var v = {
-      role: f.perfil,
-      fil: f.filiais && f.filiais.azul_filial,
-      vend: f.azul_vendedor_codigo,
-      fin: f.perfil === 'gestor' ? mods.indexOf('financeiro') >= 0 : false
-    };
-    cacheSb = {};
-    cacheSb[token] = { t: Date.now(), v: v };
-    return v;
-  } catch (e) {
-    return null;
-  }
+  var id = await identidade.identificar(token);
+  if (!id.ok) return null;
+  var f = id.funcionaria;
+  var mods = f.modulos || [];
+  var v = {
+    role: id.perfil,
+    fil: f.filiais && f.filiais.azul_filial,
+    vend: f.azul_vendedor_codigo,
+    fin: id.perfil === 'gestor' ? mods.indexOf('financeiro') >= 0 : false
+  };
+  cacheSb = {};
+  cacheSb[token] = { t: Date.now(), v: v };
+  return v;
 }
 
 exports.handler = async function (event) {

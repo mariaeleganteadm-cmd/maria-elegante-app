@@ -10,12 +10,16 @@
 //   importar -> gestor: cria o lote e os holerites { mes, ano, pdf_nome, func_ids[] }
 //   marcar   -> gestor: { id, status } ou { todos:true, mes, ano } (pendente -> enviado)
 //
+// O perfil vem do app_metadata do usuário (lib/identidade.js), nunca da tabela funcionarias.
+//
 // Variável opcional HOLERITES_ADMIN_FUNC_IDS (ex.: "1,7"): se definida, só esses ids
 // de funcionária (que também precisam ser gestores) podem listar/importar/marcar.
 
 function resp(status, obj) {
   return { statusCode: status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }, body: JSON.stringify(obj) };
 }
+
+var identidade = require('./lib/identidade');
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return resp(405, { codigo: 'METODO_NAO_PERMITIDO', mensagem: 'Use POST.' });
@@ -34,16 +38,11 @@ exports.handler = async function (event) {
     return { ok: r.ok, status: r.status, j: j };
   }
 
-  // 1) Quem chama? Precisa de JWT válido de uma funcionária ativa.
+  // 1) Quem chama? Precisa de JWT válido de uma funcionária ativa, com perfil liberado.
   var m = /^Bearer (.+)$/.exec((event.headers && (event.headers.authorization || event.headers.Authorization)) || '');
-  if (!m) return resp(401, { codigo: 'NAO_AUTENTICADO', mensagem: 'Faça login com seu e-mail.' });
-  var ru = await fetch(sbUrl + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + m[1] } });
-  if (!ru.ok) return resp(401, { codigo: 'NAO_AUTENTICADO', mensagem: 'Sessão inválida. Entre novamente.' });
-  var uid = (await ru.json()).id;
-  var limite = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
-  var rq = await rest('GET', 'funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&ativa=eq.true&or=(data_demissao.is.null,data_demissao.gt.' + limite + ')&select=id,nome,perfil,empresa_id');
-  var quem = rq.ok && rq.j.length ? rq.j[0] : null;
-  if (!quem) return resp(403, { codigo: 'SEM_PERMISSAO', mensagem: 'Usuária não encontrada ou inativa.' });
+  var id = await identidade.identificar(m ? m[1] : '');
+  if (!id.ok) return resp(id.status, { codigo: id.codigo, mensagem: id.mensagem });
+  var quem = { id: id.funcId, perfil: id.perfil, empresa_id: id.funcionaria.empresa_id, nome: id.funcionaria.nome };
 
   var admins = String(process.env.HOLERITES_ADMIN_FUNC_IDS || '').split(',').map(function (s) { return parseInt(s, 10); }).filter(Boolean);
   var ehAdmin = quem.perfil === 'gestor' && (!admins.length || admins.indexOf(quem.id) >= 0);
