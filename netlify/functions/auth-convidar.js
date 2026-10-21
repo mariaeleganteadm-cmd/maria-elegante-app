@@ -1,6 +1,8 @@
 // Netlify Function: gestor convida (ou reenvia convite/redefinição) para uma funcionária por e-mail.
 // Exige o login (JWT) de um gestor ativo. A chave de serviço fica só em process.env.
 
+var identidade = require('./lib/identidade');
+
 function resp(status, obj) {
   return { statusCode: status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }, body: JSON.stringify(obj) };
 }
@@ -13,22 +15,18 @@ exports.handler = async function (event) {
   if (!svc || !site) return resp(500, { codigo: 'SERVIDOR_NAO_CONFIGURADO', mensagem: 'Servidor sem configuração.' });
   var H = { apikey: svc, Authorization: 'Bearer ' + svc, 'Content-Type': 'application/json' };
 
-  // 1) Quem chama? Precisa de JWT válido de um gestor ativo.
-  var m = /^Bearer (.+)$/.exec((event.headers && (event.headers.authorization || event.headers.Authorization)) || '');
-  if (!m) return resp(401, { codigo: 'NAO_AUTENTICADO', mensagem: 'Faça login.' });
-  var ru = await fetch(sbUrl + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + m[1] } });
-  if (!ru.ok) return resp(401, { codigo: 'NAO_AUTENTICADO', mensagem: 'Sessão inválida. Entre novamente.' });
-  var uid = (await ru.json()).id;
-  var rg = await fetch(sbUrl + '/rest/v1/funcionarias?auth_user_id=eq.' + encodeURIComponent(uid) + '&perfil=eq.gestor&ativa=eq.true&or=(data_demissao.is.null,data_demissao.gt.' + new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10) + ')&select=id', { headers: H });
-  var gs = rg.ok ? await rg.json() : [];
-  if (!gs.length) return resp(403, { codigo: 'SEM_PERMISSAO', mensagem: 'Apenas gestores podem convidar.' });
+  // 1) Quem chama? Precisa de JWT válido de um gestor ativo (perfil vem do app_metadata).
+  var mt = /^Bearer (.+)$/.exec((event.headers && (event.headers.authorization || event.headers.Authorization)) || '');
+  var quem = await identidade.identificar(mt ? mt[1] : '');
+  if (!quem.ok) return resp(quem.status, { codigo: quem.codigo, mensagem: quem.mensagem });
+  if (quem.perfil !== 'gestor') return resp(403, { codigo: 'SEM_PERMISSAO', mensagem: 'Apenas gestores podem convidar.' });
 
   // 2) Quem será convidada?
   var corpo = {};
   try { corpo = JSON.parse(event.body || '{}'); } catch (e) {}
   var funcId = parseInt(corpo.funcId, 10);
   if (!funcId) return resp(400, { codigo: 'DADOS_INVALIDOS', mensagem: 'Funcionária não informada.' });
-  var rf = await fetch(sbUrl + '/rest/v1/funcionarias?id=eq.' + funcId + '&select=id,nome,email,auth_user_id', { headers: H });
+  var rf = await fetch(sbUrl + '/rest/v1/funcionarias?id=eq.' + funcId + '&select=id,nome,email,auth_user_id,perfil', { headers: H });
   var fs = rf.ok ? await rf.json() : [];
   if (!fs.length) return resp(404, { codigo: 'NAO_ENCONTRADA', mensagem: 'Funcionária não encontrada.' });
   var f = fs[0];
@@ -57,6 +55,13 @@ exports.handler = async function (event) {
   }
   if (authId && !f.auth_user_id) {
     await fetch(sbUrl + '/rest/v1/funcionarias?id=eq.' + funcId, { method: 'PATCH', headers: H, body: JSON.stringify({ auth_user_id: authId }) });
+  }
+  // Libera o perfil no app_metadata (so se ainda nao existir). Automatico apenas para
+  // vendedora e gerente; gestor so e definido direto no banco.
+  var vinculo = authId || f.auth_user_id;
+  if (vinculo && (f.perfil === 'vendedora' || f.perfil === 'gerente')) {
+    var meta = await identidade.appMetadataDe(vinculo);
+    if (meta && !meta.perfil) await identidade.definirAppMetadata(vinculo, f.perfil, funcId);
   }
   return resp(200, { ok: true, tipo: tipo, email: email });
 };

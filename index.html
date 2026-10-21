@@ -2907,7 +2907,7 @@ async function gEquipe(){
       +'<div class="fi"><label>E-mail <span style="font-size:10px;color:var(--t2)">(para assinatura digital)</span></label><input id="ef-email" type="email" value="'+(f.email||'')+'" placeholder="exemplo@email.com" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Código de vendedor na Azul</label><input id="ef-azul" type="number" inputmode="numeric" value="'+(f.azul_vendedor_codigo||'')+'" placeholder="Ex: 301" style="font-size:16px;min-height:46px"></div>'
       +'<div class="fi"><label>Data de demissão <span style="font-size:10px;color:var(--t2)">(perde o acesso nesse dia; continua nos relatórios dos meses em que trabalhou; vazio = ativa)</span></label><input id="ef-dem" type="date" value="'+(f.data_demissao||'')+'" style="font-size:16px;min-height:46px"></div>'
-      +'<div class="fi"><label>Perfil</label><select id="ef-perfil" style="font-size:16px;min-height:46px">'
+      +'<div class="fi"><label>Perfil</label><select id="ef-perfil" data-orig="'+f.perfil+'" style="font-size:16px;min-height:46px">'
       +'<option value="vendedora"'+(f.perfil==='vendedora'?' selected':'')+'>Vendedora</option>'
       +'<option value="gerente"'+(f.perfil==='gerente'?' selected':'')+'>Gerente</option>'
       +'</select></div>'
@@ -4284,11 +4284,21 @@ async function salvarDadosFunc(id){
   const ok=document.getElementById('ef-ok');
   if(!nome){alert('Digite o nome.');return}
   if(!tel){alert('Digite o telefone.');return}
-  var dadosSalvar={nome:nome,telefone:tel,login:tel,perfil:perfil};
+  var dadosSalvar={nome:nome,telefone:tel,login:tel};
   if(email)dadosSalvar.email=email;
   dadosSalvar.azul_vendedor_codigo=parseInt(document.getElementById('ef-azul')?.value)||null;
   dadosSalvar.data_demissao=document.getElementById('ef-dem')?.value||null;
   await pk('funcionarias','?id=eq.'+id,dadosSalvar);
+  // O perfil é gravado pelo servidor (vale no Supabase Auth, não só na tabela)
+  var orig=document.getElementById('ef-perfil')?.getAttribute('data-orig');
+  if(orig&&orig!=='gestor'&&perfil!==orig){
+    try{
+      var tk=await authToken();
+      var rp=await fetch('/.netlify/functions/definir-perfil',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(tk||'')},body:JSON.stringify({funcId:id,perfil:perfil}),cache:'no-store'});
+      var jp={};try{jp=await rp.json();}catch(x){}
+      if(!rp.ok){alert((jp&&jp.mensagem)||'Não foi possível alterar o perfil.');gEquipe();return;}
+    }catch(x){alert('Sem conexão com o servidor. O perfil não foi alterado.');gEquipe();return;}
+  }
   if(ok){ok.textContent='✅ Dados salvos!';ok.style.display='block';setTimeout(function(){ok.style.display='none';},2500);}
   gEquipe();
 }
