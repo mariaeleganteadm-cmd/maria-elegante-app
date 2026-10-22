@@ -1675,6 +1675,7 @@ async function estTelaSaldo(){
   var ult=null;
   fils.forEach(function(f){var s=EST.sync[f.id];if(s&&s.atualizado_em&&(!ult||s.atualizado_em>ult.atualizado_em))ult=s;});
   var txtSync=ult?('Vendas do Azul atualizadas em '+brD(String(ult.atualizado_em).slice(0,10))+' às '+new Date(ult.atualizado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})):'Vendas do Azul ainda não foram atualizadas';
+  txtSync='<b>Posição no fim do dia '+brD(estAddDias(estHojeISO(),-1))+'</b> · '+txtSync;
 
   if(!EST.pode){
     // Gerente/vendedora com acesso: somente a quantidade de peças da própria loja, sem valores
@@ -1745,7 +1746,7 @@ async function estTelaSaldo(){
   tab+='</tbody></table></div>';
   h+=tab;
 
-  var rodape='Saldo = contagem inicial + ajustes + entradas enviadas (quantidade conferida, quando já conferida) − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta.';
+  var rodape='Saldo = contagem inicial + ajustes + entradas enviadas (quantidade conferida, quando já conferida) − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta. O saldo mostra a posição do fim de ontem: vendas, entradas e ajustes de hoje só aparecem a partir de amanhã.';
   if(EST.pode)rodape+=' Toque em um número para ajustar.';
   h+='<div style="font-size:11px;color:var(--t2);padding:2px 4px 16px">'+rodape+'</div>';
   document.getElementById('ct').innerHTML=h;
