@@ -1359,6 +1359,7 @@ async function azulVendasPeriodo(filialAzul,iniISO,fimISO,opt){
     return function(){
       var p={dataInicial:j[0],dataFinal:j[1]};
       if(filialAzul)p.filial=filialAzul;
+      if(opt&&opt.escopo)p.escopo=opt.escopo;
       return azulGet('vendas',p,opt);
     };
   });
@@ -1597,12 +1598,12 @@ async function eEstoque(){
 // Pode puxar as vendas do Azul: gestor com Financeiro, ou gerente (o servidor trava a gerente na loja dela)
 function estPodeSync(){
   if(!S.func)return false;
-  if(S.tipo==='gerente')return !!S.func.filial_id;
+  if(S.tipo!=='gestor')return !!S.func.filial_id;
   return S.tipo==='gestor'&&Array.isArray(S.func.modulos)&&S.func.modulos.indexOf('financeiro')>=0;
 }
 
-// Atualiza as vendas sozinho ao abrir a tela, se a última atualização tem mais de 10 minutos
-var ESTAUTO_MIN=10;
+// Atualiza as vendas sozinho ao abrir a tela, se a última atualização tem mais de 2 minutos
+var ESTAUTO_MIN=2;
 function estAutoSync(){
   if(!EST.podeSync||EST.auto||EST.aba==='dist')return;
   var agora=Date.now();
@@ -1675,7 +1676,7 @@ async function estTelaSaldo(){
   var ult=null;
   fils.forEach(function(f){var s=EST.sync[f.id];if(s&&s.atualizado_em&&(!ult||s.atualizado_em>ult.atualizado_em))ult=s;});
   var txtSync=ult?('Vendas do Azul atualizadas em '+brD(String(ult.atualizado_em).slice(0,10))+' às '+new Date(ult.atualizado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})):'Vendas do Azul ainda não foram atualizadas';
-  txtSync='<b>Saldo do fim do dia '+brD(estAddDias(estHojeISO(),-1))+' + entradas de hoje</b> · '+txtSync;
+  txtSync='<b>Saldo atual</b> · '+txtSync;
 
   if(!EST.pode){
     // Gerente/vendedora com acesso: somente a quantidade de peças da própria loja, sem valores
@@ -1746,7 +1747,7 @@ async function estTelaSaldo(){
   tab+='</tbody></table></div>';
   h+=tab;
 
-  var rodape='Saldo = contagem inicial + ajustes + entradas enviadas (quantidade conferida, quando já conferida) − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta. O saldo é a posição do fim de ontem mais as entradas de hoje: vendas e ajustes de hoje só aparecem a partir de amanhã.';
+  var rodape='Saldo = contagem inicial + ajustes + entradas enviadas (quantidade conferida, quando já conferida) − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta. O saldo acompanha as vendas do dia: ao abrir esta tela, as vendas do Azul são atualizadas.';
   if(EST.pode)rodape+=' Toque em um número para ajustar.';
   h+='<div style="font-size:11px;color:var(--t2);padding:2px 4px 16px">'+rodape+'</div>';
   document.getElementById('ct').innerHTML=h;
@@ -1882,7 +1883,7 @@ async function estSincronizar(auto){
       var sy=EST.sync[f.id];
       if(sy&&sy.ultima_data){var r7=estAddDias(String(sy.ultima_data).slice(0,10),-7);if(r7>ini)ini=r7;}
       if(ini>hoje)continue;
-      var vendas=await azulVendasPeriodo(f.azul_filial,ini,hoje,{fresh:true});
+      var vendas=await azulVendasPeriodo(f.azul_filial,ini,hoje,{fresh:true,escopo:'estoque'});
       // vendas desta loja que já estão guardadas
       var ja={},off=0;
       while(true){
@@ -1897,7 +1898,7 @@ async function estSincronizar(auto){
       var filAzul=f.azul_filial;
       var tarefas=novas.map(function(v){
         return function(){
-          return azulGet('vendas/itens',{filial:filAzul,codigoVenda:v.codigo_venda},{fresh:true}).then(function(r){return {v:v,itens:(r&&r.itens)||[]};});
+          return azulGet('vendas/itens',{filial:filAzul,codigoVenda:v.codigo_venda,escopo:'estoque'},{fresh:true}).then(function(r){return {v:v,itens:(r&&r.itens)||[]};});
         };
       });
       var rs=await azulLote(tarefas,3);
