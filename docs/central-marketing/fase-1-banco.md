@@ -1,7 +1,21 @@
 # Central de Marketing — Fase 1: banco de dados
 
-Estado: **migrations escritas e testadas em Postgres local; ainda NÃO aplicadas no Supabase de produção.**
-Aplicar só com autorização do Jonatas.
+Estado: **aplicada no Supabase de produção em 22/10/2026**, com autorização do Jonatas, depois de testada
+em Postgres local.
+
+## Aplicação em produção
+
+Foram aplicadas as 4 migrations, em ordem, pelo `apply_migration`. No Supabase elas ficaram registradas
+como `mkt_01_base`, `mkt_02_planejamento`, `mkt_03_materiais` e `mkt_04_custos_fila_seguranca`
+(versões 20261022135536 a 20261022135631). Os arquivos deste repositório têm numeração própria
+(`20261022150001`…), mas o mesmo conteúdo; só os comentários do SQL não foram enviados.
+
+Conferido depois da aplicação (somente leitura): 22 tabelas `mkt_*`, as 22 com RLS ligado e 0 políticas;
+`anon` e `authenticated` sem nenhum acesso às tabelas e sem permissão de executar `mkt_claim_job`;
+`service_role` com acesso; 6 funções e 15 gatilhos; as 27 tabelas já existentes do app sem alteração;
+tabelas novas vazias (nenhum dado de teste foi inserido em produção).
+O verificador de segurança do Supabase só acrescentou 22 avisos informativos "RLS enabled, no policy",
+que são esperados (ver decisão 2). Os demais avisos já existiam antes.
 
 ## O que a Fase 1 entrega
 
@@ -94,6 +108,12 @@ Na auditoria, quase todas as tabelas já existentes do app (`funcionarias`, `ven
 `comunicados` etc.) têm políticas RLS que liberam leitura, escrita e exclusão para a chave pública.
 Só `holerites` foi fechada. As tabelas `mkt_*` NÃO seguem esse padrão. Corrigir as demais é um projeto
 separado, porque exige mover as telas do app para funções de servidor.
+
+Atualização (22/10/2026, após a aplicação): existe uma migration que não é desta fase,
+`fase1a_politicas_authenticated`, que adicionou cerca de 100 políticas para usuários logados
+(`authenticated`) nas tabelas do app. Isso parece ser o primeiro passo de um fechamento, mas as 93
+políticas abertas para `anon` (em 25 tabelas) ainda existiam na conferência feita depois dela. O
+conteúdo e o plano dessa migration não foram auditados aqui.
 
 ## Pendências externas (não bloqueiam a Fase 1)
 
