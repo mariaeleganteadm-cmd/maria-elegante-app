@@ -1174,6 +1174,7 @@ function renderHome(){
   // Equipe — cadastro e permissões, somente gestor
   if(tipo==='gestor') subs.push({id:'financeiro', icon:'ti-chart-line', nome:'Financeiro', desc:'Vendas por loja e total', cor:'#0277BD', bg:'#E1F5FE'});
   if(tipo==='gestor') subs.push({id:'equipe', icon:'ti-users', nome:'Equipe', desc:'Cadastro e permissões', cor:'#2E7D32', bg:'#E8F5E9'});
+  if(tipo==='gestor') subs.push({id:'marketing', icon:'ti-speakerphone', nome:'Marketing', desc:'Projetos, calendário e materiais', cor:'#00796B', bg:'#E0F2F1'});
   var cards = subs.map(function(s){
     return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
       '<div style="width:56px;height:56px;border-radius:14px;background:'+s.cor+';display:flex;align-items:center;justify-content:center">'+
@@ -1220,8 +1221,25 @@ async function entrarSubsistema(sub){
   } else if(sub==='equipe'){
     buildNav(S.tipo,'equipe');
     navTo('g-equipe');
+  } else if(sub==='marketing'){
+    buildNav(S.tipo,'marketing');
+    navTo('m-painel');
   }
 }
+
+// Central de Marketing: telas em /marketing/ (carregadas só quando o gestor abre o módulo)
+function mktCarregar(){
+  if(window.mktIr) return Promise.resolve();
+  if(window._mktP) return window._mktP;
+  window._mktP=new Promise(function(ok,no){
+    var l=document.createElement('link');l.rel='stylesheet';l.href='/marketing/marketing.css?v=1';document.head.appendChild(l);
+    var sc=document.createElement('script');sc.src='/marketing/marketing.js?v=1';sc.onload=ok;
+    sc.onerror=function(){window._mktP=null;no(new Error('marketing'));};
+    document.head.appendChild(sc);
+  });
+  return window._mktP;
+}
+async function mktTela(v){ await mktCarregar(); await window.mktIr(v); }
 
 function sair(){
   S=null;fP=null;azulSair();authSairServidor();
@@ -1241,6 +1259,7 @@ function buildNav(tipo,modulo){
   };
   if(modulo==='financeiro'){ns.gestor=[{id:'g-fin',i:'ti-chart-line',l:'Vendas'}];}
   if(modulo==='equipe'){ns.gestor=[{id:'g-equipe',i:'ti-users',l:'Equipe'}];}
+  if(modulo==='marketing'){ns.gestor=[{id:'m-painel',i:'ti-speakerphone',l:'Marketing'}];}
   var botaoHome='<button class="nb" onclick="renderHome()" style="min-width:44px"><i class="ti ti-home"></i><span>Início</span></button>';
   document.getElementById('bn').innerHTML=botaoHome+(ns[tipo]||ns.vendedora).map(function(x){
     return '<button class="nb" id="n-'+x.id+'" onclick="navTo(this.dataset.id)" data-id="'+x.id+'"><i class="ti '+x.i+'"></i><span>'+x.l+'</span></button>';
@@ -1265,7 +1284,7 @@ async function navTo(id){
       }catch(e){console.error(e);}
     }
   }
-  const fns={g_metas:gMetas,g_equipe:gEquipe,g_metames:gMetaMes,g_fin:gFinVendas,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic,e_estoque:eEstoque};
+  const fns={g_metas:gMetas,g_equipe:gEquipe,g_metames:gMetaMes,g_fin:gFinVendas,g_docs:gDocs,g_comunic:gComunic,g_mais:gMais,g_config:gConfig,r_painel:gGerente,f_metas:fMetas,f_rel:fRelatorio,f_check:fCheck,f_docs:fDocs,f_comunic:fComunic,e_estoque:eEstoque,m_painel:function(){return mktTela('painel');}};
   const fn=fns[id.replace(/-/g,'_')];
   if(fn){
     try{await fn();}
