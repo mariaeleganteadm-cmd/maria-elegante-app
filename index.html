@@ -1412,7 +1412,7 @@ async function azulVendasComoLinhas(mes,ano){
     var fid=mapa[v.vendedor_codigo];
     if(!fid){
       nm.total+=val;nm.qtd++;
-      var k=(v.vendedor_nome||('Código '+v.vendedor_codigo));
+      var k=(v.vendedor_nome||'Sem nome')+' (cód. '+v.vendedor_codigo+')';
       nm.por[k]=(nm.por[k]||0)+val;
       return;
     }
