@@ -3186,13 +3186,31 @@ async function gDocs(){
     // ── aba documentos (sistema antigo) ──
     var res=await Promise.all([
       gt('documentos','?select=*'+eid()),
-      gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id'),
+      gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,filial_id&order=nome.asc'),
       gt('documento_assinaturas','?select=documento_id,func_id'),
       gt('filiais','?select=*'+eid())
     ]);
     var docs=res[0],funcsTot=res[1],ass=res[2],fils=res[3];
     var tot=funcsTot.length;
-    var fO='<option value="">Todas as filiais</option>'+fils.map(function(f){return '<option value="'+f.id+'">'+f.nome+'</option>';}).join('');
+    var fO='<option value="">Todas as filiais</option>'+fils.map(function(f){return '<option value="'+f.id+'">'+f.nome+'</option>';}).join('')
+      +'<option value="__esp">Vendedoras específicas…</option>';
+    // lista de marcação das vendedoras, agrupada por loja
+    var espH='';
+    fils.forEach(function(fl){
+      var dessa=funcsTot.filter(function(x){return x.filial_id===fl.id;});
+      if(!dessa.length)return;
+      espH+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin:8px 0 4px">'+fl.nome+'</div>';
+      dessa.forEach(function(x){
+        espH+='<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;cursor:pointer"><input type="checkbox" class="dfck" value="'+x.id+'"> '+x.nome+'</label>';
+      });
+    });
+    var semFil=funcsTot.filter(function(x){return !fils.some(function(fl){return fl.id===x.filial_id;});});
+    if(semFil.length){
+      espH+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin:8px 0 4px">Sem loja</div>';
+      semFil.forEach(function(x){
+        espH+='<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;cursor:pointer"><input type="checkbox" class="dfck" value="'+x.id+'"> '+x.nome+'</label>';
+      });
+    }
 
     var h=tabBar
       +'<button class="btn" style="width:100%;justify-content:center;margin-bottom:12px;background:var(--tl);border-color:var(--tb);color:var(--tdd)" onclick="verTermosAssinados()">'
@@ -3200,31 +3218,53 @@ async function gDocs(){
       +'<div class="card"><h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Enviar documento</h3>'
       +'<div class="fi"><label>Nome</label><input id="dn" placeholder="Ex: Holerite Mai/2026"></div>'
       +'<div class="fi"><label>Tipo</label><select id="dt"><option value="ponto">Folha de Ponto</option><option value="holerite">Holerite</option><option value="outro">Outro</option></select></div>'
-      +'<div class="fi"><label>Para</label><select id="df">'+fO+'</select></div>'
+      +'<div class="fi"><label>Para</label><select id="df" onchange="docsParaChange()">'+fO+'</select></div>'
+      +'<div id="dfEsp" style="display:none;margin-bottom:12px;max-height:260px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:4px 12px">'+espH+'</div>'
       +'<button class="btn bp" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div>'
       +'<div class="h1" style="margin-top:4px">Enviados</div>';
 
     docs.forEach(function(d){
-      var qtdAss=ass.filter(function(x){return x.documento_id===d.id;}).length;
-      var pct=tot>0?Math.round(qtdAss/tot*100):0;
+      var esp=Array.isArray(d.func_ids)&&d.func_ids.length>0;
+      var totD=tot;
+      var destino=d.filial_id?'':' • Todas as filiais';
+      if(esp){
+        var nomes=funcsTot.filter(function(x){return d.func_ids.indexOf(x.id)>=0;}).map(function(x){return x.nome;});
+        totD=d.func_ids.length;
+        destino=' • Para: '+(nomes.length?nomes.join(', '):totD+' vendedora(s)');
+      }
+      var qtdAss=ass.filter(function(x){return x.documento_id===d.id&&(!esp||d.func_ids.indexOf(x.func_id)>=0);}).length;
+      var pct=totD>0?Math.round(qtdAss/totD*100):0;
       h+='<div class="dc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
         +'<div style="font-weight:600;font-size:14px">'+d.nome+'</div>'
         +'<button onclick="rmD('+d.id+')" style="background:none;border:none;color:var(--t2);cursor:pointer;padding:4px"><i class="ti ti-trash" style="font-size:14px"></i></button>'
         +'</div>'
-        +'<div style="font-size:12px;color:var(--t2);margin-bottom:6px">'+d.tipo+(d.filial_id?'':' • Todas as filiais')+'</div>'
+        +'<div style="font-size:12px;color:var(--t2);margin-bottom:6px">'+d.tipo+destino+'</div>'
         +'<div style="background:var(--bd);border-radius:6px;height:6px;margin-bottom:4px"><div style="background:var(--gd);border-radius:6px;height:6px;width:'+pct+'%"></div></div>'
-        +'<div style="font-size:11px;color:var(--t2)">'+qtdAss+'/'+tot+' assinaram ('+pct+'%)</div>'
+        +'<div style="font-size:11px;color:var(--t2)">'+qtdAss+'/'+totD+' assinaram ('+pct+'%)</div>'
         +'</div>';
     });
 
     document.getElementById('ct').innerHTML=h;
 
+    window.docsParaChange=function(){
+      var box=document.getElementById('dfEsp');
+      if(box)box.style.display=(document.getElementById('df').value==='__esp')?'block':'none';
+    };
     window.envD=async function(){
       var nm=document.getElementById('dn').value.trim();
       var tp=document.getElementById('dt').value;
       var fid=document.getElementById('df').value;
       if(!nm){alert('Digite o nome.');return;}
-      await pt('documentos',{nome:nm,tipo:tp,filial_id:fid||null,empresa_id:EMP?EMP.id:null});
+      var corpo={nome:nm,tipo:tp,filial_id:null,func_ids:null,empresa_id:EMP?EMP.id:null};
+      if(fid==='__esp'){
+        var ids=[];
+        document.querySelectorAll('.dfck').forEach(function(c){if(c.checked)ids.push(parseInt(c.value,10));});
+        if(!ids.length){alert('Marque pelo menos uma vendedora.');return;}
+        corpo.func_ids=ids;
+      } else {
+        corpo.filial_id=fid||null;
+      }
+      await pt('documentos',corpo);
       gDocs();
     };
     window.rmD=async function(id){
@@ -4222,7 +4262,7 @@ async function fDocs(){
 
   if(window._fDocsAba==='documentos'){
     var res2=await Promise.all([
-      gt('documentos','?or=(filial_id.is.null,filial_id.eq.'+(f.filial_id||0)+')&select=*'+eid()),
+      gt('documentos','?or=(and(func_ids.is.null,or(filial_id.is.null,filial_id.eq.'+(f.filial_id||0)+')),func_ids.cs.{'+f.id+'})&select=*'+eid()),
       gt('documento_assinaturas','?func_id=eq.'+f.id+'&select=documento_id')
     ]);
     var docs2=res2[0],ass2=res2[1];
