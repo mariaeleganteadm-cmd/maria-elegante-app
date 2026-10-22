@@ -561,7 +561,11 @@ async function api(t,m='GET',b=null,p=''){
     p=p.replace(/&_ref=\d{4}-\d{2}-\d{2}/,'');
     p+=mr?'&or=(data_demissao.is.null,data_demissao.gte.'+mr[1]+')':'&or=(data_demissao.is.null,data_demissao.gt.'+isoD(new Date())+')';
   }
-  const r=await fetch(SB+'/rest/v1/'+t+p,{method:m,headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''},body:b?JSON.stringify(b):null});
+  // Usa o token do usuario logado (o banco so responde a quem tem login e perfil).
+  // A chave anon so vai antes do login, e nas tabelas fechadas ao anon ela e recusada.
+  const enviar=tok=>fetch(SB+'/rest/v1/'+t+p,{method:m,headers:{'apikey':KEY,'Authorization':'Bearer '+(tok||KEY),'Content-Type':'application/json','Prefer':m==='POST'?'return=representation':''},body:b?JSON.stringify(b):null});
+  let r=await enviar(await authToken());
+  if(r.status===401&&AUTH.rt){AUTH.exp=0;const novo=await authToken();if(novo)r=await enviar(novo);}
   if(m==='DELETE')return true;
   const tx=await r.text();return tx?JSON.parse(tx):[];
 }
@@ -575,19 +579,6 @@ let EMP = null; // dados da empresa ativa
 
 window.addEventListener('load',async()=>{
   try{Object.keys(localStorage).forEach(function(k){if(k.indexOf('me_senha_gestora_')===0||k.indexOf('me_rec_cod_')===0)localStorage.removeItem(k);});}catch(x){}
-  // Acesso super admin via URL oculta
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('superadmin')==='1'&&params.get('key')==='admin123'){
-    // Limpar URL
-    window.history.replaceState({},'',window.location.pathname);
-    // Ir direto para login como gestor
-    await new Promise(r=>setTimeout(r,500));
-    const sp=document.getElementById('splash');
-    if(sp){sp.style.opacity='0';setTimeout(()=>sp.style.display='none',400);}
-    document.getElementById('pg-login').style.display='block';
-    return;
-  }
-
   // Aplicar logo padrão
   ['isp','iln','itp'].forEach(id=>{const e=document.getElementById(id);if(e)e.src='data:image/png;base64,'+LOGO});
 
@@ -602,11 +593,11 @@ window.addEventListener('load',async()=>{
     const empId=localStorage.getItem('me_empresa_id');
     let res=[];
     if(empId){
-      res=await fetch(SB+'/rest/v1/empresas?id=eq.'+empId+'&ativa=eq.true&select=*',
+      res=await fetch(SB+'/rest/v1/empresas?id=eq.'+empId+'&ativa=eq.true&select=id,nome,cor_principal,logo_base64,ativa',
         {headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(r=>r.json()).catch(()=>[]);
     }
     if(!res||!res.length){
-      res=await fetch(SB+'/rest/v1/empresas?ativa=eq.true&select=*&limit=1',
+      res=await fetch(SB+'/rest/v1/empresas?ativa=eq.true&select=id,nome,cor_principal,logo_base64,ativa&limit=1',
         {headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(r=>r.json()).catch(()=>[]);
     }
     if(res&&res.length){
@@ -834,12 +825,19 @@ async function authReq(caminho,metodo,corpo,token){
   return {ok:r.ok,status:r.status,j:j};
 }
 // Token válido para chamar funções do servidor (renova se precisar)
+var _authRenovando=null;
 async function authToken(){
   if(AUTH.at&&AUTH.exp>Date.now())return AUTH.at;
   if(!AUTH.rt)return null;
-  var r=await authReq('token?grant_type=refresh_token','POST',{refresh_token:AUTH.rt});
-  if(!r.ok)return null;
-  authSalvar(r.j);return AUTH.at;
+  if(_authRenovando)return _authRenovando;
+  _authRenovando=(async function(){
+    try{
+      var r=await authReq('token?grant_type=refresh_token','POST',{refresh_token:AUTH.rt});
+      if(!r.ok)return null;
+      authSalvar(r.j);return AUTH.at;
+    }finally{_authRenovando=null;}
+  })();
+  return _authRenovando;
 }
 
 // Holerites: as tabelas são fechadas para a chave anon; tudo passa pela função do servidor
@@ -1261,7 +1259,7 @@ async function navTo(id){
     if(!EMP){
       try{
         const empId=localStorage.getItem('me_empresa_id');
-        const url=empId?'?id=eq.'+empId+'&ativa=eq.true&select=*':'?ativa=eq.true&select=*&limit=1';
+        const url=empId?'?id=eq.'+empId+'&ativa=eq.true&select=id,nome,cor_principal,logo_base64,ativa':'?ativa=eq.true&select=id,nome,cor_principal,logo_base64,ativa&limit=1';
         const r=await fetch(SB+'/rest/v1/empresas'+url,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}}).then(x=>x.json());
         if(r.length){EMP=r[0];localStorage.setItem('me_empresa_id',String(EMP.id));aplicarIdentidade(EMP);}
       }catch(e){console.error(e);}
