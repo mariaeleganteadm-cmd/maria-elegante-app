@@ -53,7 +53,8 @@ async function claimsDoSupabase(token) {
     role: id.perfil,
     fil: f.filiais && f.filiais.azul_filial,
     vend: f.azul_vendedor_codigo,
-    fin: id.perfil === 'gestor' ? mods.indexOf('financeiro') >= 0 : false
+    fin: id.perfil === 'gestor' ? mods.indexOf('financeiro') >= 0 : false,
+    est: mods.indexOf('estoque') >= 0
   };
   cacheSb = {};
   cacheSb[token] = { t: Date.now(), v: v };
@@ -93,14 +94,16 @@ exports.handler = async function (event) {
     }
   } else if (claims.role === 'gerente' || claims.role === 'vendedora') {
     // gerente tambem le os itens das vendas (estoque), sempre travado na filial dela; vendedora nao
-    if (!PATHS_METAS[path] && !(claims.role === 'gerente' && path === 'vendas/itens')) {
+    // escopo=estoque: quem tem o modulo Estoque le as vendas da loja inteira (so da propria filial) para atualizar o saldo
+    var escopoEstoque = params.escopo === 'estoque' && claims.est && (path === 'vendas' || path === 'vendas/itens');
+    if (!PATHS_METAS[path] && !escopoEstoque && !(claims.role === 'gerente' && path === 'vendas/itens')) {
       return auth.resposta(403, { erro: true, codigo: 'SEM_PERMISSAO', mensagem: 'Seu perfil nao tem acesso a este dado.' });
     }
-    if (!claims.fil || (claims.role === 'vendedora' && !claims.vend)) {
+    if (!claims.fil || (claims.role === 'vendedora' && !claims.vend && !escopoEstoque)) {
       return auth.resposta(403, { erro: true, codigo: 'MAPEAMENTO_AZUL_PENDENTE', mensagem: 'Seu cadastro ainda nao esta ligado a Azul. Fale com a gestora.' });
     }
     forcados.filial = String(claims.fil);
-    if (claims.role === 'vendedora') forcados.vendedor = String(claims.vend);
+    if (claims.role === 'vendedora' && !escopoEstoque) forcados.vendedor = String(claims.vend);
   } else {
     return auth.resposta(403, { erro: true, codigo: 'SEM_PERMISSAO', mensagem: 'Perfil sem acesso.' });
   }
@@ -108,7 +111,7 @@ exports.handler = async function (event) {
   // 3) Monta a consulta: parametros do cliente + escopo forcado (o forcado sempre vence)
   var qs = new URLSearchParams();
   Object.keys(params).forEach(function (k) {
-    if (k !== 'path' && !(k in forcados)) qs.append(k, params[k]);
+    if (k !== 'path' && k !== 'escopo' && !(k in forcados)) qs.append(k, params[k]);
   });
   Object.keys(forcados).forEach(function (k) { qs.append(k, forcados[k]); });
 
