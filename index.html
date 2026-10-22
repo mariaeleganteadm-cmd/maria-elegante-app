@@ -875,7 +875,41 @@ window.abrirDoc=async function(id){
     return;
   }
   if(w){w.location.href=r.j.url;}else{window.location.href=r.j.url;}
+  // quem abriu o arquivo deixa de ver o "NOVO" na própria lista
+  if(w&&S&&S.tipo!=='gestor'&&window.NAV_ATUAL==='f-docs')fDocs();
 };
+
+// Documentos que pedem ação da funcionária: arquivo ainda não aberto ou assinatura pendente.
+// abertos=null quando não deu para consultar o histórico: aí só conta a assinatura.
+function docsNovos(docs,ass,abertos){
+  var assSet={};ass.forEach(function(a){assSet[a.documento_id]=true;});
+  var abSet={};(abertos||[]).forEach(function(i){abSet[i]=true;});
+  var novos={},total=0;
+  docs.forEach(function(d){
+    var pend=(d.exige_assinatura!==false&&!assSet[d.id])||(d.arquivo_path&&abertos&&!abSet[d.id]);
+    if(pend){novos[d.id]=true;total++;}
+  });
+  return {total:total,novos:novos};
+}
+async function docsPendencias(){
+  var f=S&&S.func;
+  if(!f||S.tipo==='gestor')return {total:0,novos:{}};
+  var res=await Promise.all([
+    gt('documentos','?or=(and(func_ids.is.null,or(filial_id.is.null,filial_id.eq.'+(f.filial_id||0)+')),func_ids.cs.{'+f.id+'})&select=id,exige_assinatura,arquivo_path'+eid()),
+    gt('documento_assinaturas','?func_id=eq.'+f.id+'&select=documento_id'),
+    docArq('minhas')
+  ]);
+  return docsNovos(res[0],res[1],res[2].ok?res[2].j.abertos:null);
+}
+// Bolinha vermelha no atalho Documentos da tela Início (não bloqueia a tela se falhar)
+async function homeBadges(){
+  try{
+    if(!S||S.tipo==='gestor'||!temModulo('docs'))return;
+    var p=await docsPendencias();
+    var el=document.getElementById('bd-docs');
+    if(el&&p.total>0){el.textContent=p.total>9?'9+':String(p.total);el.style.display='flex';}
+  }catch(e){console.error(e);}
+}
 
 async function authEntrar(){
   authMsgErro('');
@@ -1201,7 +1235,8 @@ function renderHome(){
   if(tipo==='gestor') subs.push({id:'equipe', icon:'ti-users', nome:'Equipe', desc:'Cadastro e permissões', cor:'#2E7D32', bg:'#E8F5E9'});
   if(tipo==='gestor') subs.push({id:'marketing', icon:'ti-speakerphone', nome:'Marketing', desc:'Projetos, calendário e materiais', cor:'#00796B', bg:'#E0F2F1'});
   var cards = subs.map(function(s){
-    return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
+    return '<div onclick="entrarSubsistema(\''+s.id+'\')" style="position:relative;background:'+s.bg+';border:2px solid '+s.cor+'20;border-radius:16px;padding:24px 20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .15s;min-height:130px;justify-content:center;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'">'+
+      '<span id="bd-'+s.id+'" style="display:none;position:absolute;top:10px;right:12px;background:#E24B4A;color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;box-sizing:border-box;font-size:12px;font-weight:700;align-items:center;justify-content:center"></span>'+
       '<div style="width:56px;height:56px;border-radius:14px;background:'+s.cor+';display:flex;align-items:center;justify-content:center">'+
       '<i class="ti '+s.icon+'" style="font-size:26px;color:#fff"></i></div>'+
       '<div style="font-size:16px;font-weight:700;color:'+s.cor+'">'+s.nome+'</div>'+
@@ -1222,6 +1257,7 @@ function renderHome(){
     '</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+cards+'</div>'+
     '</div>';
+  homeBadges();
 }
 
 async function entrarSubsistema(sub){
@@ -3213,9 +3249,11 @@ async function gDocs(){
       gt('documentos','?select=*'+eid()),
       gt('funcionarias','?ativa=eq.true&login=neq.admin'+eid()+'&select=id,nome,filial_id&order=nome.asc'),
       gt('documento_assinaturas','?select=documento_id,func_id'),
-      gt('filiais','?select=*'+eid())
+      gt('filiais','?select=*'+eid()),
+      docArq('resumo')
     ]);
     var docs=res[0],funcsTot=res[1],ass=res[2],fils=res[3];
+    var abriram=(res[4]&&res[4].ok&&res[4].j.abriram)||{};
     var tot=funcsTot.length;
     var fO='<option value="">Todas as filiais</option>'+fils.map(function(f){return '<option value="'+f.id+'">'+f.nome+'</option>';}).join('')
       +'<option value="__esp">Vendedoras específicas…</option>';
@@ -3253,7 +3291,12 @@ async function gDocs(){
     docs.forEach(function(d){
       var esp=Array.isArray(d.func_ids)&&d.func_ids.length>0;
       var totD=tot;
-      var destino=d.filial_id?'':' • Todas as filiais';
+      var destino=' • Todas as filiais';
+      if(d.filial_id){
+        var flD=fils.filter(function(x){return x.id===d.filial_id;})[0];
+        destino=' • '+(flD?flD.nome:'Filial');
+        totD=funcsTot.filter(function(x){return x.filial_id===d.filial_id;}).length;
+      }
       if(esp){
         var nomes=funcsTot.filter(function(x){return d.func_ids.indexOf(x.id)>=0;}).map(function(x){return x.nome;});
         totD=d.func_ids.length;
@@ -3267,17 +3310,51 @@ async function gDocs(){
         +'<button onclick="rmD('+d.id+')" style="background:none;border:none;color:var(--t2);cursor:pointer;padding:4px"><i class="ti ti-trash" style="font-size:14px"></i></button>'
         +'</div>'
         +'<div style="font-size:12px;color:var(--t2);margin-bottom:6px">'+d.tipo+destino+'</div>'
-        +(d.arquivo_path?'<button class="btn" style="font-size:12px;padding:8px 12px;margin-bottom:8px" onclick="abrirDoc('+d.id+')"><i class="ti ti-file-download"></i> Abrir arquivo</button>':'')
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+        +(d.arquivo_path?'<button class="btn" style="font-size:12px;padding:8px 12px" onclick="abrirDoc('+d.id+')"><i class="ti ti-file-download"></i> Abrir arquivo</button>':'')
+        +'<button class="btn" style="font-size:12px;padding:8px 12px" onclick="verHistDoc('+d.id+')"><i class="ti ti-history"></i> Histórico</button>'
+        +'</div>'
+        +(d.arquivo_path?'<div style="font-size:11px;color:var(--t2);margin-bottom:6px">Abriram o arquivo: '+(abriram[d.id]||0)+'/'+totD+'</div>':'')
         +(exige
           ?'<div style="background:var(--bd);border-radius:6px;height:6px;margin-bottom:4px"><div style="background:var(--gd);border-radius:6px;height:6px;width:'+pct+'%"></div></div>'
             +'<div style="font-size:11px;color:var(--t2)">'+qtdAss+'/'+totD+' assinaram ('+pct+'%)</div>'
           :'<div style="font-size:11px;color:var(--t2)">Não exige assinatura</div>')
+        +'<div id="hist-'+d.id+'" style="display:none;margin-top:10px"></div>'
         +'</div>';
     });
     window._docsLista=docs;
 
     document.getElementById('ct').innerHTML=h;
 
+    // Histórico de um documento: quem abriu o arquivo (quando e quantas vezes) e quem assinou
+    window.verHistDoc=async function(id){
+      var box=document.getElementById('hist-'+id);
+      if(!box)return;
+      if(box.style.display==='block'){box.style.display='none';return;}
+      box.style.display='block';
+      box.innerHTML='<div style="font-size:12px;color:var(--t2)">Carregando...</div>';
+      var r=await docArq('historico',{id:id});
+      if(!r.ok){
+        box.innerHTML='<div style="font-size:12px;color:#E24B4A">'+((r.j&&r.j.mensagem)||'Não foi possível carregar o histórico.')+'</div>';
+        return;
+      }
+      var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+      var fmt=function(iso){var dt=new Date(iso);return dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});};
+      var hh='';
+      r.j.pessoas.forEach(function(p){
+        var partes=[];
+        if(r.j.tem_arquivo){
+          partes.push(p.primeira_abertura
+            ?'abriu o arquivo em '+fmt(p.primeira_abertura)+(p.total_aberturas>1?' ('+p.total_aberturas+' vezes, a última em '+fmt(p.ultima_abertura)+')':'')
+            :'ainda não abriu o arquivo');
+        }
+        if(r.j.exige_assinatura)partes.push(p.assinado_em?'assinou em '+fmt(p.assinado_em):'ainda não assinou');
+        if(!partes.length)partes.push('documento sem arquivo e sem assinatura');
+        hh+='<div style="padding:6px 0;border-top:1px solid var(--bd);font-size:12px"><b>'+esc(p.nome)+'</b><br><span style="color:var(--t2)">'+partes.join(' • ')+'</span></div>';
+      });
+      if(!r.j.pessoas.length)hh='<div style="font-size:12px;color:var(--t2)">Nenhuma destinatária ativa.</div>';
+      box.innerHTML=hh;
+    };
     window.docsParaChange=function(){
       var box=document.getElementById('dfEsp');
       if(box)box.style.display=(document.getElementById('df').value==='__esp')?'block':'none';
@@ -4335,9 +4412,11 @@ async function fDocs(){
   if(window._fDocsAba==='documentos'){
     var res2=await Promise.all([
       gt('documentos','?or=(and(func_ids.is.null,or(filial_id.is.null,filial_id.eq.'+(f.filial_id||0)+')),func_ids.cs.{'+f.id+'})&select=*'+eid()),
-      gt('documento_assinaturas','?func_id=eq.'+f.id+'&select=documento_id')
+      gt('documento_assinaturas','?func_id=eq.'+f.id+'&select=documento_id'),
+      docArq('minhas')
     ]);
     var docs2=res2[0],ass2=res2[1];
+    var pend2=docsNovos(docs2,ass2,res2[2].ok?res2[2].j.abertos:null);
     var aS2=new Set(ass2.map(function(a){return a.documento_id;}));
     var h=tabBar+'<div class="h2">Abra os arquivos e assine quando o documento pedir.</div>';
     docs2.forEach(function(d){
@@ -4345,7 +4424,8 @@ async function fDocs(){
       var exige=d.exige_assinatura!==false;
       h+='<div class="dc"><div style="display:flex;align-items:center;gap:12px">'
         +'<div class="di"><i class="ti '+(d.arquivo_path?'ti-paperclip':(d.tipo==='ponto'?'ti-clock':'ti-receipt-2'))+'"></i></div>'
-        +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome+'</div>'
+        +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome
+        +(pend2.novos[d.id]?' <span style="background:#E24B4A;color:#fff;border-radius:999px;padding:1px 8px;font-size:10px;font-weight:700;vertical-align:middle">NOVO</span>':'')+'</div>'
         +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+(exige?(sg?'✅ Assinado':'Aguardando assinatura'):'Para leitura, não precisa assinar')+'</div></div>'
         +(exige&&sg?'<span class="bx ok">Assinado</span>':'')+'</div>'
         +(d.arquivo_path?'<button class="btn bp" style="width:100%;justify-content:center;margin-top:10px" onclick="abrirDoc('+d.id+')"><i class="ti ti-file-download"></i> Abrir arquivo</button>':'')

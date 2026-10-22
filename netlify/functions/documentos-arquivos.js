@@ -8,7 +8,10 @@
 // Ações (POST, corpo JSON { acao, ... }):
 //   preparar -> gestor: { tipo_arquivo, tamanho } -> { path, upload_url } (o navegador envia o arquivo para upload_url)
 //   criar    -> gestor: { nome, tipo, filial_id, func_ids[], exige_assinatura, arquivo_path, arquivo_nome }
-//   abrir    -> gestor ou funcionária com acesso: { id } -> { url, nome }
+//   abrir    -> gestor ou funcionária com acesso: { id } -> { url, nome } (e registra a abertura da funcionária)
+//   minhas   -> funcionária: ids dos documentos cujo arquivo ela já abriu
+//   resumo   -> gestor: quantas pessoas abriram o arquivo de cada documento
+//   historico-> gestor: { id } -> quem abriu (quando, quantas vezes) e quem assinou
 //   remover  -> gestor: { id } apaga o arquivo e o documento
 //
 // Quem vê o documento (mesma regra da tela):
@@ -142,7 +145,71 @@ exports.handler = async function (event) {
       var jsg = {};
       try { jsg = await rsg.json(); } catch (e) {}
       if (!rsg.ok || !jsg.signedURL) return resp(502, { codigo: 'FALHA', mensagem: 'Não foi possível abrir o arquivo agora.' });
+
+      // Histórico: só conta abertura de funcionária (a gestora conferindo o arquivo não conta).
+      // Falha ao gravar o histórico não impede a pessoa de abrir o arquivo.
+      if (!ehGestor) {
+        try {
+          var agoraL = new Date().toISOString();
+          var rlt = await rest('GET', 'documento_leituras?documento_id=eq.' + idD + '&func_id=eq.' + quem.id + '&select=id,total_aberturas');
+          if (rlt.ok && rlt.j.length) {
+            await rest('PATCH', 'documento_leituras?id=eq.' + rlt.j[0].id, { ultima_abertura: agoraL, total_aberturas: (rlt.j[0].total_aberturas || 0) + 1 });
+          } else {
+            await rest('POST', 'documento_leituras', { documento_id: idD, func_id: quem.id, empresa_id: emp, primeira_abertura: agoraL, ultima_abertura: agoraL, total_aberturas: 1 });
+          }
+        } catch (e) { console.error('documentos-arquivos: histórico', e); }
+      }
       return resp(200, { url: urlStorage(jsg.signedURL), nome: d.arquivo_nome || d.nome });
+    }
+
+    // ── funcionária: quais documentos ela já abriu (para o aviso de "novo") ──
+    if (acao === 'minhas') {
+      var rmi = await rest('GET', 'documento_leituras?func_id=eq.' + quem.id + '&select=documento_id');
+      if (!rmi.ok) return resp(502, { codigo: 'FALHA', mensagem: 'Não foi possível carregar.' });
+      return resp(200, { abertos: rmi.j.map(function (x) { return x.documento_id; }) });
+    }
+
+    // ── gestor: quantas pessoas abriram o arquivo de cada documento ──
+    if (acao === 'resumo') {
+      var n4 = exigirGestor(); if (n4) return n4;
+      var rre = await rest('GET', 'documento_leituras?empresa_id=eq.' + emp + '&select=documento_id');
+      if (!rre.ok) return resp(502, { codigo: 'FALHA', mensagem: 'Não foi possível carregar.' });
+      var cont = {};
+      rre.j.forEach(function (x) { cont[x.documento_id] = (cont[x.documento_id] || 0) + 1; });
+      return resp(200, { abriram: cont });
+    }
+
+    // ── gestor: quem abriu e quem assinou um documento ──
+    if (acao === 'historico') {
+      var n5 = exigirGestor(); if (n5) return n5;
+      var idH = inteiro(corpo.id, 1, 9007199254740991);
+      if (!idH) return resp(400, { codigo: 'DADOS_INVALIDOS', mensagem: 'Documento inválido.' });
+      var rdh = await rest('GET', 'documentos?id=eq.' + idH + '&empresa_id=eq.' + emp + '&select=id,filial_id,func_ids,arquivo_path,exige_assinatura');
+      if (!rdh.ok || !rdh.j.length) return resp(404, { codigo: 'NAO_ENCONTRADO', mensagem: 'Documento não encontrado.' });
+      var dh = rdh.j[0];
+      var filtro = '';
+      if (Array.isArray(dh.func_ids) && dh.func_ids.length) filtro = '&id=in.(' + dh.func_ids.join(',') + ')';
+      else if (dh.filial_id) filtro = '&filial_id=eq.' + dh.filial_id;
+      var rh = await Promise.all([
+        rest('GET', 'funcionarias?ativa=eq.true&login=neq.admin&empresa_id=eq.' + emp + filtro + '&select=id,nome,filial_id&order=nome.asc'),
+        rest('GET', 'documento_leituras?documento_id=eq.' + idH + '&select=func_id,primeira_abertura,ultima_abertura,total_aberturas'),
+        rest('GET', 'documento_assinaturas?documento_id=eq.' + idH + '&select=func_id,assinado_em')
+      ]);
+      if (!rh[0].ok || !rh[1].ok || !rh[2].ok) return resp(502, { codigo: 'FALHA', mensagem: 'Não foi possível carregar o histórico.' });
+      var lei = {}, asn = {};
+      rh[1].j.forEach(function (x) { lei[x.func_id] = x; });
+      rh[2].j.forEach(function (x) { asn[x.func_id] = x; });
+      var pessoas = rh[0].j.map(function (p) {
+        var l = lei[p.id], a = asn[p.id];
+        return {
+          func_id: p.id, nome: p.nome,
+          primeira_abertura: l ? l.primeira_abertura : null,
+          ultima_abertura: l ? l.ultima_abertura : null,
+          total_aberturas: l ? l.total_aberturas : 0,
+          assinado_em: a ? a.assinado_em : null
+        };
+      });
+      return resp(200, { tem_arquivo: !!dh.arquivo_path, exige_assinatura: dh.exige_assinatura !== false, pessoas: pessoas });
     }
 
     // ── gestor: apaga o arquivo e o documento ──
