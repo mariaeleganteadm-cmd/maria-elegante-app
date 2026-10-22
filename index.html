@@ -852,6 +852,31 @@ async function hol(acao,dados){
   }catch(e){return {ok:false,j:{mensagem:'Sem conexão com o servidor.'}};}
 }
 
+// Arquivos anexados aos documentos: ficam num bucket privado e só passam pela função do
+// servidor, que confere se o documento é da pessoa logada. Retorna {ok, j}.
+async function docArq(acao,dados){
+  try{
+    var tk=await authToken();
+    if(!tk)return {ok:false,j:{mensagem:'Entre com seu e-mail e senha para acessar os documentos.'}};
+    var r=await fetch('/.netlify/functions/documentos-arquivos',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(Object.assign({acao:acao},dados||{})),cache:'no-store'});
+    var j={};try{j=await r.json();}catch(x){}
+    return {ok:r.ok,j:j};
+  }catch(e){return {ok:false,j:{mensagem:'Sem conexão com o servidor.'}};}
+}
+
+// Abre o arquivo do documento. A janela é aberta antes da espera para o navegador não bloquear.
+window.abrirDoc=async function(id){
+  var w=null;
+  try{w=window.open('','_blank');}catch(x){}
+  var r=await docArq('abrir',{id:id});
+  if(!r.ok||!r.j.url){
+    if(w)w.close();
+    alert((r.j&&r.j.mensagem)||'Não foi possível abrir o arquivo.');
+    return;
+  }
+  if(w){w.location.href=r.j.url;}else{window.location.href=r.j.url;}
+};
+
 async function authEntrar(){
   authMsgErro('');
   var email=(document.getElementById('aemail').value||'').trim().toLowerCase();
@@ -3220,7 +3245,9 @@ async function gDocs(){
       +'<div class="fi"><label>Tipo</label><select id="dt"><option value="ponto">Folha de Ponto</option><option value="holerite">Holerite</option><option value="outro">Outro</option></select></div>'
       +'<div class="fi"><label>Para</label><select id="df" onchange="docsParaChange()">'+fO+'</select></div>'
       +'<div id="dfEsp" style="display:none;margin-bottom:12px;max-height:260px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;padding:4px 12px">'+espH+'</div>'
-      +'<button class="btn bp" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div>'
+      +'<div class="fi"><label>Arquivo (opcional) — PDF, imagem, Word ou Excel, até 15 MB</label><input type="file" id="dar" accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx"></div>'
+      +'<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;cursor:pointer"><input type="checkbox" id="dxa" checked> Exige assinatura da vendedora</label>'
+      +'<button class="btn bp" id="denv" onclick="envD()"><i class="ti ti-send"></i> Enviar</button></div>'
       +'<div class="h1" style="margin-top:4px">Enviados</div>';
 
     docs.forEach(function(d){
@@ -3234,15 +3261,20 @@ async function gDocs(){
       }
       var qtdAss=ass.filter(function(x){return x.documento_id===d.id&&(!esp||d.func_ids.indexOf(x.func_id)>=0);}).length;
       var pct=totD>0?Math.round(qtdAss/totD*100):0;
+      var exige=d.exige_assinatura!==false;
       h+='<div class="dc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        +'<div style="font-weight:600;font-size:14px">'+d.nome+'</div>'
+        +'<div style="font-weight:600;font-size:14px">'+(d.arquivo_path?'<i class="ti ti-paperclip"></i> ':'')+d.nome+'</div>'
         +'<button onclick="rmD('+d.id+')" style="background:none;border:none;color:var(--t2);cursor:pointer;padding:4px"><i class="ti ti-trash" style="font-size:14px"></i></button>'
         +'</div>'
         +'<div style="font-size:12px;color:var(--t2);margin-bottom:6px">'+d.tipo+destino+'</div>'
-        +'<div style="background:var(--bd);border-radius:6px;height:6px;margin-bottom:4px"><div style="background:var(--gd);border-radius:6px;height:6px;width:'+pct+'%"></div></div>'
-        +'<div style="font-size:11px;color:var(--t2)">'+qtdAss+'/'+totD+' assinaram ('+pct+'%)</div>'
+        +(d.arquivo_path?'<button class="btn" style="font-size:12px;padding:8px 12px;margin-bottom:8px" onclick="abrirDoc('+d.id+')"><i class="ti ti-file-download"></i> Abrir arquivo</button>':'')
+        +(exige
+          ?'<div style="background:var(--bd);border-radius:6px;height:6px;margin-bottom:4px"><div style="background:var(--gd);border-radius:6px;height:6px;width:'+pct+'%"></div></div>'
+            +'<div style="font-size:11px;color:var(--t2)">'+qtdAss+'/'+totD+' assinaram ('+pct+'%)</div>'
+          :'<div style="font-size:11px;color:var(--t2)">Não exige assinatura</div>')
         +'</div>';
     });
+    window._docsLista=docs;
 
     document.getElementById('ct').innerHTML=h;
 
@@ -3255,21 +3287,61 @@ async function gDocs(){
       var tp=document.getElementById('dt').value;
       var fid=document.getElementById('df').value;
       if(!nm){alert('Digite o nome.');return;}
-      var corpo={nome:nm,tipo:tp,filial_id:null,func_ids:null,empresa_id:EMP?EMP.id:null};
+      var exige=document.getElementById('dxa').checked;
+      var ids=[];
       if(fid==='__esp'){
-        var ids=[];
         document.querySelectorAll('.dfck').forEach(function(c){if(c.checked)ids.push(parseInt(c.value,10));});
         if(!ids.length){alert('Marque pelo menos uma vendedora.');return;}
-        corpo.func_ids=ids;
-      } else {
-        corpo.filial_id=fid||null;
       }
-      await pt('documentos',corpo);
+      var filialEnv=(fid&&fid!=='__esp')?fid:null;
+      var inp=document.getElementById('dar');
+      var arq=(inp&&inp.files&&inp.files[0])?inp.files[0]:null;
+
+      // sem arquivo: só o registro, como antes
+      if(!arq){
+        var corpo={nome:nm,tipo:tp,filial_id:filialEnv,func_ids:ids.length?ids:null,exige_assinatura:exige,empresa_id:EMP?EMP.id:null};
+        await pt('documentos',corpo);
+        gDocs();
+        return;
+      }
+
+      // com arquivo: reserva o lugar, envia direto ao armazenamento privado e registra
+      var MIMES={pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',
+        docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+      var ext=(arq.name.split('.').pop()||'').toLowerCase();
+      var mime=MIMES[ext];
+      if(!mime){alert('Tipo de arquivo não permitido. Use PDF, imagem, Word ou Excel.');return;}
+      if(arq.size>15*1024*1024){alert('O arquivo precisa ter no máximo 15 MB.');return;}
+      var btn=document.getElementById('denv');
+      var rotulo=btn.innerHTML;
+      btn.disabled=true;btn.textContent='Enviando...';
+      try{
+        var p=await docArq('preparar',{tipo_arquivo:mime,tamanho:arq.size});
+        if(!p.ok)throw new Error((p.j&&p.j.mensagem)||'Não foi possível preparar o envio.');
+        var fd=new FormData();
+        fd.append('cacheControl','3600');
+        fd.append('',new Blob([arq],{type:mime}));
+        var up=await fetch(p.j.upload_url,{method:'PUT',body:fd});
+        if(!up.ok)throw new Error('Não foi possível enviar o arquivo. Tente de novo.');
+        var c=await docArq('criar',{nome:nm,tipo:tp,filial_id:filialEnv,func_ids:ids,exige_assinatura:exige,arquivo_path:p.j.path,arquivo_nome:arq.name});
+        if(!c.ok)throw new Error((c.j&&c.j.mensagem)||'Não foi possível registrar o documento.');
+      }catch(e){
+        alert(e.message||'Não foi possível enviar o documento.');
+        btn.disabled=false;btn.innerHTML=rotulo;
+        return;
+      }
       gDocs();
     };
     window.rmD=async function(id){
       if(!confirm('Remover?'))return;
-      await dl('documentos','?id=eq.'+id);
+      var dd=(window._docsLista||[]).filter(function(x){return x.id===id;})[0];
+      if(dd&&dd.arquivo_path){
+        var rr=await docArq('remover',{id:id});
+        if(!rr.ok){alert((rr.j&&rr.j.mensagem)||'Não foi possível remover.');return;}
+      } else {
+        await dl('documentos','?id=eq.'+id);
+      }
       gDocs();
     };
 
@@ -4267,15 +4339,17 @@ async function fDocs(){
     ]);
     var docs2=res2[0],ass2=res2[1];
     var aS2=new Set(ass2.map(function(a){return a.documento_id;}));
-    var h=tabBar+'<div class="h2">Assine para confirmar o recebimento.</div>';
+    var h=tabBar+'<div class="h2">Abra os arquivos e assine quando o documento pedir.</div>';
     docs2.forEach(function(d){
       var sg=aS2.has(d.id);
+      var exige=d.exige_assinatura!==false;
       h+='<div class="dc"><div style="display:flex;align-items:center;gap:12px">'
-        +'<div class="di"><i class="ti '+(d.tipo==='ponto'?'ti-clock':'ti-receipt-2')+'"></i></div>'
+        +'<div class="di"><i class="ti '+(d.arquivo_path?'ti-paperclip':(d.tipo==='ponto'?'ti-clock':'ti-receipt-2'))+'"></i></div>'
         +'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+d.nome+'</div>'
-        +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+(sg?'✅ Assinado':'Aguardando assinatura')+'</div></div>'
-        +(sg?'<span class="bx ok">Assinado</span>':'')+'</div>'
-        +(sg?'':'<div class="sp" onclick="asnD('+d.id+')">'
+        +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+(exige?(sg?'✅ Assinado':'Aguardando assinatura'):'Para leitura, não precisa assinar')+'</div></div>'
+        +(exige&&sg?'<span class="bx ok">Assinado</span>':'')+'</div>'
+        +(d.arquivo_path?'<button class="btn bp" style="width:100%;justify-content:center;margin-top:10px" onclick="abrirDoc('+d.id+')"><i class="ti ti-file-download"></i> Abrir arquivo</button>':'')
+        +((sg||!exige)?'':'<div class="sp" onclick="asnD('+d.id+')">'
         +'<i class="ti ti-signature" style="font-size:30px;color:var(--tdd)"></i>'
         +'<div style="margin-top:8px;font-size:13px;color:var(--tdd);font-weight:600">Toque aqui para assinar</div>'
         +'<div style="font-size:11px;color:var(--td);margin-top:4px">Confirma que leu e recebeu este documento</div></div>')
