@@ -1707,7 +1707,7 @@ async function eEstoque(){
   var ctEl=document.getElementById('ct');if(ctEl)ctEl.classList.add('ct-est');
   if(!EST.aba)EST.aba='saldo';
   if(EST.aba==='dist'){await estTelaDist();return;}
-  if(EST.aba==='conf'&&S.tipo==='gestor'){await estTelaConf();return;}
+  if(EST.aba==='conf'){await estTelaConf();return;}
   await estTelaSaldo();
   estAutoSync();
 }
@@ -2005,15 +2005,18 @@ async function estConfLoja(v){EST.conf.loja=v||'';await eEstoque();}
 async function estConfSo(on){EST.conf.so=!!on;await eEstoque();}
 async function estConfData(v){EST.conf.data=(!v||v>estHojeISO())?'':v;await eEstoque();}
 async function estTelaConf(){
-  EST.pode=true;EST.podeSync=estPodeSync();
+  var ehGestor=S.tipo==='gestor';
+  var minhaLoja=ehGestor?null:(S.func&&S.func.filial_id);
+  if(!ehGestor&&!minhaLoja){await estTelaSaldo();return;}
+  EST.pode=ehGestor;EST.podeSync=estPodeSync();
   var dia=EST.conf.data||estHojeISO();
   try{await pt('rpc/estoque_fechar_dias',{});}catch(e){console.error('Fotos do saldo:',e);}
   var rs=await Promise.all([
     gt('filiais','?select=id,nome,azul_filial'+eid()+'&order=nome'),
     gt('estoque_produtos','?select=id,codigo,descricao,ordem&ativo=eq.true&order=ordem'+eid()),
-    pt('rpc/estoque_conferencia_dia',{p_data:dia}),
+    pt('rpc/estoque_conferencia_dia',minhaLoja?{p_data:dia,p_filial:Number(minhaLoja)}:{p_data:dia}),
     gt('distribuicao','?select=id,descricao,produto_codigo,enviado_em,criado_por_nome&enviado=eq.true&cancelado=eq.false&data_entrada=eq.'+dia+'&order=enviado_em'+eid()),
-    gt('estoque_movimentos','?select=*&data_mov=eq.'+dia+'&order=criado_em'),
+    gt('estoque_movimentos','?select=*&data_mov=eq.'+dia+(minhaLoja?'&filial_id=eq.'+minhaLoja:'')+'&order=criado_em'),
     gt('estoque_movimentos','?select=data_mov&tipo=eq.inicial&order=data_mov&limit=1')
   ]);
   var fils=estFiliaisDoPerfil(rs[0]);EST.fils=fils;
@@ -2041,8 +2044,8 @@ async function estTelaConf(){
     +'<button class="btn bsm" onclick="estConfDia(1)"'+(emAndamento?' disabled':'')+'>Próximo dia <i class="ti ti-chevron-right"></i></button>'
     +(EST.conf.data?'<button class="btn bsm" onclick="estConfData(\'\')">Hoje</button>':'')
     +'</div><div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
-    +'<div class="fi" style="margin:0;min-width:200px"><label>Loja</label><select onchange="estConfLoja(this.value)"><option value="">Todas as lojas</option>'
-    +todasLojas.map(function(f){return '<option value="'+f.id+'"'+(String(EST.conf.loja)===String(f.id)?' selected':'')+'>'+estEsc(f.nome)+'</option>';}).join('')+'</select></div>'
+    +(todasLojas.length<2?'':'<div class="fi" style="margin:0;min-width:200px"><label>Loja</label><select onchange="estConfLoja(this.value)"><option value="">Todas as lojas</option>'
+    +todasLojas.map(function(f){return '<option value="'+f.id+'"'+(String(EST.conf.loja)===String(f.id)?' selected':'')+'>'+estEsc(f.nome)+'</option>';}).join('')+'</select></div>')
     +'<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:10px"><input type="checkbox" onchange="estConfSo(this.checked)"'+(EST.conf.so?' checked':'')+'> Só linhas com diferença</label>'
     +'</div><div style="font-size:12px;color:var(--t2);margin-top:8px">'+(emAndamento?'Dia em andamento: as vendas e entradas ainda podem mudar.':'Dia fechado.')+' Conta: saldo inicial do dia + entradas − vendas (± ajustes, quando houver) = saldo final do dia, que deve ser igual ao saldo inicial do dia seguinte.</div></div>';
   var th='padding:8px 8px;font-size:11px;color:var(--t2);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap;text-align:right';
@@ -2090,7 +2093,7 @@ async function estTelaConf(){
   var idsOk={};fils.forEach(function(f){idsOk[f.id]=true;});
   envs.forEach(function(e){
     var daEnt=itens.filter(function(i){return i.distribuicao_id===e.id&&Number(i.quantidade)>0&&idsOk[i.filial_id];});
-    if(EST.conf.loja&&!daEnt.length)return;
+    if((EST.conf.loja||!ehGestor)&&!daEnt.length)return;
     var q=daEnt.map(function(i){
       var v=i.conferido?Number(i.qtd_conferida):Number(i.quantidade);
       return estEsc(nomeF[i.filial_id]||('Loja '+i.filial_id))+': '+estNum(v)+(i.conferido&&Number(i.qtd_conferida)!==Number(i.quantidade)?' (enviado '+estNum(i.quantidade)+')':(i.conferido?'':' (a conferir)'));
@@ -2196,7 +2199,7 @@ async function estSincronizar(auto){
 
 function estAbasHtml(){
   var abas=[['saldo','Saldo','ti-package'],['dist',EST.pode?'Distribuição':'Entradas','ti-truck-delivery']];
-  if(EST.pode)abas.push(['conf','Conferência','ti-checklist']);
+  abas.push(['conf','Conferência','ti-checklist']);
   return '<div style="display:flex;gap:6px;margin-bottom:12px">'+abas.map(function(a){
     var on=EST.aba===a[0];
     return '<button class="btn bsm'+(on?' bp':'')+'" style="flex:1" data-a="'+a[0]+'" onclick="estAba(this.dataset.a)"><i class="ti '+a[2]+'"></i> '+a[1]+'</button>';
