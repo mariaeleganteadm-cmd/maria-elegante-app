@@ -1673,11 +1673,34 @@ async function gFinVendas(){
 // ═══ ESTOQUE POR FAIXA DE PREÇO ═══
 // Saldo = contagem inicial + ajustes (com data e autor) - vendas ativas do Azul depois da contagem.
 // O saldo é calculado no banco (view vw_estoque_saldo). Devoluções ainda não entram na conta.
-var EST={fils:[],prods:[],prodNome:{},saldo:{},base:{},sync:{},pode:false,podeSync:false,msg:'',msgErro:false,aba:'saldo',dist:{tela:'lista',data:null,pend:{},timers:{},emVoo:0,erro:'',cx:{},cxp:{}}};
+var EST={fils:[],prods:[],prodNome:{},saldo:{},base:{},sync:{},pode:false,podeSync:false,msg:'',msgErro:false,aba:'saldo',dist:{tela:'lista',data:null,pend:{},timers:{},emVoo:0,erro:'',cx:{},cxp:{}},filtro:{loja:'',data:''}};
 
 function estEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function estAddDias(iso,n){var d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return isoD(d);}
 function estNum(v){return Number(v).toLocaleString('pt-BR');}
+// Filtros da tela de saldo: loja (gestor) e data (estoque do passado, fim do dia)
+function estSaldoHist(){return !!EST.filtro.data&&EST.filtro.data<estHojeISO();}
+function estFiltroHtml(lojas){
+  var sel='';
+  if(EST.pode&&lojas.length>1){
+    sel='<div class="fi" style="margin:0;min-width:170px"><label>Loja</label><select id="est-f-loja" onchange="estFiltroLoja(this.value)"><option value="">Todas as lojas</option>'
+      +lojas.map(function(f){return '<option value="'+f.id+'"'+(String(EST.filtro.loja)===String(f.id)?' selected':'')+'>'+estEsc(f.nome)+'</option>';}).join('')+'</select></div>';
+  }
+  var min=null;Object.keys(EST.base||{}).forEach(function(k){if(!min||EST.base[k]<min)min=EST.base[k];});
+  var dt='<div class="fi" style="margin:0;min-width:170px"><label>Estoque em (fim do dia)</label><input type="date" id="est-f-data" value="'+(EST.filtro.data||estHojeISO())+'" max="'+estHojeISO()+'"'+(min?' min="'+min+'"':'')+' onchange="estFiltroData(this.value)"></div>';
+  var volta=(EST.filtro.data||EST.filtro.loja)?'<button class="btn bsm" onclick="estFiltroLimpar()"><i class="ti ti-x"></i> Limpar filtros</button>':'';
+  var aviso=estSaldoHist()?'<div style="font-size:12px;color:var(--t2);margin-top:8px"><i class="ti ti-history"></i> Consulta do passado: mostra o saldo no fim de '+brD(EST.filtro.data)+' (contagem inicial, ajustes, entradas e vendas até essa data). Só leitura.'+(EST.pode?' Os valores em R$ usam os preços de hoje.':'')+'</div>':'';
+  return '<div class="card" style="padding:12px"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">'+sel+dt+volta+'</div>'+aviso+'</div>';
+}
+async function estFiltroLoja(v){EST.filtro.loja=v||'';await eEstoque();}
+async function estFiltroData(v){
+  var min=null;Object.keys(EST.base||{}).forEach(function(k){if(!min||EST.base[k]<min)min=EST.base[k];});
+  if(!v||v>=estHojeISO()){EST.filtro.data='';}
+  else if(min&&v<min){EST.msg='Antes de '+brD(min)+' não há saldo: a contagem inicial foi nessa data.';EST.msgErro=true;EST.filtro.data='';}
+  else EST.filtro.data=v;
+  await eEstoque();
+}
+async function estFiltroLimpar(){EST.filtro.loja='';EST.filtro.data='';await eEstoque();}
 function estSaldo(fid,cod){var r=EST.saldo[fid+'|'+cod];return r?Number(r.saldo)||0:0;}
 
 async function eEstoque(){
@@ -1698,7 +1721,7 @@ function estPodeSync(){
 // Atualiza as vendas sozinho ao abrir a tela, se a última atualização tem mais de 2 minutos
 var ESTAUTO_MIN=2;
 function estAutoSync(){
-  if(!EST.podeSync||EST.auto||EST.aba==='dist')return;
+  if(!EST.podeSync||EST.auto||EST.aba==='dist'||estSaldoHist())return;
   var agora=Date.now();
   if(EST.autoTent&&agora-EST.autoTent<ESTAUTO_MIN*60000)return;
   var velho=false;
@@ -1740,11 +1763,15 @@ async function estTelaSaldo(){
   var filtroLoja=EST.pode?'':'&filial_id=eq.'+fils[0].id;
   var rs=await Promise.all([
     gt('estoque_produtos','?select='+(EST.pode?'*':'id,codigo,descricao,ordem')+'&ativo=eq.true&order=ordem'+eid()),
-    gt('vw_estoque_saldo','?select='+(EST.pode?'*':'filial_id,produto_codigo,saldo')+filtroLoja),
+    estSaldoHist()?pt('rpc/estoque_saldo_em',Object.assign({p_data:EST.filtro.data},EST.pode?{}:{p_filial:fils[0].id})):gt('vw_estoque_saldo','?select='+(EST.pode?'*':'filial_id,produto_codigo,saldo')+filtroLoja),
     (EST.pode||EST.podeSync)?gt('estoque_movimentos','?select=filial_id,data_mov&tipo=eq.inicial'+filtroLoja+'&order=data_mov'):Promise.resolve([]),
     gt('estoque_sync','?select=*'+filtroLoja)
   ]);
   EST.fils=fils;
+  var todasLojas=fils;
+  if(EST.pode&&EST.filtro.loja)fils=fils.filter(function(f){return String(f.id)===String(EST.filtro.loja);});
+  if(!fils.length){fils=todasLojas;EST.filtro.loja='';}
+  var hist=estSaldoHist();
   EST.prods=Array.isArray(rs[0])?rs[0]:[];
   EST.saldo={};
   (Array.isArray(rs[1])?rs[1]:[]).forEach(function(r){EST.saldo[r.filial_id+'|'+r.produto_codigo]=r;});
@@ -1769,12 +1796,12 @@ async function estTelaSaldo(){
   var ult=null;
   fils.forEach(function(f){var s=EST.sync[f.id];if(s&&s.atualizado_em&&(!ult||s.atualizado_em>ult.atualizado_em))ult=s;});
   var txtSync=ult?('Vendas do Azul atualizadas em '+brD(String(ult.atualizado_em).slice(0,10))+' às '+new Date(ult.atualizado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})):'Vendas do Azul ainda não foram atualizadas';
-  txtSync='<b>Saldo atual</b> · '+txtSync;
+  txtSync=hist?('<b>Saldo no fim do dia '+brD(EST.filtro.data)+'</b> (consulta do passado)'):('<b>Saldo atual</b> · '+txtSync);
 
   if(!EST.pode){
     // Gerente/vendedora com acesso: somente a quantidade de peças da própria loja, sem valores
     var lj=fils[0];
-    var hl='<div class="h1"><i class="ti ti-package"></i> Estoque · '+estEsc(lj.nome)+'</div>'+estAbasHtml()+estMsgHtml();
+    var hl='<div class="h1"><i class="ti ti-package"></i> Estoque · '+estEsc(lj.nome)+'</div>'+estAbasHtml()+estMsgHtml()+estFiltroHtml(todasLojas);
     hl+='<div class="card" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div id="est-sync-box" style="font-size:12px;color:var(--t2)"><i class="ti ti-clock"></i> '+txtSync+'<span id="est-auto" style="display:none"> · <i class="ti ti-loader"></i> atualizando...</span></div><button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button></div>';
     hl+='<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--t2)"><i class="ti ti-packages"></i> Total de peças</div><div style="font-size:26px;font-weight:800;margin-top:2px'+(geralQ<0?';color:var(--rd)':'')+'">'+estNum(geralQ)+'</div></div>';
     var thl='padding:8px 12px;font-size:11px;color:var(--t2);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap';
@@ -1790,11 +1817,12 @@ async function estTelaSaldo(){
   }
   var h='<div class="h1"><i class="ti ti-package"></i> Estoque por faixa de preço</div>'+estAbasHtml();
   if(EST.msg){h+='<div class="ae '+(EST.msgErro?'aer':'aok')+'">'+estEsc(EST.msg)+'</div>';EST.msg='';EST.msgErro=false;}
+  h+=estFiltroHtml(todasLojas);
 
   h+='<div class="card" style="padding:12px"><div id="est-sync-box" style="font-size:12px;color:var(--t2);margin-bottom:10px"><i class="ti ti-clock"></i> '+txtSync+'<span id="est-auto" style="display:none"> · <i class="ti ti-loader"></i> atualizando...</span></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +(EST.podeSync?'<button class="btn bsm" id="est-sync" onclick="estSincronizar()"><i class="ti ti-refresh"></i> Atualizar vendas</button>':'')
-    +(EST.pode?'<button class="btn bsm bp" onclick="estAbrirAjuste()"><i class="ti ti-adjustments"></i> Ajustar estoque</button>':'')
+    +(EST.podeSync&&!hist?'<button class="btn bsm" id="est-sync" onclick="estSincronizar()"><i class="ti ti-refresh"></i> Atualizar vendas</button>':'')
+    +(EST.pode&&!hist?'<button class="btn bsm bp" onclick="estAbrirAjuste()"><i class="ti ti-adjustments"></i> Ajustar estoque</button>':'')
     +'<button class="btn bsm" onclick="estHistorico()"><i class="ti ti-history"></i> Histórico</button>'
     +'</div></div>';
 
@@ -1822,7 +1850,7 @@ async function estTelaSaldo(){
     fils.forEach(function(f){
       var q=estSaldo(f.id,p.codigo);linhaTot+=q;
       var estilo='padding:9px 6px;text-align:right;border-bottom:1px solid var(--bd);'+(q<0?'background:var(--rl);color:var(--rdd);font-weight:700':(q===0?'color:var(--t3)':''));
-      tr+='<td style="'+estilo+(EST.pode?';cursor:pointer':'')+'"'+(EST.pode?' data-f="'+f.id+'" data-p="'+p.codigo+'" onclick="estCelula(this)"':'')+'>'+estNum(q)+'</td>';
+      tr+='<td style="'+estilo+(EST.pode&&!hist?';cursor:pointer':'')+'"'+(EST.pode&&!hist?' data-f="'+f.id+'" data-p="'+p.codigo+'" onclick="estCelula(this)"':'')+'>'+estNum(q)+'</td>';
     });
     tr+='<td style="padding:9px 12px 9px 6px;text-align:right;border-bottom:1px solid var(--bd);font-weight:700'+(linhaTot<0?';color:var(--rd)':'')+'">'+estNum(linhaTot)+'</td></tr>';
     tab+=tr;
