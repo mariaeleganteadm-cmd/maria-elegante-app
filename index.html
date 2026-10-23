@@ -1809,6 +1809,7 @@ async function estTelaSaldo(){
     var tl='<div class="card" style="padding:0;overflow:hidden"><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr><th style="'+thl+';text-align:left">Faixa</th><th style="'+thl+';text-align:right">Peças</th></tr></thead><tbody>';
     EST.prods.forEach(function(p){
       var q=estSaldo(lj.id,p.codigo);
+      if(q===0)return;
       tl+='<tr><td style="padding:10px 12px;border-bottom:1px solid var(--bd);font-weight:600">'+estEsc(p.descricao)+'</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--bd);'+(q<0?'background:var(--rl);color:var(--rdd);font-weight:700':(q===0?'color:var(--t3)':'font-weight:700'))+'">'+estNum(q)+'</td></tr>';
     });
     tl+='<tr style="background:var(--bg)"><td style="padding:10px 12px;font-weight:700">Total de peças</td><td style="padding:10px 12px;text-align:right;font-weight:800">'+estNum(geralQ)+'</td></tr></tbody></table></div>';
@@ -1845,8 +1846,10 @@ async function estTelaSaldo(){
   tab+='<thead><tr><th style="'+th+';text-align:left;padding-left:12px;position:sticky;left:0;background:#fff">Faixa</th>';
   fils.forEach(function(f){tab+='<th style="'+th+'">'+estEsc(f.nome)+'</th>';});
   tab+='<th style="'+th+';padding-right:12px">Total</th></tr></thead><tbody>';
+  var ocultas=0;
   EST.prods.forEach(function(p){
     var linhaTot=0;
+    if(!EST.verZeradas&&!fils.some(function(f){return estSaldo(f.id,p.codigo)!==0;})){ocultas++;return;}
     var tr='<tr><td style="padding:9px 6px 9px 12px;border-bottom:1px solid var(--bd);font-weight:600;position:sticky;left:0;background:#fff;white-space:nowrap">'+estEsc(p.descricao)+'</td>';
     fils.forEach(function(f){
       var q=estSaldo(f.id,p.codigo);linhaTot+=q;
@@ -1868,6 +1871,7 @@ async function estTelaSaldo(){
   tab+=linhaTotal('A custo',totCusto,fi);
   tab+='</tbody></table></div>';
   h+=tab;
+  if(ocultas||EST.verZeradas)h+='<div style="padding:0 4px 8px"><button class="btn bsm" onclick="EST.verZeradas=!EST.verZeradas;eEstoque()">'+(EST.verZeradas?'Ocultar faixas zeradas':'Mostrar '+ocultas+' faixa(s) zerada(s) (para ajustar)')+'</button></div>';
 
   var rodape='Saldo = contagem inicial + ajustes + entradas enviadas (quantidade conferida, quando já conferida) − vendas ativas do Azul depois da contagem. Vendas canceladas não descontam. Devoluções ainda não entram na conta. O saldo acompanha as vendas do dia: ao abrir esta tela, as vendas do Azul são atualizadas.';
   if(EST.pode)rodape+=' Toque em um número para ajustar.';
