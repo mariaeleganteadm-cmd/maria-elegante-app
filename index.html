@@ -902,12 +902,27 @@ async function docsPendencias(){
   return docsNovos(res[0],res[1],res[2].ok?res[2].j.abertos:null);
 }
 // Bolinha vermelha no atalho Documentos da tela Início (não bloqueia a tela se falhar)
+function homeBadgeSet(id,n){
+  var el=document.getElementById('bd-'+id);
+  if(el&&n>0){el.textContent=n>9?'9+':String(n);el.style.display='flex';}
+}
+// Entradas de mercadoria à espera de conferência na loja da pessoa.
+// Só conta modelos com quantidade > 0 para a loja dela: loja que não recebeu nada não é avisada.
+async function estPendenciasLoja(){
+  var f=S&&S.func;
+  if(!f||S.tipo==='gestor'||!f.filial_id||!temModulo('estoque'))return 0;
+  var rs=await gt('vw_distribuicao_loja','?select=itens,conferidos&filial_id=eq.'+f.filial_id+'&itens=gt.0&limit=200');
+  var n=0;
+  (Array.isArray(rs)?rs:[]).forEach(function(r){n+=Math.max(0,(Number(r.itens)||0)-(Number(r.conferidos)||0));});
+  return n;
+}
 async function homeBadges(){
+  if(!S||S.tipo==='gestor')return;
   try{
-    if(!S||S.tipo==='gestor'||!temModulo('docs'))return;
-    var p=await docsPendencias();
-    var el=document.getElementById('bd-docs');
-    if(el&&p.total>0){el.textContent=p.total>9?'9+':String(p.total);el.style.display='flex';}
+    if(temModulo('docs')){var p=await docsPendencias();homeBadgeSet('docs',p.total);}
+  }catch(e){console.error(e);}
+  try{
+    homeBadgeSet('estoque',await estPendenciasLoja());
   }catch(e){console.error(e);}
 }
 
