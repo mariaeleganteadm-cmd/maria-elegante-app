@@ -2031,7 +2031,7 @@ async function estTelaConf(){
     +'<div class="fi" style="margin:0;min-width:170px"><label>Dia</label><input type="date" value="'+dia+'" max="'+estHojeISO()+'"'+(min?' min="'+min+'"':'')+' onchange="estConfData(this.value)"></div>'
     +'<button class="btn bsm" onclick="estConfDia(1)"'+(emAndamento?' disabled':'')+'>Próximo dia <i class="ti ti-chevron-right"></i></button>'
     +(EST.conf.data?'<button class="btn bsm" onclick="estConfData(\'\')">Hoje</button>':'')
-    +'</div><div style="font-size:12px;color:var(--t2);margin-top:8px">'+(emAndamento?'Dia em andamento: as vendas e entradas ainda podem mudar.':'Dia fechado.')+' Conta: saldo de ontem + entradas do dia = começo do dia; − vendas ± ajustes = fechamento.</div></div>';
+    +'</div><div style="font-size:12px;color:var(--t2);margin-top:8px">'+(emAndamento?'Dia em andamento: as vendas e entradas ainda podem mudar.':'Dia fechado.')+' Conta: saldo inicial do dia + entradas − vendas (± ajustes, quando houver) = saldo final do dia, que deve ser igual ao saldo inicial do dia seguinte.</div></div>';
   var th='padding:8px 8px;font-size:11px;color:var(--t2);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap;text-align:right';
   var corpo='';
   fils.forEach(function(f){
@@ -2046,24 +2046,23 @@ async function estTelaConf(){
       var st='<span style="color:var(--gd);font-weight:700"><i class="ti ti-check"></i> bate</span>';
       total++;
       if(Number(l.diferenca)!==0){st='<span style="color:var(--rd);font-weight:700"><i class="ti ti-alert-triangle"></i> não fecha ('+Number(l.diferenca)+')</span>';problemas++;}
-      else if(l.foto!=null&&Number(l.foto)!==Number(l.fechamento)){st='<span style="color:var(--rd);font-weight:700"><i class="ti ti-alert-triangle"></i> mudou depois: era '+estNum(l.foto)+'</span>';problemas++;}
+      else if(l.foto!=null&&Number(l.foto)!==Number(l.fechamento)){st='<span style="color:var(--rd);font-weight:700"><i class="ti ti-alert-triangle"></i> mudou depois: o dia seguinte abriu com '+estNum(l.foto)+'</span>';problemas++;}
       else if(l.foto==null&&!emAndamento){st='<span style="color:var(--t2)">sem foto</span>';}
       var td='padding:9px 8px;text-align:right;border-bottom:1px solid var(--bd)';
       trs+='<tr><td style="'+td+';text-align:left;font-weight:600;white-space:nowrap">'+estEsc(p.descricao)+'</td>'
         +'<td style="'+td+'">'+estNum(l.saldo_ontem)+'</td><td style="'+td+'">'+(Number(l.entradas)?'+'+estNum(l.entradas):'0')+'</td>'
-        +'<td style="'+td+';font-weight:700;background:var(--bg)">'+estNum(inicio)+'</td>'
         +'<td style="'+td+'">'+(Number(l.vendas)?'−'+estNum(l.vendas):'0')+'</td><td style="'+td+'">'+(Number(l.ajustes)>0?'+':'')+estNum(l.ajustes)+'</td>'
         +'<td style="'+td+';font-weight:800">'+estNum(l.fechamento)+'</td>'
         +'<td style="'+td+';color:var(--t2)">'+(l.foto==null?'—':estNum(l.foto))+'</td><td style="'+td+';text-align:left;white-space:nowrap">'+st+'</td></tr>';
     });
     var tdt='padding:9px 8px;text-align:right;font-weight:800;background:var(--bg)';
-    trs+='<tr><td style="'+tdt+';text-align:left">Total</td><td style="'+tdt+'">'+estNum(sum.o)+'</td><td style="'+tdt+'">'+(sum.e?'+':'')+estNum(sum.e)+'</td><td style="'+tdt+'">'+estNum(sum.o+sum.e)+'</td><td style="'+tdt+'">'+(sum.v?'−':'')+estNum(sum.v)+'</td><td style="'+tdt+'">'+(sum.a>0?'+':'')+estNum(sum.a)+'</td><td style="'+tdt+'">'+estNum(sum.f)+'</td><td style="'+tdt+'"></td><td style="'+tdt+'"></td></tr>';
+    trs+='<tr><td style="'+tdt+';text-align:left">Total</td><td style="'+tdt+'">'+estNum(sum.o)+'</td><td style="'+tdt+'">'+(sum.e?'+':'')+estNum(sum.e)+'</td><td style="'+tdt+'">'+(sum.v?'−':'')+estNum(sum.v)+'</td><td style="'+tdt+'">'+(sum.a>0?'+':'')+estNum(sum.a)+'</td><td style="'+tdt+'">'+estNum(sum.f)+'</td><td style="'+tdt+'"></td><td style="'+tdt+'"></td></tr>';
     corpo+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:10px 12px;font-weight:800;font-size:14px">'+estEsc(f.nome)+'</div>'
-      +'<table style="border-collapse:collapse;width:100%;font-size:13px;min-width:760px"><thead><tr><th style="'+th+';text-align:left">Faixa</th><th style="'+th+'">Saldo de ontem</th><th style="'+th+'">+ Entradas do dia</th><th style="'+th+'">= Começo do dia</th><th style="'+th+'">− Vendas do dia</th><th style="'+th+'">± Ajustes</th><th style="'+th+'">= Fechamento</th><th style="'+th+'">Foto do fechamento</th><th style="'+th+';text-align:left">Situação</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
+      +'<table style="border-collapse:collapse;width:100%;font-size:13px;min-width:700px"><thead><tr><th style="'+th+';text-align:left">Faixa</th><th style="'+th+'">Saldo inicial do dia</th><th style="'+th+'">+ Entradas do dia</th><th style="'+th+'">− Vendas do dia</th><th style="'+th+'">± Ajustes</th><th style="'+th+'">= Saldo final do dia</th><th style="'+th+'">Saldo inicial do dia seguinte</th><th style="'+th+';text-align:left">Situação</th></tr></thead><tbody>'+trs+'</tbody></table></div>';
   });
   h+='<div class="card" style="padding:12px;font-size:13px;'+(problemas?'border:1.5px solid var(--rd)':'')+'">'
     +(problemas?'<b style="color:var(--rd)"><i class="ti ti-alert-triangle"></i> '+problemas+' de '+total+' linhas com diferença</b> neste dia. Veja abaixo o que entrou e saiu.':'<b style="color:var(--gd)"><i class="ti ti-circle-check"></i> Tudo bate neste dia</b> ('+total+' linhas conferidas).')
-    +'<div style="font-size:11px;color:var(--t2);margin-top:4px">"Não fecha": a conta do dia não chega ao fechamento. "Mudou depois": o saldo deste dia, recalculado hoje, é diferente da foto guardada (venda que chegou atrasada, ajuste com data antiga, envio cancelado). A foto do dia é guardada na primeira abertura do dia seguinte.</div></div>';
+    +'<div style="font-size:11px;color:var(--t2);margin-top:4px">"Não fecha": a conta do dia não chega ao saldo final. "Mudou depois": o saldo final deste dia, recalculado hoje, é diferente do saldo inicial que o dia seguinte mostrou quando abriu (venda atrasada do Azul, ajuste com data antiga, envio cancelado).</div></div>';
   h+=corpo;
   // o que entrou no dia
   var sec='<div class="card" style="padding:12px"><div style="font-weight:800;margin-bottom:6px"><i class="ti ti-truck-delivery"></i> Entradas do dia</div>';
