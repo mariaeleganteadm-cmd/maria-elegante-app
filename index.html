@@ -2121,7 +2121,7 @@ async function estDistVoltar(){
 // ── GESTOR: HISTÓRICO POR DATA ──
 async function estDistListaGestor(){
   var rs=await Promise.all([
-    gt('vw_distribuicao_datas','?select=*&order=data_entrada.desc&limit=200'+eid()),
+    gt('vw_distribuicao_envios','?select=*&order=enviado_em.desc&limit=200'+eid()),
     gt('distribuicao','?select=id,descricao,criado_em,data_entrada&enviado=eq.false&order=ordem&limit=500'+eid())
   ]);
   var datas=Array.isArray(rs[0])?rs[0]:[];
@@ -2143,16 +2143,35 @@ async function estDistListaGestor(){
     h+='<div class="card" style="padding:16px;font-size:13px;color:var(--t2)">Nenhuma entrada enviada ainda.</div>';
   }
   datas.forEach(function(d){
+    var tudoCanc=d.modelos===0;
     var completo=d.itens>0&&d.conferidos>=d.itens;
-    h+='<div class="card" style="padding:12px;cursor:pointer" data-d="'+d.data_entrada+'" onclick="estDistAbrirData(this.dataset.d)">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+brD(d.data_entrada)+'</b>'
-      +'<span class="bx '+(completo?'ok':'wn')+'">'+(d.data_entrada>estHojeISO()?'Prevista · ':'')+d.conferidos+'/'+d.itens+' conferidos</span></div>'
-      +'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças'
-      +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div></div>';
+    var quando=new Date(d.enviado_em);
+    h+='<div class="card" style="padding:12px;cursor:pointer'+(tudoCanc?';opacity:.65':'')+'" data-d="'+estEsc(d.enviado_em)+'" onclick="estDistAbrirData(this.dataset.d)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">'+(tudoCanc?'<s>':'')+'Entrada '+brD(d.data_entrada)+(tudoCanc?'</s>':'')+'</b>'
+      +(tudoCanc?'<span class="bx al">Cancelado</span>':'<span class="bx '+(completo?'ok':'wn')+'">'+(d.data_entrada>estHojeISO()?'Prevista · ':'')+d.conferidos+'/'+d.itens+' conferidos</span>')+'</div>'
+      +'<div style="font-size:12px;color:var(--t2);margin-top:4px">Enviado por '+estEsc(d.enviado_por||'—')+' em '+brD(isoD(quando)).slice(0,5)+' às '+estHora(quando)+'</div>'
+      +(tudoCanc?'':'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+d.modelos+(d.modelos===1?' modelo · ':' modelos · ')+estNum(d.pecas)+' peças'
+      +(d.cancelados?' · '+d.cancelados+(d.cancelados===1?' linha cancelada':' linhas canceladas'):'')
+      +(d.divergencias?' · <span style="color:var(--rd);font-weight:700">'+d.divergencias+(d.divergencias===1?' divergência':' divergências')+'</span>':'')+'</div>')+'</div>';
   });
   document.getElementById('ct').innerHTML=h;
 }
 
+// Cancela linhas já enviadas (somem do estoque e da conferência das lojas; ficam no histórico)
+async function estDistCancelar(idsCsv,rotulo){
+  if(!EST.pode||!idsCsv)return;
+  if(!confirm('Cancelar '+rotulo+'?\n\nAs peças saem do estoque das lojas e a conferência deixa de aparecer para elas. O registro continua no histórico como cancelado.'))return;
+  var motivo=prompt('Motivo do cancelamento (opcional):','');
+  if(motivo===null)return;
+  var ids=String(idsCsv).split(',').filter(function(x){return /^[0-9a-f-]{36}$/i.test(x);});
+  if(!ids.length)return;
+  try{
+    var r=await pk('distribuicao','?enviado=eq.true&cancelado=eq.false&id=in.('+ids.join(',')+')',{cancelado:true,cancelado_em:new Date().toISOString(),cancelado_por:S.funcId,cancelado_por_nome:estQuem(),cancelado_motivo:motivo.trim()||null});
+    if(!Array.isArray(r))throw new Error((r&&r.message)||'Falha ao cancelar.');
+    EST.msg='Cancelado: '+rotulo+'.';EST.msgErro=false;
+  }catch(e){EST.msg='Não foi possível cancelar: '+e.message;EST.msgErro=true;}
+  await eEstoque();
+}
 async function estDistAbrirData(d){EST.dist.tela='data';EST.dist.data=d;await eEstoque();}
 async function estDistAbrirRascunho(){EST.dist.tela='rascunho';await eEstoque();}
 
@@ -2378,8 +2397,8 @@ async function estDistConcluir(){
 }
 
 // ── GESTOR: DETALHE DE UMA DATA ──
-async function estDistDataGestor(data){
-  var ms=await gt('distribuicao','?select=*&enviado=eq.true&data_entrada=eq.'+data+'&order=ordem'+eid());
+async function estDistDataGestor(env){
+  var ms=await gt('distribuicao','?select=*&enviado=eq.true&enviado_em=eq.'+encodeURIComponent(env)+'&order=ordem'+eid());
   ms=Array.isArray(ms)?ms:[];
   var its=ms.length?await gt('distribuicao_itens','?select=*&distribuicao_id=in.('+ms.map(function(m){return m.id;}).join(',')+')&limit=1000'):[];
   var custos=await estCarregarCustos(ms.map(function(m){return m.id;}));
@@ -2392,9 +2411,16 @@ async function estDistDataGestor(data){
   EST.fils.forEach(function(f){t+='<th style="'+th+'">'+estEsc(f.nome)+'</th>';});
   t+='<th style="'+th+'">Total</th><th style="'+th+';border-radius:0 14px 0 0">Custo unitário (R$)</th></tr></thead><tbody>';
   var totLoja={},geral=0,conf=0,itensTot=0,div=0,qtdModelo={};
+  var ativos=ms.filter(function(m){return !m.cancelado;});
   ms.forEach(function(m){
     var tot=0;
-    var tr='<tr><td style="padding:9px 6px 9px 10px;border-bottom:1px solid var(--bd);font-weight:600">'+estEsc(m.descricao)+'</td>'
+    if(m.cancelado){
+      t+='<tr style="opacity:.6"><td style="padding:9px 6px 9px 10px;border-bottom:1px solid var(--bd)"><s>'+estEsc(m.descricao)+'</s><div style="font-size:11px;color:var(--rd);font-weight:600">Cancelado por '+estEsc(m.cancelado_por_nome||'—')+(m.cancelado_em?' em '+brD(isoD(new Date(m.cancelado_em))):'')+(m.cancelado_motivo?': '+estEsc(m.cancelado_motivo):'')+'</div></td>'
+        +'<td colspan="'+(EST.fils.length+3)+'" style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center;color:var(--t2)">Não conta no estoque</td></tr>';
+      return;
+    }
+    var tr='<tr><td style="padding:9px 6px 9px 10px;border-bottom:1px solid var(--bd);font-weight:600">'+estEsc(m.descricao)
+      +'<div><button class="btn bsm" style="margin-top:4px;font-size:11px;padding:3px 8px" data-i="'+m.id+'" data-r="'+estEsc('a linha "'+m.descricao.trim()+'"')+'" onclick="estDistCancelar(this.dataset.i,this.dataset.r)"><i class="ti ti-ban"></i> Cancelar linha</button></div></td>'
       +'<td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:center;white-space:nowrap">'+estEsc(EST.prodNome[m.produto_codigo]||('Produto '+m.produto_codigo))+'</td>';
     EST.fils.forEach(function(f){
       var it=(porModelo[m.id]||{})[f.id];var q=it?Number(it.quantidade)||0:0;
@@ -2417,12 +2443,16 @@ async function estDistDataGestor(data){
   t+='<tr style="background:var(--bg)"><td colspan="2" style="padding:9px 10px;font-weight:700;text-align:right">Total enviado</td>';
   EST.fils.forEach(function(f){t+='<td style="padding:9px 6px;text-align:center;font-weight:700">'+estNum(totLoja[f.id]||0)+'</td>';});
   t+='<td style="padding:9px 6px;text-align:center;font-weight:800">'+estNum(geral)+'</td><td id="est-tot-custo" style="padding:9px 8px;text-align:right;font-weight:800">R$ 0,00</td></tr></tbody></table></div>';
-  var h=estCab('Entrada de '+brD(data),true)
-    +'<div class="card" style="padding:12px;font-size:13px"><b>'+ms.length+(ms.length===1?' modelo':' modelos')+'</b> · '+estNum(geral)+' peças · '
+  var dEnt=ms.length?String(ms[0].data_entrada).slice(0,10):null;
+  var h=estCab('Entrada '+(dEnt?brD(dEnt):''),true)
+    +'<div class="card" style="padding:12px;font-size:13px"><div style="font-size:12px;color:var(--t2);margin-bottom:6px">Enviado por '+estEsc(ms.length?ms[0].criado_por_nome:'—')+' em '+brD(isoD(new Date(env)))+' às '+estHora(new Date(env))+'</div>'
+    +'<b>'+ativos.length+(ativos.length===1?' modelo':' modelos')+'</b> · '+estNum(geral)+' peças · '
     +'<span class="bx '+(itensTot&&conf>=itensTot?'ok':'wn')+'">'+conf+'/'+itensTot+' conferidos</span>'
     +(div?' <span style="color:var(--rd);font-weight:700">'+div+(div===1?' divergência':' divergências')+'</span>':'')
     +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Enviado → conferido pela loja. Em vermelho: a loja recebeu quantidade diferente.</div>'
-    +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-top:6px"><i class="ti ti-circle-check"></i> O custo é salvo automaticamente e só você enxerga.</div></div>'
+    +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-top:6px"><i class="ti ti-circle-check"></i> O custo é salvo automaticamente e só você enxerga.</div>'
+    +(ativos.length?'<button class="btn bsm" style="margin-top:10px" data-i="'+ativos.map(function(m){return m.id;}).join(',')+'" data-r="'+estEsc('este envio inteiro ('+ativos.length+(ativos.length===1?' linha':' linhas')+')')+'" onclick="estDistCancelar(this.dataset.i,this.dataset.r)"><i class="ti ti-ban"></i> Cancelar envio inteiro</button>':'')
+    +'</div>'
     +t;
   document.getElementById('ct').innerHTML=h;
   EST.dist.qtd=qtdModelo;
@@ -2456,7 +2486,7 @@ async function estDistListaLoja(){
 
 async function estDistDataLoja(data){
   var fid=EST.fils[0].id;
-  var ms=await gt('distribuicao','?select=*&enviado=eq.true&data_entrada=eq.'+data+'&order=ordem'+eid());
+  var ms=await gt('distribuicao','?select=*&enviado=eq.true&cancelado=eq.false&data_entrada=eq.'+data+'&order=ordem'+eid());
   ms=Array.isArray(ms)?ms:[];
   var its=ms.length?await gt('distribuicao_itens','?select=*&filial_id=eq.'+fid+'&distribuicao_id=in.('+ms.map(function(m){return m.id;}).join(',')+')&limit=1000'):[];
   var porModelo={};(Array.isArray(its)?its:[]).forEach(function(i){porModelo[i.distribuicao_id]=i;});
