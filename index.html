@@ -2330,6 +2330,32 @@ async function estDistCancelar(idsCsv,rotulo){
   }catch(e){EST.msg='Não foi possível cancelar: '+e.message;EST.msgErro=true;}
   await eEstoque();
 }
+// Volta um envio ainda sem conferência para rascunho (edita, exclui/adiciona linhas e envia de novo)
+async function estDistReabrir(env){
+  if(!EST.pode||!env)return;
+  if(!confirm('Editar este envio?\n\nEle volta para rascunho e SAI das lojas e do estoque até você enviar de novo. As lojas só veem de novo quando você concluir.'))return;
+  try{
+    var r=await pt('rpc/distribuicao_reabrir_envio',{p_empresa:estEmpId(),p_enviado_em:env});
+    if(typeof r!=='number')throw new Error((r&&r.message)||'Não foi possível reabrir o envio.');
+    EST.msg='Envio reaberto como rascunho ('+r+(r===1?' linha':' linhas')+'). Edite e clique em "Concluir, enviar para lojas".';EST.msgErro=false;
+    EST.dist.tela='rascunho';EST.dist.data=null;
+  }catch(e){EST.msg='Não foi possível editar o envio: '+e.message;EST.msgErro=true;}
+  await eEstoque();
+}
+async function estDistExcluirLinha(id){
+  if(!/^[0-9a-f-]{36}$/i.test(String(id||'')))return;
+  if(!confirm('Excluir esta linha do rascunho?'))return;
+  await estDistFlush();
+  try{
+    await dl('distribuicao_custos','?distribuicao_id=eq.'+id);
+    await dl('distribuicao_itens','?distribuicao_id=eq.'+id);
+    await dl('distribuicao','?enviado=eq.false&id=eq.'+id);
+    var ex=await gt('distribuicao','?select=id&id=eq.'+id);
+    if(Array.isArray(ex)&&ex.length)throw new Error('a linha não pôde ser apagada.');
+    EST.msg='Linha excluída.';EST.msgErro=false;
+  }catch(e){EST.msg='Não foi possível excluir: '+e.message;EST.msgErro=true;}
+  await eEstoque();
+}
 async function estDistAbrirData(d){EST.dist.tela='data';EST.dist.data=d;await eEstoque();}
 async function estDistAbrirRascunho(){EST.dist.tela='rascunho';await eEstoque();}
 
@@ -2373,7 +2399,7 @@ async function estDistRascunho(){
   ms.forEach(function(m){
     var tot=0;
     var opt='<option value="">Escolha</option>'+EST.prods.map(function(p){return '<option value="'+p.codigo+'"'+(m.produto_codigo===p.codigo?' selected':'')+'>'+estEsc(p.descricao)+'</option>';}).join('');
-    var tr='<tr><td style="padding:6px;text-align:center;font-size:12px;color:var(--t2);border-bottom:1px solid var(--bd)">'+m.ordem+'</td>'
+    var tr='<tr><td style="padding:6px;text-align:center;font-size:12px;color:var(--t2);border-bottom:1px solid var(--bd)">'+m.ordem+'<div><button class="btn bsm" title="Excluir linha" style="margin-top:2px;padding:2px 6px" data-id="'+m.id+'" onclick="estDistExcluirLinha(this.dataset.id)"><i class="ti ti-trash"></i></button></div></td>'
       +'<td style="padding:6px;border-bottom:1px solid var(--bd)"><input type="text" value="'+estEsc(m.descricao)+'" placeholder="Ex.: Vestido Floral" data-k="d" data-id="'+m.id+'" oninput="estDistCampo(this)" style="'+inp+';width:100%;min-width:150px;font-weight:600"></td>'
       +'<td style="padding:6px;border-bottom:1px solid var(--bd)"><select data-k="p" data-id="'+m.id+'" onchange="estDistCampo(this)" style="'+inp+';min-width:120px">'+opt+'</select></td>';
     EST.fils.forEach(function(f){
@@ -2609,6 +2635,8 @@ async function estDistDataGestor(env){
     +(div?' <span style="color:var(--rd);font-weight:700">'+div+(div===1?' divergência':' divergências')+'</span>':'')
     +'<div style="font-size:11px;color:var(--t2);margin-top:6px">Enviado → conferido pela loja. Em vermelho: a loja recebeu quantidade diferente.</div>'
     +'<div id="est-status" style="font-size:12px;color:var(--t2);margin-top:6px"><i class="ti ti-circle-check"></i> O custo é salvo automaticamente e só você enxerga.</div>'
+    +(ativos.length&&conf===0?'<button class="btn bsm bp" style="margin-top:10px;margin-right:6px" data-e="'+estEsc(env)+'" onclick="estDistReabrir(this.dataset.e)"><i class="ti ti-edit"></i> Editar e reenviar</button>':'')
+    +(ativos.length&&conf>0?'<div style="font-size:12px;color:var(--t2);margin-top:8px">Já há itens conferidos pelas lojas: este envio não pode mais ser editado. Use "Cancelar linha" e crie um novo envio.</div>':'')
     +(ativos.length?'<button class="btn bsm" style="margin-top:10px" data-i="'+ativos.map(function(m){return m.id;}).join(',')+'" data-r="'+estEsc('este envio inteiro ('+ativos.length+(ativos.length===1?' linha':' linhas')+')')+'" onclick="estDistCancelar(this.dataset.i,this.dataset.r)"><i class="ti ti-ban"></i> Cancelar envio inteiro</button>':'')
     +'</div>'
     +t;
