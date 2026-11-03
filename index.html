@@ -1521,6 +1521,100 @@ async function vendasMisturadas(antigas,mes,ano){
   }
 }
 
+// ── META POR SEMANA (baseada nos 3 meses anteriores da Azul) ──
+var PESOS_PADRAO={1:0.30,2:0.25,3:0.25,4:0.20};
+function semBloco(dia){return dia<=7?1:dia<=14?2:dia<=21?3:4;}
+// Participação de cada bloco (dias 1-7, 8-14, 15-21, 22-fim) no total de cada mês anterior, tirando a média
+async function azulPesosSemanais(mes,ano){
+  var chave=(S&&S.func?S.func.id:0)+'|'+mes+'|'+ano;
+  AZUL.pesos=AZUL.pesos||{};
+  if(AZUL.pesos[chave])return AZUL.pesos[chave];
+  var res={pesos:PESOS_PADRAO,meses:0,padrao:true};
+  try{
+    var ini=new Date(ano,mes-4,1),fim=new Date(ano,mes-1,0);
+    var vendas=await azulVendasPeriodo(null,isoD(ini),isoD(fim));
+    var porMes={};
+    vendas.forEach(function(v){
+      if(v.situacao_codigo!==1)return;
+      var d=String(v.data).slice(0,10).split('-');
+      var k=d[0]+'-'+d[1];
+      if(!porMes[k])porMes[k]={1:0,2:0,3:0,4:0,t:0};
+      var val=Number(v.total_real_venda)||0;
+      porMes[k][semBloco(+d[2])]+=val;porMes[k].t+=val;
+    });
+    var acc={1:0,2:0,3:0,4:0},n=0;
+    Object.keys(porMes).forEach(function(k){
+      var m=porMes[k];
+      if(m.t<=0)return;
+      for(var i=1;i<=4;i++)acc[i]+=m[i]/m.t;
+      n++;
+    });
+    if(n>0){
+      var pes={};for(var j=1;j<=4;j++)pes[j]=acc[j]/n;
+      res={pesos:pes,meses:n,padrao:false};
+    }
+  }catch(e){console.error('Pesos semanais:',e);}
+  AZUL.pesos[chave]=res;
+  return res;
+}
+function metaSemanas(meta,pesos){
+  var out={},soma=0,i;
+  for(i=1;i<=3;i++){out[i]=Math.round(meta*pesos[i]);soma+=out[i];}
+  out[4]=Math.max(Math.round(meta)-soma,0);
+  return out;
+}
+function limitesSemana(mes,ano){
+  var ult=new Date(ano,mes,0).getDate();
+  return {1:[1,7],2:[8,14],3:[15,21],4:[22,ult]};
+}
+// rows: vendas do mês (data_venda dd/mm/aaaa, valor). Devolve o card HTML.
+function htmlMetaSemanal(titulo,meta,rows,pw,mes,ano){
+  if(!(meta>0))return '';
+  var ms=metaSemanas(meta,pw.pesos),lim=limitesSemana(mes,ano),hoje=new Date();
+  var vend={1:0,2:0,3:0,4:0};
+  rows.forEach(function(v){
+    var p=String(v.data_venda||'').split('/');
+    if(+p[1]!==mes||+p[2]!==ano)return;
+    vend[semBloco(+p[0])]+=parseFloat(v.valor)||0;
+  });
+  var hojeDia=(hoje.getFullYear()===ano&&hoje.getMonth()+1===mes)?hoje.getDate():((ano*12+mes)<(hoje.getFullYear()*12+hoje.getMonth()+1)?99:0);
+  var h='<div class="card" style="border-top:3px solid #00897B">'
+    +'<div class="ct2"><i class="ti ti-calendar-week"></i>'+titulo+'</div>'
+    +'<div style="font-size:11px;color:var(--t2);margin-bottom:8px">'
+    +(pw.padrao?'Sem histórico ainda: usando a divisão padrão (30% / 25% / 25% / 20%).':'Baseado nas vendas dos últimos '+pw.meses+(pw.meses===1?' mês':' meses')+'.')
+    +'</div>';
+  var acM=0,acV=0;
+  for(var i=1;i<=4;i++){
+    var l=lim[i],pct=Math.round(pw.pesos[i]*100);
+    var passou=hojeDia>l[1],atual=hojeDia>=l[0]&&hojeDia<=l[1];
+    var perc=ms[i]>0?vend[i]/ms[i]*100:0;
+    var cor=passou?(perc>=100?'#00695C':'#E24B4A'):atual?'#BA7517':'var(--t2)';
+    var st=passou?(perc>=100?'✅ ':'')+Math.round(perc)+'%':atual?'em andamento':'—';
+    if(!(hojeDia>=l[0]))st='—';
+    if(l[0]<=hojeDia){acM+=ms[i];acV+=vend[i];}
+    h+='<div style="padding:8px 0;border-top:1px solid var(--bd)'+(atual?';background:#FFF8E1;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:8px':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">'
+      +'<div style="font-size:13px;font-weight:700">Semana '+i+' <span style="font-weight:400;font-size:11px;color:var(--t2)">(dias '+l[0]+' a '+l[1]+' · '+pct+'% do mês)</span></div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+cor+'">'+st+'</div></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:3px">'
+      +'<span>Meta: <strong>'+fi(ms[i])+'</strong></span>'
+      +'<span style="color:var(--t2)">Vendido: '+fi(vend[i])+'</span></div>'
+      +'<div class="pb" style="height:5px;margin-top:5px"><div class="pf" style="width:'+Math.min(perc,100)+'%;background:'+(perc>=100?'#00897B':atual?'#BA7517':'#E24B4A')+'"></div></div>'
+      +'</div>';
+  }
+  if(acM>0){
+    var d=acV-acM;
+    h+='<div style="margin-top:8px;font-size:12px;font-weight:600;color:'+(d>=0?'#00695C':'#E24B4A')+'">'
+      +(d>=0?'Você está '+fi(d)+' à frente do ritmo até hoje.':'Faltam '+fi(-d)+' para alcançar o ritmo até hoje.')+'</div>';
+  }
+  return h+'</div>';
+}
+function linhaSemanas(meta,pw){
+  if(!(meta>0))return '';
+  var ms=metaSemanas(meta,pw.pesos);
+  return '<div style="font-size:11px;color:var(--t2);margin-top:5px">Por semana: S1 '+fi(ms[1])+' · S2 '+fi(ms[2])+' · S3 '+fi(ms[3])+' · S4 '+fi(ms[4])+'</div>';
+}
+
 function azulRetentar(){
   AZUL.pausado=false;AZUL.cache={};
   navTo(window.NAV_ATUAL||'g-metas');
@@ -4191,6 +4285,7 @@ async function gGerente(){
     Promise.resolve([])
   ]);
 
+  const pwG=await azulPesosSemanais(mS,aS);
   vendasEmp=vendas;
   const nomeFil=filRaw.length?filRaw[0].nome:'Filial';
   const vendasMes=vendas.filter(v=>{const p=v.data_venda.split('/');return+p[1]===mS&&+p[2]===aS});
@@ -4292,6 +4387,9 @@ async function gGerente(){
     +'<div class="mx"><label>Comissão est.</label><div class="v" style="color:var(--td)">'+fm(funcs.reduce((s,f)=>s+cC(mm[f.id]||0,tot[f.id]||0),0))+'</div></div>'
     +'</div></div>';
 
+  // ── META POR SEMANA (loja) ──
+  h+=htmlMetaSemanal('Meta por semana — loja',tM,vendasMes.filter(function(v){return funcs.find(function(x){return x.id===v.func_id;});}),pwG,mS,aS);
+
   // ── RANKING INDIVIDUAL ──
   h+='<div class="h1" style="margin-top:4px">Equipe</div>';
   [...funcs].sort((a,b)=>{
@@ -4315,6 +4413,7 @@ async function gGerente(){
       +'</div>'
       +'<div class="pb"><div class="pf" style="width:'+Math.min(p2,100)+'%;background:'+pC(p2)+'"></div></div>'
       +(falta2>0&&dr>0?'<div style="font-size:11px;color:var(--td);margin-top:5px">Falta '+fi(falta2)+' · '+fi(nd)+'/dia útil</div>':'')
+      +linhaSemanas(meta,pwG)
       +'</div>';
   });
 
@@ -4377,6 +4476,7 @@ async function fMetas(){
 
   // Distribuição da meta por semana do mês
   const metaPorSemana=distribuirMetaPorSemana(meta,mS,aS,pesosSemanais);
+  const pwV=await azulPesosSemanais(mS,aS);
 
   // Alertas de datas especiais próximas
   const alertasDatas=datasEspeciaisProximas(mS,aS)
@@ -4546,6 +4646,9 @@ async function fMetas(){
     +'<div class="mx"><label>Meta</label><div class="v" style="font-size:14px">'+(meta>0?fi(meta):'—')+'</div></div>'
     +'<div class="mx"><label>Comissão est.</label><div class="v" style="font-size:14px;color:var(--td)">'+fm(cC(meta,v))+'</div><div class="s">faixa '+faixa.pct+'%</div></div>'
     +'</div></div>';
+
+  // ── META POR SEMANA ──
+  h+=htmlMetaSemanal('Sua meta por semana',meta,vendasMes,pwV,mS,aS);
 
   // ── CARD ESTÍMULO COMISSÃO (todas as faixas) ──
   if(meta>0){
