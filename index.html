@@ -4795,7 +4795,7 @@ async function gMetaMes(){
     temAlguem=true;
     let totalLoja=0;fs.forEach(function(f){totalLoja+=Number(mm[f.id]||0);});
     h+='<div class="card"><div class="ct2"><i class="ti ti-building-store"></i>'+fl.nome
-      +' <span style="margin-left:auto;font-weight:600;font-size:11px;text-transform:none">Soma: '+(totalLoja?fmtMeta(totalLoja):'—')+'</span></div>';
+      +' <span class="mm-soma" data-fil="'+fl.id+'" style="margin-left:auto;font-weight:600;font-size:11px;text-transform:none">Soma: '+(totalLoja?fmtMeta(totalLoja):'—')+'</span></div>';
     fs.forEach(function(f,i){
       const val=mm[f.id]?fmtMeta(mm[f.id]):'';
       h+='<div class="ri">'
@@ -4803,7 +4803,7 @@ async function gMetaMes(){
         +'<div style="flex:1;min-width:0"><div class="rn">'+f.nome+'</div><div class="rs">'+f.perfil+'</div>'
         +'<div id="mm-ok-'+f.id+'" style="font-size:11px;color:#00695C;font-weight:600;min-height:14px"></div></div>'
         +'<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">'
-        +'<input type="text" inputmode="numeric" id="mm-'+f.id+'" value="'+val+'" placeholder="R$ 0,00" onkeydown="return metaKey(event)" oninput="maskMeta(this)" '
+        +'<input type="text" inputmode="numeric" id="mm-'+f.id+'" data-fil="'+fl.id+'" value="'+val+'" placeholder="R$ 0,00" onkeydown="return metaKey(event)" oninput="maskMeta(this);somaMetaLoja('+fl.id+')" '
         +'style="width:112px;padding:7px 8px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;color:var(--tx);outline:none;text-align:right">'
         +'<button class="btn bp" style="padding:7px 10px;font-size:12px" onclick="svMetaMes('+f.id+')">✓</button>'
         +'</div></div>';
@@ -4816,6 +4816,12 @@ async function gMetaMes(){
   document.getElementById('ct').innerHTML=h;
 }
 
+function somaMetaLoja(filId){
+  var t=0;
+  document.querySelectorAll('input[data-fil="'+filId+'"]').forEach(function(i){t+=parseMeta(i.value);});
+  var sp=document.querySelector('.mm-soma[data-fil="'+filId+'"]');
+  if(sp)sp.textContent='Soma: '+(t?fmtMeta(t):'—');
+}
 async function svMetaMes(funcId){
   const el=document.getElementById('mm-'+funcId);
   const okEl=document.getElementById('mm-ok-'+funcId);
@@ -4834,6 +4840,7 @@ async function svMetaMes(funcId){
   }
   el.style.borderColor='#00897B';
   el.value=fmtMeta(val);
+  somaMetaLoja(el.getAttribute('data-fil'));
   if(okEl){okEl.textContent='✅ Salvo!';okEl.style.color='#00695C';}
   setTimeout(function(){el.style.borderColor='';if(okEl)okEl.textContent='';},2200);
 }
