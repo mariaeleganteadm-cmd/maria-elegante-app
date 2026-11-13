@@ -1344,6 +1344,7 @@ function buildNav(tipo,modulo){
 
 async function navTo(id){
   window.NAV_ATUAL=id;
+  AZUL.cache={};AZUL.pesos={}; // ao abrir uma aba, sempre busca as vendas de novo na Azul
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   const b=document.getElementById('n-'+id);if(b)b.classList.add('active');
   document.getElementById('ct').classList.remove('ct-est');
@@ -1534,7 +1535,8 @@ function avisoAzulHtml(){
   } else if(AZUL.atualizado){
     var hh=AZUL.atualizado;
     h+='<div style="font-size:11px;color:var(--t2);margin-bottom:6px"><i class="ti ti-plug-connected"></i> Vendas da Azul · atualizado às '
-      +String(hh.getHours()).padStart(2,'0')+':'+String(hh.getMinutes()).padStart(2,'0')+'</div>';
+      +String(hh.getHours()).padStart(2,'0')+':'+String(hh.getMinutes()).padStart(2,'0')
+      +' · <a href="#" onclick="azulRetentar();return false" style="color:#00695C;font-weight:600">Atualizar</a></div>';
   }
   var nm=AZUL.naoMapeado;
   if(!AZUL.aviso&&S&&S.tipo==='gestor'&&nm&&nm.qtd>0){
